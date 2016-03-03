@@ -1,0 +1,12 @@
+{
+    "name": "binartajs",
+    "main": "./src/binarta.js",
+    "dependencies": {},
+    "devDependencies": {},
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "test"
+    ]
+}
