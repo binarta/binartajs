@@ -22,6 +22,7 @@ function BinartaCheckpointjs() {
             };
 
             this.initiate = function (id) {
+                sessionStorage.billingAgreementProvider = id;
                 checkpoint.gateway.initiateBillingAgreement(id, checkpoint.ui);
             };
 
@@ -30,9 +31,15 @@ function BinartaCheckpointjs() {
             };
 
             this.confirm = function (ctx) {
-                checkpoint.gateway.confirmBillingAgreement(ctx, new BinartaMergingUI(
-                    checkpoint.ui,
-                    {confirmedBillingAgreement: confirmed})
+                checkpoint.gateway.confirmBillingAgreement(
+                    {
+                        paymentProvider: sessionStorage.billingAgreementProvider,
+                        confirmationToken: ctx.confirmationToken
+                    },
+                    new BinartaMergingUI(
+                        checkpoint.ui,
+                        {confirmedBillingAgreement: confirmed}
+                    )
                 );
             };
 
