@@ -11,6 +11,10 @@ function BinartaInMemoryGatewaysjs() {
                 paymentProvider: id,
                 url: 'http://' + id + '/billing/agreement?token=t'
             });
+        };
+
+        this.confirmBillingAgreement = function(ctx, ui) {
+            ui.confirmedBillingAgreement();
         }
     }
 }

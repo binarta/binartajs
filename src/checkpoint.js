@@ -27,6 +27,10 @@ function BinartaCheckpointjs() {
 
             this.cancel = function() {
                 checkpoint.ui.canceledBillingAgreement();
+            };
+
+            this.confirm = function(ctx) {
+                checkpoint.gateway.confirmBillingAgreement(ctx, checkpoint.ui);
             }
         }
     }

@@ -37,12 +37,24 @@
                 it('initiate billing agreement passes ui to gateway', function() {
                     binarta.checkpoint.gateway = new InterfacesWithUIGateway();
                     binarta.checkpoint.profile.billing.initiate('irrelevant');
-                    expect(ui.wiredToGateway).toBeTruthy();
+                    expect(ui.isWiredToGateway).toBeTruthy();
                 });
 
                 it('cancel billing agreement delegates to ui', function() {
                     binarta.checkpoint.profile.billing.cancel();
                     expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
+                });
+
+                it('confirm billing agreement delegates to gateway', function() {
+                    binarta.checkpoint.gateway = new GatewaySpy();
+                    binarta.checkpoint.profile.billing.confirm('tokens');
+                    expect(binarta.checkpoint.gateway.confirmBillingAgreementRequest).toEqual('tokens');
+                });
+
+                it('confirm billing agreement delegates passes ui to gateway', function() {
+                    binarta.checkpoint.gateway = new InterfacesWithUIGateway();
+                    binarta.checkpoint.profile.billing.confirm('irrelevant');
+                    expect(ui.isWiredToGateway).toBeTruthy();
                 });
             });
         });
@@ -50,7 +62,7 @@
 
     function UI() {
         this.wiredToGateway = function() {
-            this.wiredToGateway = true;
+            this.isWiredToGateway = true;
         };
 
         this.canceledBillingAgreement = function() {
@@ -59,14 +71,22 @@
     }
 
     function GatewaySpy() {
-        this.initiateBillingAgreement = function(id, response) {
-            this.initiateBillingAgreementRequest = id;
+        this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
+        this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
+
+        function spy(requestAttribute) {
+            return function(ctx) {
+                this[requestAttribute] = ctx;
+            }
         }
     }
 
     function InterfacesWithUIGateway() {
-        this.initiateBillingAgreement = function(id, response) {
-            response.wiredToGateway();
+        this.initiateBillingAgreement = wire;
+        this.confirmBillingAgreement = wire;
+
+        function wire(ignored, ui) {
+            ui.wiredToGateway();
         }
     }
 
