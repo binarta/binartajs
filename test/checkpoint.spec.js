@@ -40,10 +40,9 @@
                     expect(ui.wiredToGateway).toBeTruthy();
                 });
 
-                it('cancel billing agreement delegates to local ui', function() {
-                    var localUi = jasmine.createSpyObj('ui', ['canceledBillingAgreement']);
-                    binarta.checkpoint.profile.billing.cancel('token', localUi);
-                    expect(localUi.canceledBillingAgreement).toHaveBeenCalled();
+                it('cancel billing agreement delegates to ui', function() {
+                    binarta.checkpoint.profile.billing.cancel();
+                    expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
                 });
             });
         });
@@ -52,6 +51,10 @@
     function UI() {
         this.wiredToGateway = function() {
             this.wiredToGateway = true;
+        };
+
+        this.canceledBillingAgreement = function() {
+            this.receivedCanceledBillingAgreementRequest = true;
         }
     }
 
