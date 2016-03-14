@@ -25,12 +25,25 @@ function BinartaCheckpointjs() {
                 checkpoint.gateway.initiateBillingAgreement(id, checkpoint.ui);
             };
 
-            this.cancel = function() {
+            this.cancel = function () {
                 checkpoint.ui.canceledBillingAgreement();
             };
 
-            this.confirm = function(ctx) {
-                checkpoint.gateway.confirmBillingAgreement(ctx, checkpoint.ui);
+            this.confirm = function (ctx) {
+                checkpoint.gateway.confirmBillingAgreement(ctx, new BinartaMergingUI(
+                    checkpoint.ui,
+                    {confirmedBillingAgreement: confirmed})
+                );
+            };
+
+            function confirmed() {
+                if (metadata) {
+                    if (metadata.billing)
+                        metadata.billing.complete = true;
+                    else
+                        metadata.billing = {complete: true}
+                } else
+                    metadata = {billing: {complete: true}}
             }
         }
     }

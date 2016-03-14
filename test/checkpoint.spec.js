@@ -56,17 +56,35 @@
                     binarta.checkpoint.profile.billing.confirm('irrelevant');
                     expect(ui.isWiredToGateway).toBeTruthy();
                 });
+
+                it('confirm billing agreement delegates to ui', function() {
+                    binarta.checkpoint.gateway = new CompleteBillingDetailsGateway();
+                    binarta.checkpoint.profile.billing.confirm('irrelevant');
+                    expect(ui.confirmedBillingAgreementRequest).toBeTruthy();
+                });
+
+                it('when confirm billing agreement completes then billing details report as completed', function() {
+                    binarta.checkpoint.gateway = new CompleteBillingDetailsGateway();
+                    binarta.checkpoint.profile.billing.confirm('irrelevant');
+                    expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
+                });
             });
         });
     });
 
     function UI() {
+        var self = this;
+
         this.wiredToGateway = function() {
-            this.isWiredToGateway = true;
+            self.isWiredToGateway = true;
         };
 
         this.canceledBillingAgreement = function() {
-            this.receivedCanceledBillingAgreementRequest = true;
+            self.receivedCanceledBillingAgreementRequest = true;
+        };
+
+        this.confirmedBillingAgreement = function() {
+            self.confirmedBillingAgreementRequest = true;
         }
     }
 
@@ -99,6 +117,10 @@
     function CompleteBillingDetailsGateway() {
         this.fetchAccountMetadata = function(response) {
             response.activeAccountMetadata({billing:{complete:true}});
+        };
+
+        this.confirmBillingAgreement = function(request, response) {
+            response.confirmedBillingAgreement();
         }
     }
 })();

@@ -23,3 +23,30 @@ function BinartajsFactory() {
         });
     }
 }
+
+function BinartaMergingUI() {
+    var self = this;
+    var uis = [];
+
+    this.add = function (ui) {
+        uis.push(ui);
+        Object.keys(ui).filter(isExposed).forEach(expose);
+    };
+
+    function isExposed(it) {
+        return self[it] == undefined
+    }
+
+    function expose(it) {
+        self[it] = function () {
+            var args = arguments;
+            uis.forEach(function (ui) {
+                if (ui[it] != undefined)
+                    ui[it](args);
+            })
+        }
+    }
+
+    Array.prototype.slice.call(arguments).forEach(this.add);
+}
+
