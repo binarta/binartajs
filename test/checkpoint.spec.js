@@ -39,6 +39,12 @@
                     binarta.checkpoint.profile.billing.initiate('irrelevant');
                     expect(ui.wiredToGateway).toBeTruthy();
                 });
+
+                it('cancel billing agreement delegates to local ui', function() {
+                    var localUi = jasmine.createSpyObj('ui', ['canceledBillingAgreement']);
+                    binarta.checkpoint.profile.billing.cancel('token', localUi);
+                    expect(localUi.canceledBillingAgreement).toHaveBeenCalled();
+                });
             });
         });
     });
