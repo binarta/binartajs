@@ -46,6 +46,12 @@
                     expect(ui.isWiredToGateway).toBeTruthy();
                 });
 
+                it('initiate billing agreement reports start of work to ui', function() {
+                    binarta.checkpoint.gateway = new GatewaySpy();
+                    binarta.checkpoint.profile.billing.initiate('irrelevant');
+                    expect(ui.isInitiatingBillingAgreement).toBeTruthy();
+                });
+
                 it('cancel billing agreement delegates to ui', function () {
                     binarta.checkpoint.profile.billing.cancel();
                     expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
@@ -87,6 +93,10 @@
 
         this.wiredToGateway = function () {
             self.isWiredToGateway = true;
+        };
+
+        this.initiatingBillingAgreement = function() {
+            this.isInitiatingBillingAgreement = true;
         };
 
         this.canceledBillingAgreement = function () {

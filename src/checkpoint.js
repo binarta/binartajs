@@ -22,6 +22,7 @@ function BinartaCheckpointjs() {
             };
 
             this.initiate = function (id) {
+                checkpoint.ui.initiatingBillingAgreement();
                 sessionStorage.billingAgreementProvider = id;
                 checkpoint.gateway.initiateBillingAgreement(id, checkpoint.ui);
             };
