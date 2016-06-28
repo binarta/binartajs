@@ -2,6 +2,8 @@ function BinartaInMemoryGatewaysjs() {
     this.checkpoint = new CheckpointGateway();
 
     function CheckpointGateway() {
+        this.authenticated = false;
+
         this.fetchAccountMetadata = function (response) {
             response.activeAccountMetadata({billing: {complete: false}});
         };
