@@ -4,16 +4,25 @@ function BinartaCheckpointjs() {
     this.profile = new Profile();
 
     function Profile() {
+        var authenticated = false;
         var metadata;
 
         this.billing = new Billing();
 
         this.refresh = function () {
             checkpoint.gateway.fetchAccountMetadata({
+                unauthenticated: function () {
+                    authenticated = false;
+                },
                 activeAccountMetadata: function (it) {
+                    authenticated = true;
                     metadata = it;
                 }
             });
+        };
+
+        this.isAuthenticated = function () {
+            return authenticated;
         };
 
         function Billing() {

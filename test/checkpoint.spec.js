@@ -10,6 +10,32 @@
             binarta = factory.create();
         });
 
+        it('profile is unauthenticated', function() {
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
+        it('profile is unauthenticated on refresh', function() {
+            binarta.checkpoint.gateway = new UnauthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
+        it('profile is authenticated on refresh', function() {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeTruthy();
+        });
+
+        it('profile is unauthenticated on refresh when session expires', function() {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+
+            binarta.checkpoint.gateway = new UnauthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
         describe('active profile', function () {
             describe('billing details', function () {
                 it('start out incomplete', function () {
@@ -125,6 +151,18 @@
 
         function wire(ignored, ui) {
             ui.wiredToGateway();
+        }
+    }
+
+    function UnauthenticatedGateway() {
+        this.fetchAccountMetadata = function(response) {
+            response.unauthenticated();
+        }
+    }
+
+    function AuthenticatedGateway() {
+        this.fetchAccountMetadata = function(response) {
+            response.activeAccountMetadata({});
         }
     }
 
