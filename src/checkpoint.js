@@ -1,7 +1,78 @@
 function BinartaCheckpointjs() {
     var checkpoint = this;
 
+    this.signinForm = new SigninForm();
     this.profile = new Profile();
+
+    function SigninForm() {
+        var self = this;
+
+        this.reset = function() {
+            new IdleState(self);
+        };
+        this.reset();
+
+        this.status = function() {
+            return self.currentStatus.status;
+        };
+
+        this.violation = function() {
+            return self.currentStatus.violation;
+        };
+
+        this.submit = function(creds) {
+            self.currentStatus.submit(creds);
+        };
+
+        function IdleState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'idle';
+            this.violation = '';
+
+            this.submit = function(creds) {
+                new WorkingState(fsm, creds);
+            }
+        }
+
+        function WorkingState(fsm, creds) {
+            fsm.currentStatus = this;
+            this.status = 'working';
+            this.violation = '';
+
+            checkpoint.gateway.signin(creds, {
+                success:onSuccess,
+                rejected:onRejection
+            });
+
+            function onSuccess() {
+                new AuthenticatedState(fsm);
+            }
+
+            function onRejection() {
+                new RejectedState(fsm);
+            }
+        }
+
+        function RejectedState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'rejected';
+            this.violation = 'credentials.mismatch';
+
+            this.submit = function(creds) {
+                new WorkingState(fsm, creds);
+            }
+        }
+
+        function AuthenticatedState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'authenticated';
+            this.violation = '';
+
+            this.submit = function() {
+                throw new Error('already.authenticated');
+            }
+        }
+    }
 
     function Profile() {
         var authenticated = false;
@@ -13,6 +84,7 @@ function BinartaCheckpointjs() {
             checkpoint.gateway.fetchAccountMetadata({
                 unauthenticated: function () {
                     authenticated = false;
+                    checkpoint.signinForm.reset();
                 },
                 activeAccountMetadata: function (it) {
                     authenticated = true;

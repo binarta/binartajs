@@ -3,6 +3,13 @@ function BinartaInMemoryGatewaysjs() {
 
     function CheckpointGateway() {
         this.authenticated = false;
+        
+        this.signin = function(request, response) {
+            if(request.username == 'valid' && request.password == 'credentials')
+                response.success();
+            else
+                response.rejected();
+        };
 
         this.fetchAccountMetadata = function (response) {
             response.activeAccountMetadata({billing: {complete: false}});

@@ -36,6 +36,81 @@
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
         });
 
+        describe('signin form', function() {
+            it('starts out in idle state', function() {
+                expect(binarta.checkpoint.signinForm.status()).toEqual('idle');
+            });
+
+            it('initially exposes a blank violation', function() {
+                expect(binarta.checkpoint.signinForm.violation()).toEqual('');
+            });
+
+            describe('when submitting form and waiting for a response', function() {
+                beforeEach(function() {
+                    binarta.checkpoint.gateway = new GatewaySpy();
+                    binarta.checkpoint.signinForm.submit('credentials');
+                });
+                
+                it('then credentials are captured by the gateway', function() {
+                    expect(binarta.checkpoint.gateway.signinRequest).toEqual('credentials');
+                });
+
+                it('then working state is exposed', function() {
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('working');
+                });
+
+                it('then there is still a blank violation exposed', function() {
+                    expect(binarta.checkpoint.signinForm.violation()).toEqual('');
+                });
+            });
+
+            describe('when submitting form with invalid credentials', function() {
+                beforeEach(function() {
+                    binarta.checkpoint.gateway = new InvalidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-');
+                });
+
+                it('then working state is exposed', function() {
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('rejected');
+                });
+
+                it('then a violation is exposed', function() {
+                    expect(binarta.checkpoint.signinForm.violation()).toEqual('credentials.mismatch');
+                });
+
+                it('then resubmission is possible', function() {
+                    binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-');
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('authenticated');
+                });
+            });
+
+            describe('when submitting form with valid credentials', function() {
+                beforeEach(function() {
+                    binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-');
+                });
+
+                it('then authenticated state is exposed', function() {
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('authenticated');
+                });
+
+                it('then there is still a blank violation exposed', function() {
+                    expect(binarta.checkpoint.signinForm.violation()).toEqual('');
+                });
+
+                it('then resubmission is not possible', function() {
+                    expect(binarta.checkpoint.signinForm.submit).toThrowError('already.authenticated');
+                });
+
+                it('when profile refresh results in the user being unauthenticated then the form resets', function() {
+                    binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                    binarta.checkpoint.profile.refresh();
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('idle');
+                });
+            })
+        });
+
         describe('active profile', function () {
             describe('billing details', function () {
                 it('start out incomplete', function () {
@@ -135,12 +210,13 @@
     }
 
     function GatewaySpy() {
+        this.signin = spy('signinRequest');
         this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
         this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
 
         function spy(requestAttribute) {
-            return function (ctx) {
-                this[requestAttribute] = ctx;
+            return function (request, response) {
+                this[requestAttribute] = request;
             }
         }
     }
@@ -163,6 +239,18 @@
     function AuthenticatedGateway() {
         this.fetchAccountMetadata = function(response) {
             response.activeAccountMetadata({});
+        }
+    }
+
+    function InvalidCredentialsGateway() {
+        this.signin = function(request, response) {
+            response.rejected();
+        }
+    }
+
+    function ValidCredentialsGateway() {
+        this.signin = function(request, response) {
+            response.success();
         }
     }
 
