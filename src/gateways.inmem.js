@@ -2,10 +2,33 @@ function BinartaInMemoryGatewaysjs() {
     this.checkpoint = new CheckpointGateway();
 
     function CheckpointGateway() {
+        var accounts = [];
+        
         this.authenticated = false;
         
+        this.register = function(request, response) {
+            var violationReport = {};
+            
+            if(request.username == 'invalid')
+                violationReport.username = ['invalid'];
+            if(request.password == 'invalid')
+                violationReport.password = ['invalid'];
+            
+            if(Object.keys(violationReport).length == 0) {
+                accounts.push(request);
+                response.success();
+            } else
+                response.rejected(violationReport);
+        };
+        
         this.signin = function(request, response) {
-            if(request.username == 'valid' && request.password == 'credentials')
+            var credentialsFound = accounts.map(function(it) {
+                return request.username == it.username && request.password == it.password
+            }).reduce(function(p, c) {
+                return p || c;
+            }, false);
+
+            if(credentialsFound)
                 response.success();
             else
                 response.rejected();

@@ -2,26 +2,116 @@ function BinartaCheckpointjs() {
     var checkpoint = this;
 
     this.signinForm = new SigninForm();
+    this.registrationForm = new RegistrationForm();
     this.profile = new Profile();
 
-    function SigninForm() {
+    function RegistrationForm() {
         var self = this;
 
-        this.reset = function() {
+        this.reset = function () {
             new IdleState(self);
         };
         this.reset();
 
-        this.status = function() {
+        this.status = function () {
             return self.currentStatus.status;
         };
 
-        this.violation = function() {
+        this.violationReport = function () {
+            return self.currentStatus.violationReport;
+        };
+
+        this.submit = function (creds, response) {
+            self.currentStatus.submit(creds, response);
+        };
+
+        this.setAlreadyRegistered = function () {
+            new RegisteredState(self);
+        };
+
+        function IdleState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'idle';
+            this.violationReport = {};
+
+            this.submit = function (creds, response) {
+                new WorkingState(fsm, creds, response);
+            }
+        }
+
+        function WorkingState(fsm, creds, response) {
+            fsm.currentStatus = this;
+            this.status = 'working';
+            this.violationReport = {};
+
+            var request = {
+                email: creds.email,
+                alias: creds.username || creds.email,
+                username: creds.username || creds.email,
+                password: creds.password,
+                vat: creds.vat,
+                captcha: creds.captcha
+            };
+            checkpoint.gateway.register(request, {
+                success: onSuccess,
+                rejected: onRejection
+            });
+
+            function onSuccess() {
+                self.setAlreadyRegistered();
+                checkpoint.signinForm.submit({
+                    username: request.username,
+                    password: request.password
+                }, response);
+            }
+
+            function onRejection(violationReport) {
+                new RejectedState(fsm, violationReport);
+            }
+        }
+
+        function RejectedState(fsm, violationReport) {
+            fsm.currentStatus = this;
+            if (fsm.eventListener)
+                fsm.eventListener.rejected();
+
+            this.status = 'rejected';
+            this.violationReport = violationReport;
+
+            this.submit = function (creds, response) {
+                new WorkingState(fsm, creds, response);
+            }
+        }
+
+        function RegisteredState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'registered';
+            this.violationReport = {};
+
+            this.submit = function () {
+                throw new Error('already.registered');
+            }
+        }
+    }
+
+    function SigninForm() {
+        var self = this;
+
+        this.reset = function () {
+            new IdleState(self);
+        };
+        this.reset();
+
+        this.status = function () {
+            return self.currentStatus.status;
+        };
+
+        this.violation = function () {
             return self.currentStatus.violation;
         };
 
-        this.submit = function(creds) {
-            self.currentStatus.submit(creds);
+        this.submit = function (creds, response) {
+            self.currentStatus.submit(creds, response);
         };
 
         function IdleState(fsm) {
@@ -29,23 +119,25 @@ function BinartaCheckpointjs() {
             this.status = 'idle';
             this.violation = '';
 
-            this.submit = function(creds) {
-                new WorkingState(fsm, creds);
+            this.submit = function (creds, response) {
+                new WorkingState(fsm, creds, response);
             }
         }
 
-        function WorkingState(fsm, creds) {
+        function WorkingState(fsm, creds, response) {
             fsm.currentStatus = this;
             this.status = 'working';
             this.violation = '';
 
             checkpoint.gateway.signin(creds, {
-                success:onSuccess,
-                rejected:onRejection
+                success: onSuccess,
+                rejected: onRejection
             });
 
             function onSuccess() {
                 new AuthenticatedState(fsm);
+                if(response)
+                    response.success();
             }
 
             function onRejection() {
@@ -58,8 +150,8 @@ function BinartaCheckpointjs() {
             this.status = 'rejected';
             this.violation = 'credentials.mismatch';
 
-            this.submit = function(creds) {
-                new WorkingState(fsm, creds);
+            this.submit = function (creds, response) {
+                new WorkingState(fsm, creds, response);
             }
         }
 
@@ -68,7 +160,9 @@ function BinartaCheckpointjs() {
             this.status = 'authenticated';
             this.violation = '';
 
-            this.submit = function() {
+            checkpoint.registrationForm.setAlreadyRegistered();
+
+            this.submit = function () {
                 throw new Error('already.authenticated');
             }
         }
@@ -84,6 +178,7 @@ function BinartaCheckpointjs() {
             checkpoint.gateway.fetchAccountMetadata({
                 unauthenticated: function () {
                     authenticated = false;
+                    checkpoint.registrationForm.reset();
                     checkpoint.signinForm.reset();
                 },
                 activeAccountMetadata: function (it) {
