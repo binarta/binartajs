@@ -20,6 +20,7 @@ function BinartajsFactory() {
         Object.keys(from).forEach(function(key) {
             to[key] = from[key];
             to[key].ui = ui;
+            from[key].binarta = binartajs;
         });
     }
 }

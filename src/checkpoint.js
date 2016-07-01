@@ -136,8 +136,8 @@ function BinartaCheckpointjs() {
 
             function onSuccess() {
                 new AuthenticatedState(fsm);
-                if(response)
-                    response.success();
+                checkpoint.registrationForm.setAlreadyRegistered();
+                checkpoint.profile.refresh(response);
             }
 
             function onRejection() {
@@ -160,8 +160,6 @@ function BinartaCheckpointjs() {
             this.status = 'authenticated';
             this.violation = '';
 
-            checkpoint.registrationForm.setAlreadyRegistered();
-
             this.submit = function () {
                 throw new Error('already.authenticated');
             }
@@ -174,7 +172,8 @@ function BinartaCheckpointjs() {
 
         this.billing = new Billing();
 
-        this.refresh = function () {
+        this.refresh = function (response) {
+            response = toNoOpResponse(response);
             checkpoint.gateway.fetchAccountMetadata({
                 unauthenticated: function () {
                     authenticated = false;
@@ -184,9 +183,21 @@ function BinartaCheckpointjs() {
                 activeAccountMetadata: function (it) {
                     authenticated = true;
                     metadata = it;
+                    response.success();
                 }
             });
         };
+
+        function toNoOpResponse(it) {
+            var response = {
+                success:function() {}
+            };
+            if(it) {
+                if(it.success)
+                    response.success = it.success;
+            }
+            return response;
+        }
 
         this.isAuthenticated = function () {
             return authenticated;

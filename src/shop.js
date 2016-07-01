@@ -1,16 +1,32 @@
 function BinartaShopjs() {
+    var shop = this;
+
     this.checkout = new Checkout();
 
     function Checkout() {
         var self = this;
-        var order;
+        var order, steps;
+
+        var stepDefinitions = {
+            'authentication-required': AuthRequiredState,
+            'completed': CompletedState
+        };
 
         this.status = function () {
             return self.currentState.name;
         };
+        
+        this.start = function (o, roadmap) {
+            if(self.status() == 'idle' || self.status() == 'completed') {
+                steps = roadmap.map(function (it) {
+                    return stepDefinitions[it];
+                });
+                self.next();
+            }
+        };
 
-        this.start = function (o) {
-            new AuthRequiredState(self);
+        this.next = function() {
+            new (steps.shift())(self);
         };
 
         this.cancel = function () {
@@ -33,31 +49,18 @@ function BinartaShopjs() {
             fsm.currentState = this;
             this.name = 'authentication-required';
 
-            this.signin = function (credentials) {
+            fsm.retry = function() {
+                if(shop.binarta.checkpoint.profile.isAuthenticated())
+                    fsm.next();
+            };
+            fsm.retry();
+        }
 
-            }
+        function CompletedState(fsm) {
+            fsm.currentState = this;
+            this.name = 'completed';
         }
 
         this.cancel();
     }
-
-    // this.profile = new Profile();
-    //
-    // function Profile() {
-    //     var metadata;
-    //
-    //     this.billing = new Billing();
-    //
-    //     this.refresh = function() {
-    //         this.gateway.fetchAccountMetadata({activeAccountMetadata:function(it) {
-    //             metadata = it;
-    //         }});
-    //     };
-    //
-    //     function Billing() {
-    //         this.isComplete = function() {
-    //             return metadata && metadata.billing && metadata.billing.complete;
-    //         }
-    //     }
-    // }
 }
