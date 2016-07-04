@@ -126,6 +126,11 @@
                         this.name = 'custom-step';
                     }
                 });
+
+                it('you can jump to a specific step directly', function () {
+                    binarta.shop.checkout.jumpTo('completed');
+                    expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
             });
         });
 

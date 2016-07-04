@@ -29,6 +29,10 @@ function BinartaShopjs() {
             }
         };
 
+        this.jumpTo = function(id) {
+            new stepDefinitions[id](self);
+        };
+
         this.next = function() {
             new (steps.shift())(self);
         };
