@@ -58,7 +58,7 @@
                         binarta.checkpoint.profile.refresh();
 
                         binarta.shop.checkout.retry();
-                        
+
                         expect(binarta.shop.checkout.status()).toEqual('completed');
                     });
                 });
@@ -98,43 +98,38 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
                 });
-            });
 
-            // describe('active profile', function() {
-            //     describe('billing details', function() {
-            //         it('start out incomplete', function() {
-            //             expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
-            //         });
-            //
-            //         it('profile refresh loads incomplete billing details', function() {
-            //             binarta.checkpoint.profile.gateway = new InCompleteBillingDetailsGateway();
-            //             binarta.checkpoint.profile.refresh();
-            //             expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
-            //         });
-            //
-            //         it('profile refresh loads complete billing details', function() {
-            //             binarta.checkpoint.profile.gateway = new CompleteBillingDetailsGateway();
-            //             binarta.checkpoint.profile.refresh();
-            //             expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
-            //         });
-            //     });
-            // });
+                describe('installing custom steps', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep);
+                        binarta.shop.checkout.start(order, [
+                            'custom-step'
+                        ]);
+                    });
+
+                    it('then status exposes the current step', function () {
+                        expect(binarta.shop.checkout.status()).toEqual('custom-step');
+                    });
+
+                    it('then restarting checkout has no effect', function () {
+                        binarta.shop.checkout.start(order);
+                        expect(binarta.shop.checkout.status()).toEqual('custom-step');
+                    });
+
+                    it('then you can cancel checkout', function () {
+                        binarta.shop.checkout.cancel();
+                        expect(binarta.shop.checkout.status()).toEqual('idle');
+                    });
+
+                    function CustomStep(fsm) {
+                        fsm.currentState = this;
+                        this.name = 'custom-step';
+                    }
+                });
+            });
         });
 
         function UI() {
-
         }
-
-        // function InCompleteBillingDetailsGateway() {
-        //     this.fetchAccountMetadata = function(response) {
-        //         response.activeAccountMetadata({billing:{complete:false}});
-        //     }
-        // }
-        //
-        // function CompleteBillingDetailsGateway() {
-        //     this.fetchAccountMetadata = function(response) {
-        //         response.activeAccountMetadata({billing:{complete:true}});
-        //     }
-        // }
     })();
 })();

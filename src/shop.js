@@ -12,6 +12,10 @@ function BinartaShopjs() {
             'completed': CompletedState
         };
 
+        this.installCustomStepDefinition = function(id, definition) {
+            stepDefinitions[id] = definition;
+        };
+
         this.status = function () {
             return self.currentState.name;
         };
