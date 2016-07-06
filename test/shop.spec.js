@@ -39,26 +39,26 @@
                         ]);
                     });
 
-                    it('then the order is exposed', function () {
-                        expect(binarta.shop.checkout.order()).toEqual(order);
+                    it('then the context is exposed', function () {
+                        expect(binarta.shop.checkout.context().order).toEqual(order);
                     });
 
                     it('then the order is persisted in session storage', function () {
-                        expect(JSON.parse(sessionStorage.binartaJSCheckoutOrder)).toEqual(order);
+                        expect(JSON.parse(sessionStorage.binartaJSCheckout).order).toEqual(order);
                     });
 
-                    it('then the steps are persisted in session storage', function() {
-                        expect(JSON.parse(sessionStorage.binartaJSCheckoutRoadmap)).toEqual(['completed']);
+                    it('then the roadmap is persisted in session storage', function() {
+                        expect(JSON.parse(sessionStorage.binartaJSCheckout).roadmap).toEqual(['completed']);
                     });
                 });
 
-                it('when checkout is canceled the order is removed from session storage', function () {
+                it('when checkout is canceled the context is removed from session storage', function () {
                     binarta.shop.checkout.start(order, [
                         'authentication-required',
                         'completed'
                     ]);
                     binarta.shop.checkout.cancel();
-                    expect(JSON.parse(sessionStorage.binartaJSCheckoutOrder)).toEqual({});
+                    expect(JSON.parse(sessionStorage.binartaJSCheckout)).toEqual({});
                 });
 
                 describe('on the authentication required step', function () {

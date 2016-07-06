@@ -21,30 +21,21 @@ function BinartaShopjs() {
         
         this.start = function (order, roadmap) {
             if(self.status() == 'idle' || self.status() == 'completed') {
-                self.persistOrder(order);
-                persistRoadmap(roadmap);
+                self.persist({roadmap:roadmap, order:order});
                 self.next();
             }
         };
 
-        function persistRoadmap(roadmap) {
-            sessionStorage.binartaJSCheckoutRoadmap = JSON.stringify(roadmap);
-        }
-
-        function getRoadmap() {
-            return JSON.parse(sessionStorage.binartaJSCheckoutRoadmap);
-        }
-
-        this.persistOrder = function(order) {
-            sessionStorage.binartaJSCheckoutOrder = JSON.stringify(order);
+        this.persist = function(ctx) {
+            sessionStorage.binartaJSCheckout = JSON.stringify(ctx);
         };
 
-        this.order = function() {
-            return JSON.parse(sessionStorage.binartaJSCheckoutOrder);
+        this.context = function() {
+            return JSON.parse(sessionStorage.binartaJSCheckout);
         };
 
         function clear() {
-            sessionStorage.binartaJSCheckoutOrder = '{}';
+            sessionStorage.binartaJSCheckout = '{}';
         }
 
         this.jumpTo = function(id) {
@@ -52,9 +43,9 @@ function BinartaShopjs() {
         };
 
         this.next = function() {
-            var roadmap = getRoadmap();
-            var step = roadmap.shift();
-            persistRoadmap(roadmap);
+            var ctx = self.context();
+            var step = ctx.roadmap.shift();
+            self.persist(ctx);
             new (stepDefinitions[step])(self);
         };
 
