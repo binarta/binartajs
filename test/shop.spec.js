@@ -46,6 +46,10 @@
                     it('then the order is persisted in session storage', function () {
                         expect(JSON.parse(sessionStorage.binartaJSCheckoutOrder)).toEqual(order);
                     });
+
+                    it('then the steps are persisted in session storage', function() {
+                        expect(JSON.parse(sessionStorage.binartaJSCheckoutRoadmap)).toEqual(['completed']);
+                    });
                 });
 
                 it('when checkout is canceled the order is removed from session storage', function () {

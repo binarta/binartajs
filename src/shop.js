@@ -5,7 +5,6 @@ function BinartaShopjs() {
 
     function Checkout() {
         var self = this;
-        var steps;
 
         var stepDefinitions = {
             'authentication-required': AuthRequiredState,
@@ -23,12 +22,18 @@ function BinartaShopjs() {
         this.start = function (order, roadmap) {
             if(self.status() == 'idle' || self.status() == 'completed') {
                 self.persistOrder(order);
-                steps = roadmap.map(function (it) {
-                    return stepDefinitions[it];
-                });
+                persistRoadmap(roadmap);
                 self.next();
             }
         };
+
+        function persistRoadmap(roadmap) {
+            sessionStorage.binartaJSCheckoutRoadmap = JSON.stringify(roadmap);
+        }
+
+        function getRoadmap() {
+            return JSON.parse(sessionStorage.binartaJSCheckoutRoadmap);
+        }
 
         this.persistOrder = function(order) {
             sessionStorage.binartaJSCheckoutOrder = JSON.stringify(order);
@@ -47,7 +52,10 @@ function BinartaShopjs() {
         };
 
         this.next = function() {
-            new (steps.shift())(self);
+            var roadmap = getRoadmap();
+            var step = roadmap.shift();
+            persistRoadmap(roadmap);
+            new (stepDefinitions[step])(self);
         };
 
         this.cancel = function () {
