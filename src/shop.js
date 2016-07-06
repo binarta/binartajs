@@ -5,7 +5,7 @@ function BinartaShopjs() {
 
     function Checkout() {
         var self = this;
-        var order, steps;
+        var steps;
 
         var stepDefinitions = {
             'authentication-required': AuthRequiredState,
@@ -20,14 +20,27 @@ function BinartaShopjs() {
             return self.currentState.name;
         };
         
-        this.start = function (o, roadmap) {
+        this.start = function (order, roadmap) {
             if(self.status() == 'idle' || self.status() == 'completed') {
+                self.persistOrder(order);
                 steps = roadmap.map(function (it) {
                     return stepDefinitions[it];
                 });
                 self.next();
             }
         };
+
+        this.persistOrder = function(order) {
+            sessionStorage.binartaJSCheckoutOrder = JSON.stringify(order);
+        };
+
+        this.order = function() {
+            return JSON.parse(sessionStorage.binartaJSCheckoutOrder);
+        };
+
+        function clear() {
+            sessionStorage.binartaJSCheckoutOrder = '{}';
+        }
 
         this.jumpTo = function(id) {
             new stepDefinitions[id](self);
@@ -51,6 +64,8 @@ function BinartaShopjs() {
         function IdleState(fsm) {
             fsm.currentState = this;
             this.name = 'idle';
+
+            clear();
         }
 
         function AuthRequiredState(fsm) {

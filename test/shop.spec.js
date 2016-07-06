@@ -18,7 +18,7 @@
                 var order;
 
                 beforeEach(function () {
-                    order = {};
+                    order = {items:[]};
                 });
 
                 it('checkout starts out idle', function () {
@@ -29,6 +29,32 @@
                     it('then it is not possible to signin', function () {
                         expect(binarta.shop.checkout.signin).toThrowError('signin.not.supported.when.checkout.in.idle.state');
                     });
+                });
+
+                describe('when checkout is started', function() {
+                    beforeEach(function() {
+                        binarta.shop.checkout.start(order, [
+                            'authentication-required',
+                            'completed'
+                        ]);
+                    });
+
+                    it('then the order is exposed', function () {
+                        expect(binarta.shop.checkout.order()).toEqual(order);
+                    });
+
+                    it('then the order is persisted in session storage', function () {
+                        expect(JSON.parse(sessionStorage.binartaJSCheckoutOrder)).toEqual(order);
+                    });
+                });
+
+                it('when checkout is canceled the order is removed from session storage', function () {
+                    binarta.shop.checkout.start(order, [
+                        'authentication-required',
+                        'completed'
+                    ]);
+                    binarta.shop.checkout.cancel();
+                    expect(JSON.parse(sessionStorage.binartaJSCheckoutOrder)).toEqual({});
                 });
 
                 describe('on the authentication required step', function () {
