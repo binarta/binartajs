@@ -44,11 +44,11 @@
                     });
 
                     it('then the order is persisted in session storage', function () {
-                        expect(JSON.parse(sessionStorage.binartaJSCheckout).order).toEqual(order);
+                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).order).toEqual(order);
                     });
 
                     it('then the roadmap is persisted in session storage', function() {
-                        expect(JSON.parse(sessionStorage.binartaJSCheckout).roadmap).toEqual(['completed']);
+                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['completed']);
                     });
                 });
 
@@ -58,7 +58,7 @@
                         'completed'
                     ]);
                     binarta.shop.checkout.cancel();
-                    expect(JSON.parse(sessionStorage.binartaJSCheckout)).toEqual({});
+                    expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout'))).toEqual({});
                 });
 
                 describe('on the authentication required step', function () {

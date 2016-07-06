@@ -11,38 +11,38 @@ function BinartaShopjs() {
             'completed': CompletedState
         };
 
-        this.installCustomStepDefinition = function(id, definition) {
+        this.installCustomStepDefinition = function (id, definition) {
             stepDefinitions[id] = definition;
         };
 
         this.status = function () {
             return self.currentState.name;
         };
-        
+
         this.start = function (order, roadmap) {
-            if(self.status() == 'idle' || self.status() == 'completed') {
-                self.persist({roadmap:roadmap, order:order});
+            if (self.status() == 'idle' || self.status() == 'completed') {
+                self.persist({roadmap: roadmap, order: order});
                 self.next();
             }
         };
 
-        this.persist = function(ctx) {
-            sessionStorage.binartaJSCheckout = JSON.stringify(ctx);
+        this.persist = function (ctx) {
+            sessionStorage.setItem('binartaJSCheckout', JSON.stringify(ctx));
         };
 
-        this.context = function() {
-            return JSON.parse(sessionStorage.binartaJSCheckout);
+        this.context = function () {
+            return JSON.parse(sessionStorage.getItem('binartaJSCheckout'));
         };
 
         function clear() {
-            sessionStorage.binartaJSCheckout = '{}';
+            sessionStorage.setItem('binartaJSCheckout', '{}');
         }
 
-        this.jumpTo = function(id) {
+        this.jumpTo = function (id) {
             new stepDefinitions[id](self);
         };
 
-        this.next = function() {
+        this.next = function () {
             var ctx = self.context();
             var step = ctx.roadmap.shift();
             self.persist(ctx);
@@ -50,6 +50,7 @@ function BinartaShopjs() {
         };
 
         this.cancel = function () {
+            clear();
             new IdleState(self);
         };
 
@@ -63,16 +64,14 @@ function BinartaShopjs() {
         function IdleState(fsm) {
             fsm.currentState = this;
             this.name = 'idle';
-
-            clear();
         }
 
         function AuthRequiredState(fsm) {
             fsm.currentState = this;
             this.name = 'authentication-required';
 
-            fsm.retry = function() {
-                if(shop.binarta.checkpoint.profile.isAuthenticated())
+            fsm.retry = function () {
+                if (shop.binarta.checkpoint.profile.isAuthenticated())
                     fsm.next();
             };
             fsm.retry();
@@ -83,6 +82,6 @@ function BinartaShopjs() {
             this.name = 'completed';
         }
 
-        this.cancel();
+        new IdleState(self);
     }
 }
