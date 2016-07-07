@@ -168,7 +168,7 @@ function BinartaCheckpointjs() {
 
     function Profile() {
         var authenticated = false;
-        var metadata;
+        var metadataCache;
 
         this.billing = new Billing();
 
@@ -182,7 +182,7 @@ function BinartaCheckpointjs() {
                 },
                 activeAccountMetadata: function (it) {
                     authenticated = true;
-                    metadata = it;
+                    metadataCache = it;
                     response.success();
                 }
             });
@@ -203,9 +203,13 @@ function BinartaCheckpointjs() {
             return authenticated;
         };
 
+        this.metadata = function() {
+            return metadataCache;
+        };
+
         function Billing() {
             this.isComplete = function () {
-                return metadata && metadata.billing && metadata.billing.complete;
+                return metadataCache && metadataCache.billing && metadataCache.billing.complete;
             };
 
             this.initiate = function (id) {
@@ -232,13 +236,13 @@ function BinartaCheckpointjs() {
             };
 
             function confirmed() {
-                if (metadata) {
-                    if (metadata.billing)
-                        metadata.billing.complete = true;
+                if (metadataCache) {
+                    if (metadataCache.billing)
+                        metadataCache.billing.complete = true;
                     else
-                        metadata.billing = {complete: true}
+                        metadataCache.billing = {complete: true}
                 } else
-                    metadata = {billing: {complete: true}}
+                    metadataCache = {billing: {complete: true}}
             }
         }
     }

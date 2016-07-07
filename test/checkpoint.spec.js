@@ -26,6 +26,12 @@
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeTruthy();
         });
 
+        it('profile is exposed on refresh', function () {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+            expect(binarta.checkpoint.profile.metadata()).toEqual({});
+        });
+
         it('profile is unauthenticated on refresh when session expires', function () {
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
