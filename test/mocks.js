@@ -56,6 +56,18 @@ function ValidCredentialsGateway() {
     }
 }
 
+function InvalidOrderGateway() {
+    this.submitOrder = function(request, response) {
+        response.rejected('violation-report');
+    }
+}
+
+function ValidOrderGateway() {
+    this.submitOrder = function(request, response) {
+        response.success();
+    }
+}
+
 function InCompleteBillingDetailsGateway() {
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: false}});

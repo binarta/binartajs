@@ -1,34 +1,35 @@
 function BinartaInMemoryGatewaysjs() {
     this.checkpoint = new CheckpointGateway();
+    this.shop = new ShopGateway();
 
     function CheckpointGateway() {
         var accounts = [];
-        
+
         this.authenticated = false;
-        
-        this.register = function(request, response) {
+
+        this.register = function (request, response) {
             var violationReport = {};
-            
-            if(request.username == 'invalid')
+
+            if (request.username == 'invalid')
                 violationReport.username = ['invalid'];
-            if(request.password == 'invalid')
+            if (request.password == 'invalid')
                 violationReport.password = ['invalid'];
-            
-            if(Object.keys(violationReport).length == 0) {
+
+            if (Object.keys(violationReport).length == 0) {
                 accounts.push(request);
                 response.success();
             } else
                 response.rejected(violationReport);
         };
-        
-        this.signin = function(request, response) {
-            var credentialsFound = accounts.map(function(it) {
+
+        this.signin = function (request, response) {
+            var credentialsFound = accounts.map(function (it) {
                 return request.username == it.username && request.password == it.password
-            }).reduce(function(p, c) {
+            }).reduce(function (p, c) {
                 return p || c;
             }, false);
 
-            if(credentialsFound)
+            if (credentialsFound)
                 response.success();
             else
                 response.rejected();
@@ -45,8 +46,17 @@ function BinartaInMemoryGatewaysjs() {
             });
         };
 
-        this.confirmBillingAgreement = function(ctx, ui) {
+        this.confirmBillingAgreement = function (ctx, ui) {
             ui.confirmedBillingAgreement();
+        }
+    }
+
+    function ShopGateway() {
+        this.submitOrder = function (request, response) {
+            if (request.provider == 'with-insufficient-funds')
+                response.rejected('violation-report');
+            else
+                response.success();
         }
     }
 }

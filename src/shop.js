@@ -8,6 +8,7 @@ function BinartaShopjs() {
 
         var stepDefinitions = {
             'authentication-required': AuthRequiredState,
+            'summary': SummaryState,
             'completed': CompletedState
         };
 
@@ -75,6 +76,34 @@ function BinartaShopjs() {
                     fsm.next();
             };
             fsm.retry();
+        }
+
+        function SummaryState(fsm) {
+            fsm.currentState = this;
+            this.name = 'summary';
+            var violationReportCache = {};
+
+            fsm.confirm = function (onSuccessListener) {
+                shop.gateway.submitOrder(fsm.context().order, {
+                    success: onSuccess(onSuccessListener),
+                    rejected: cacheViolationReport
+                });
+            };
+
+            function onSuccess(listener) {
+                return function() {
+                    fsm.next();
+                    listener();
+                }
+            }
+
+            function cacheViolationReport(report) {
+                violationReportCache = report;
+            }
+
+            fsm.violationReport = function () {
+                return violationReportCache;
+            }
         }
 
         function CompletedState(fsm) {

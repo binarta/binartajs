@@ -105,6 +105,48 @@
                     expect(binarta.shop.checkout.status()).toEqual('completed');
                 });
 
+                describe('on the checkout summary step', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.start(order, [
+                            'summary',
+                            'completed'
+                        ])
+                    });
+
+                    it('then status exposes the current step', function () {
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                    });
+
+                    it('then restarting checkout has no effect', function () {
+                        binarta.shop.checkout.start(order);
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                    });
+
+                    it('then you can cancel checkout', function () {
+                        binarta.shop.checkout.cancel();
+                        expect(binarta.shop.checkout.status()).toEqual('idle');
+                    });
+
+                    it('on confirmation the order is rejected', function() {
+                        binarta.shop.gateway = new InvalidOrderGateway();
+
+                        binarta.shop.checkout.confirm();
+
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    });
+
+                    it('on confirmation the order is accepted', function() {
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        var spy = jasmine.createSpy('spy');
+
+                        binarta.shop.checkout.confirm(spy);
+
+                        expect(binarta.shop.checkout.status()).toEqual('completed');
+                        expect(spy).toHaveBeenCalled();
+                    });
+                });
+
                 describe('on the checkout completed step', function () {
                     beforeEach(function () {
                         binarta.shop.checkout.start(order, [
