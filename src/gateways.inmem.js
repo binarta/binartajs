@@ -17,6 +17,7 @@ function BinartaInMemoryGatewaysjs() {
                 violationReport.password = ['invalid'];
 
             if (Object.keys(violationReport).length == 0) {
+                request.principal = 'principal(' + request.username + ')';
                 accounts.push(request);
                 response.success();
             } else
