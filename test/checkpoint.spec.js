@@ -295,13 +295,24 @@
                 });
             });
 
-            it('you can optionally pass an event listener for the current request', function () {
-                var listener = jasmine.createSpyObj('listener', ['success']);
+            describe('you can optionally pass an event listener for the current request', function() {
+                var listener;
 
-                binarta.checkpoint.gateway = new ValidCredentialsGateway();
-                binarta.checkpoint.signinForm.submit('-', listener);
+                beforeEach(function() {
+                    listener = jasmine.createSpyObj('listener', ['success', 'rejected']);
+                });
 
-                expect(listener.success).toHaveBeenCalled();
+                it('on success', function () {
+                    binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-', listener);
+                    expect(listener.success).toHaveBeenCalled();
+                });
+
+                it('on rejected', function () {
+                    binarta.checkpoint.gateway = new InvalidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-', listener);
+                    expect(listener.rejected).toHaveBeenCalledWith('credentials.mismatch');
+                })
             });
         });
 

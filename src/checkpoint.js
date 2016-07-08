@@ -141,14 +141,17 @@ function BinartaCheckpointjs() {
             }
 
             function onRejection() {
-                new RejectedState(fsm);
+                new RejectedState(fsm, response);
             }
         }
 
-        function RejectedState(fsm) {
+        function RejectedState(fsm, response) {
             fsm.currentStatus = this;
             this.status = 'rejected';
             this.violation = 'credentials.mismatch';
+
+            if(response && response.rejected)
+                response.rejected(fsm.violation());
 
             this.submit = function (creds, response) {
                 new WorkingState(fsm, creds, response);
