@@ -4,6 +4,7 @@ function BinartaInMemoryGatewaysjs() {
 
     function CheckpointGateway() {
         var accounts = [];
+        var activeProfile;
 
         this.authenticated = false;
 
@@ -23,20 +24,32 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.signin = function (request, response) {
-            var credentialsFound = accounts.map(function (it) {
-                return request.username == it.username && request.password == it.password
-            }).reduce(function (p, c) {
+            var credentialsFound = accounts.map(isMatchingCredentials(request)).reduce(function (p, c) {
                 return p || c;
             }, false);
 
-            if (credentialsFound)
+            if (credentialsFound) {
+                activeProfile = accounts.filter(isMatchingCredentials(request))[0];
                 response.success();
-            else
+            } else
                 response.rejected();
         };
 
+        function isMatchingCredentials(request) {
+            return function (it) {
+                return request.username == it.username && request.password == it.password
+            };
+        }
+
+        this.signout = function () {
+            activeProfile = undefined;
+        };
+
         this.fetchAccountMetadata = function (response) {
-            response.activeAccountMetadata({billing: {complete: false}});
+            if (activeProfile)
+                response.activeAccountMetadata(activeProfile);
+            else
+                response.unauthenticated();
         };
 
         this.initiateBillingAgreement = function (id, ui) {

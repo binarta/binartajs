@@ -28,7 +28,7 @@ function UnauthenticatedGateway() {
 
 function AuthenticatedGateway() {
     this.fetchAccountMetadata = function (response) {
-        response.activeAccountMetadata({});
+        response.activeAccountMetadata({principal: 'p'});
     }
 }
 
@@ -57,13 +57,13 @@ function ValidCredentialsGateway() {
 }
 
 function InvalidOrderGateway() {
-    this.submitOrder = function(request, response) {
+    this.submitOrder = function (request, response) {
         response.rejected('violation-report');
     }
 }
 
 function ValidOrderGateway() {
-    this.submitOrder = function(request, response) {
+    this.submitOrder = function (request, response) {
         response.success();
     }
 }

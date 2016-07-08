@@ -29,7 +29,7 @@
         it('profile is exposed on refresh', function () {
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
-            expect(binarta.checkpoint.profile.metadata()).toEqual({});
+            expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p'});
         });
 
         it('profile is unauthenticated on refresh when session expires', function () {
@@ -40,6 +40,7 @@
             binarta.checkpoint.profile.refresh();
 
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+            expect(binarta.checkpoint.profile.metadata()).toEqual({});
         });
 
         describe('registration form', function () {
@@ -122,7 +123,7 @@
                     expect(binarta.checkpoint.registrationForm.status()).toEqual('registered');
                 });
 
-                it('resubmission supports the optional event listener', function() {
+                it('resubmission supports the optional event listener', function () {
                     var listener = jasmine.createSpyObj('listener', ['success']);
 
                     binarta.checkpoint.gateway = new ValidCredentialsGateway();
@@ -132,7 +133,7 @@
                 });
             });
 
-            it('you can install an optional form rejection listener', function() {
+            it('you can install an optional form rejection listener', function () {
                 var listener = jasmine.createSpyObj('listener', ['rejected']);
                 binarta.checkpoint.registrationForm.eventListener = listener;
 
@@ -156,7 +157,7 @@
                     expect(binarta.checkpoint.signinForm.status()).toEqual('authenticated');
                 });
 
-                it('then profile is in authenticated state', function() {
+                it('then profile is in authenticated state', function () {
                     expect(binarta.checkpoint.profile.isAuthenticated()).toBeTruthy();
                 });
 
@@ -175,7 +176,7 @@
                 });
             });
 
-            it('you can optionally pass an event listener for the current request', function() {
+            it('you can optionally pass an event listener for the current request', function () {
                 var listener = jasmine.createSpyObj('listener', ['success']);
 
                 binarta.checkpoint.gateway = new ValidCredentialsGateway();
@@ -233,7 +234,7 @@
                     expect(binarta.checkpoint.signinForm.status()).toEqual('authenticated');
                 });
 
-                it('resubmission supports the optional event listener', function() {
+                it('resubmission supports the optional event listener', function () {
                     var listener = jasmine.createSpyObj('listener', ['success']);
 
                     binarta.checkpoint.gateway = new ValidCredentialsGateway();
@@ -272,7 +273,7 @@
                 });
             });
 
-            it('you can optionally pass an event listener for the current request', function() {
+            it('you can optionally pass an event listener for the current request', function () {
                 var listener = jasmine.createSpyObj('listener', ['success']);
 
                 binarta.checkpoint.gateway = new ValidCredentialsGateway();

@@ -177,6 +177,7 @@ function BinartaCheckpointjs() {
             checkpoint.gateway.fetchAccountMetadata({
                 unauthenticated: function () {
                     authenticated = false;
+                    metadataCache = {};
                     checkpoint.registrationForm.reset();
                     checkpoint.signinForm.reset();
                 },
