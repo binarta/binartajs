@@ -43,6 +43,18 @@
             expect(binarta.checkpoint.profile.metadata()).toEqual({});
         });
 
+        it('profile signout delegates to gateway', function () {
+            binarta.checkpoint.gateway = new GatewaySpy();
+            binarta.checkpoint.profile.signout();
+            expect(binarta.checkpoint.gateway.signoutRequest).toBeTruthy();
+        });
+
+        it('profile signout', function () {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.signout();
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
         describe('registration form', function () {
             it('starts out in idle state', function () {
                 expect(binarta.checkpoint.registrationForm.status()).toEqual('idle');
@@ -174,6 +186,11 @@
                     binarta.checkpoint.profile.refresh();
                     expect(binarta.checkpoint.registrationForm.status()).toEqual('idle');
                 });
+
+                it('when profile signout is executed then the form resets', function() {
+                    binarta.checkpoint.profile.signout();
+                    expect(binarta.checkpoint.registrationForm.status()).toEqual('idle');
+                });
             });
 
             it('you can optionally pass an event listener for the current request', function () {
@@ -262,14 +279,19 @@
                     expect(binarta.checkpoint.signinForm.submit).toThrowError('already.authenticated');
                 });
 
+                it('then registration form exposes registered state', function () {
+                    expect(binarta.checkpoint.registrationForm.status()).toEqual('registered');
+                });
+
                 it('when profile refresh results in the user being unauthenticated then the form resets', function () {
                     binarta.checkpoint.gateway = new UnauthenticatedGateway();
                     binarta.checkpoint.profile.refresh();
                     expect(binarta.checkpoint.signinForm.status()).toEqual('idle');
                 });
 
-                it('then registration form exposes registered state', function () {
-                    expect(binarta.checkpoint.registrationForm.status()).toEqual('registered');
+                it('when profile signout is executed then the form resets', function() {
+                    binarta.checkpoint.profile.signout();
+                    expect(binarta.checkpoint.signinForm.status()).toEqual('idle');
                 });
             });
 

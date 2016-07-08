@@ -175,18 +175,25 @@ function BinartaCheckpointjs() {
         this.refresh = function (response) {
             response = toNoOpResponse(response);
             checkpoint.gateway.fetchAccountMetadata({
-                unauthenticated: function () {
-                    authenticated = false;
-                    metadataCache = {};
-                    checkpoint.registrationForm.reset();
-                    checkpoint.signinForm.reset();
-                },
+                unauthenticated: onSignout,
                 activeAccountMetadata: function (it) {
                     authenticated = true;
                     metadataCache = it;
                     response.success();
                 }
             });
+        };
+
+        function onSignout() {
+            authenticated = false;
+            metadataCache = {};
+            checkpoint.registrationForm.reset();
+            checkpoint.signinForm.reset();
+        }
+
+        this.signout = function() {
+            checkpoint.gateway.signout();
+            onSignout();
         };
 
         function toNoOpResponse(it) {

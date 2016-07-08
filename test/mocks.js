@@ -1,12 +1,13 @@
 function GatewaySpy() {
     this.signin = spy('signinRequest');
+    this.signout = spy('signoutRequest');
     this.register = spy('registrationRequest');
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
-            this[requestAttribute] = request;
+            this[requestAttribute] = request || true;
         }
     }
 }
@@ -27,6 +28,9 @@ function UnauthenticatedGateway() {
 }
 
 function AuthenticatedGateway() {
+    this.signout = function() {
+    };
+
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({principal: 'p'});
     }
@@ -49,6 +53,9 @@ function ValidCredentialsGateway() {
 
     this.signin = function (request, response) {
         response.success();
+    };
+
+    this.signout = function() {
     };
 
     this.fetchAccountMetadata = function (response) {
