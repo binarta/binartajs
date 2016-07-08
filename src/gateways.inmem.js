@@ -18,6 +18,7 @@ function BinartaInMemoryGatewaysjs() {
 
             if (Object.keys(violationReport).length == 0) {
                 request.principal = 'principal(' + request.username + ')';
+                request.token = 'token(' + request.username + ')';
                 accounts.push(request);
                 response.success();
             } else
@@ -38,8 +39,16 @@ function BinartaInMemoryGatewaysjs() {
 
         function isMatchingCredentials(request) {
             return function (it) {
-                return request.username == it.username && request.password == it.password
+                return isMatchingUsernamePassword(request, it) || isMatchingToken(request, it)
             };
+        }
+
+        function isMatchingUsernamePassword(request, account) {
+            return request.username && request.username == account.username && request.password && request.password == account.password
+        }
+
+        function isMatchingToken(request, account) {
+            return request.token && request.token == account.token
         }
 
         this.signout = function () {
