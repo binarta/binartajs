@@ -66,14 +66,16 @@ function BinartaCheckpointjs() {
             }
 
             function onRejection(violationReport) {
-                new RejectedState(fsm, violationReport);
+                new RejectedState(fsm, violationReport, response);
             }
         }
 
-        function RejectedState(fsm, violationReport) {
+        function RejectedState(fsm, violationReport, response) {
             fsm.currentStatus = this;
             if (fsm.eventListener)
                 fsm.eventListener.rejected();
+            if(response && response.rejected)
+                response.rejected(violationReport);
 
             this.status = 'rejected';
             this.violationReport = violationReport;
