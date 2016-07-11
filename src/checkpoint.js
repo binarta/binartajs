@@ -74,7 +74,7 @@ function BinartaCheckpointjs() {
             fsm.currentStatus = this;
             if (fsm.eventListener)
                 fsm.eventListener.rejected();
-            if(response && response.rejected)
+            if (response && response.rejected)
                 response.rejected(violationReport);
 
             this.status = 'rejected';
@@ -152,7 +152,7 @@ function BinartaCheckpointjs() {
             this.status = 'rejected';
             this.violation = 'credentials.mismatch';
 
-            if(response && response.rejected)
+            if (response && response.rejected)
                 response.rejected(fsm.violation());
 
             this.submit = function (creds, response) {
@@ -180,34 +180,46 @@ function BinartaCheckpointjs() {
         this.refresh = function (response) {
             response = toNoOpResponse(response);
             checkpoint.gateway.fetchAccountMetadata({
-                unauthenticated: onSignout,
-                activeAccountMetadata: function (it) {
-                    authenticated = true;
-                    metadataCache = it;
-                    response.success();
-                }
+                unauthenticated: onSignout(response),
+                activeAccountMetadata: onSignin(response)
             });
         };
 
-        function onSignout() {
-            authenticated = false;
-            metadataCache = {};
-            checkpoint.registrationForm.reset();
-            checkpoint.signinForm.reset();
+        function onSignout(response) {
+            return function () {
+                authenticated = false;
+                metadataCache = {};
+                checkpoint.registrationForm.reset();
+                checkpoint.signinForm.reset();
+                response.unauthenticated();
+            }
         }
 
-        this.signout = function() {
+        function onSignin(response) {
+            return function (it) {
+                authenticated = true;
+                metadataCache = it;
+                response.success();
+            }
+        }
+
+        this.signout = function () {
             checkpoint.gateway.signout();
-            onSignout();
+            onSignout(toNoOpResponse())();
         };
 
         function toNoOpResponse(it) {
             var response = {
-                success:function() {}
+                success: function () {
+                },
+                unauthenticated: function () {
+                }
             };
-            if(it) {
-                if(it.success)
+            if (it) {
+                if (it.success)
                     response.success = it.success;
+                if (it.unauthenticated)
+                    response.unauthenticated = it.unauthenticated;
             }
             return response;
         }
@@ -216,7 +228,7 @@ function BinartaCheckpointjs() {
             return authenticated;
         };
 
-        this.metadata = function() {
+        this.metadata = function () {
             return metadataCache;
         };
 

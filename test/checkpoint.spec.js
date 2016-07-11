@@ -43,6 +43,22 @@
             expect(binarta.checkpoint.profile.metadata()).toEqual({});
         });
 
+        describe('profile refresh takes an optional event handler for the current request', function() {
+            it('with optional success handler', function() {
+                var spy = jasmine.createSpyObj('spy', ['success']);
+                binarta.checkpoint.gateway = new AuthenticatedGateway();
+                binarta.checkpoint.profile.refresh(spy);
+                expect(spy.success).toHaveBeenCalled();
+            });
+
+            it('with optional unauthenticated handler', function() {
+                var spy = jasmine.createSpyObj('spy', ['unauthenticated']);
+                binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                binarta.checkpoint.profile.refresh(spy);
+                expect(spy.unauthenticated).toHaveBeenCalled();
+            });
+        });
+
         it('profile signout delegates to gateway', function () {
             binarta.checkpoint.gateway = new GatewaySpy();
             binarta.checkpoint.profile.signout();
