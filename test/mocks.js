@@ -4,6 +4,7 @@ function GatewaySpy() {
     this.register = spy('registrationRequest');
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
+    this.previewOrder = spy('previewOrderRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -70,6 +71,10 @@ function InvalidOrderGateway() {
 }
 
 function ValidOrderGateway() {
+    this.previewOrder = function(order, response) {
+        response.success('previewed-order');
+    };
+
     this.submitOrder = function (request, response) {
         response.success();
     }

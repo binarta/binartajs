@@ -3,6 +3,10 @@ function BinartaShopjs() {
 
     this.checkout = new Checkout();
 
+    this.previewOrder = function(order, render) {
+        shop.gateway.previewOrder(order, {success:render});
+    };
+
     function Checkout() {
         var self = this;
 
@@ -32,7 +36,7 @@ function BinartaShopjs() {
         };
 
         this.context = function () {
-            return JSON.parse(sessionStorage.getItem('binartaJSCheckout'));
+            return JSON.parse(sessionStorage.getItem('binartaJSCheckout')) || {};
         };
 
         function clear() {

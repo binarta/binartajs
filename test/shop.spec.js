@@ -14,6 +14,26 @@
                 binarta = factory.create();
             });
 
+            describe('when previewing an order', function() {
+                var renderer;
+
+                beforeEach(function() {
+                    renderer = jasmine.createSpy('spy');
+                });
+
+                it('then gateway receives a preview order request', function() {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.previewOrder('order', renderer);
+                    expect(binarta.shop.gateway.previewOrderRequest).toEqual('order');
+                });
+
+                it('then renderer receives previewed order', function() {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.previewOrder('-', renderer);
+                    expect(renderer).toHaveBeenCalledWith('previewed-order');
+                });
+            });
+
             describe('checkout', function () {
                 var order;
 

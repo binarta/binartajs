@@ -73,8 +73,12 @@ function BinartaInMemoryGatewaysjs() {
             ui.confirmedBillingAgreement();
         }
     }
-
+    
     function ShopGateway() {
+        this.previewOrder = function(request, response) {
+            response.success(request);
+        };
+        
         this.submitOrder = function (request, response) {
             if (request.provider == 'with-insufficient-funds')
                 response.rejected('violation-report');
