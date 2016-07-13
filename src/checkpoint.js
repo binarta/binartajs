@@ -172,10 +172,7 @@ function BinartaCheckpointjs() {
     }
 
     function Profile() {
-        var authenticated = false;
-        var metadataCache;
-
-        this.billing = new Billing();
+        var self = this;
 
         this.refresh = function (response) {
             response = toNoOpResponse(response);
@@ -187,8 +184,8 @@ function BinartaCheckpointjs() {
 
         function onSignout(response) {
             return function () {
-                authenticated = false;
-                metadataCache = {};
+                self.authenticated = false;
+                self.metadataCache = {};
                 checkpoint.registrationForm.reset();
                 checkpoint.signinForm.reset();
                 response.unauthenticated();
@@ -197,8 +194,8 @@ function BinartaCheckpointjs() {
 
         function onSignin(response) {
             return function (it) {
-                authenticated = true;
-                metadataCache = it;
+                self.authenticated = true;
+                self.metadataCache = it;
                 response.success();
             }
         }
@@ -225,50 +222,11 @@ function BinartaCheckpointjs() {
         }
 
         this.isAuthenticated = function () {
-            return authenticated;
+            return self.authenticated;
         };
 
         this.metadata = function () {
-            return metadataCache;
+            return self.metadataCache;
         };
-
-        function Billing() {
-            this.isComplete = function () {
-                return metadataCache && metadataCache.billing && metadataCache.billing.complete;
-            };
-
-            this.initiate = function (id) {
-                checkpoint.ui.initiatingBillingAgreement();
-                sessionStorage.billingAgreementProvider = id;
-                checkpoint.gateway.initiateBillingAgreement(id, checkpoint.ui);
-            };
-
-            this.cancel = function () {
-                checkpoint.ui.canceledBillingAgreement();
-            };
-
-            this.confirm = function (ctx) {
-                checkpoint.gateway.confirmBillingAgreement(
-                    {
-                        paymentProvider: sessionStorage.billingAgreementProvider,
-                        confirmationToken: ctx.confirmationToken
-                    },
-                    new BinartaMergingUI(
-                        checkpoint.ui,
-                        {confirmedBillingAgreement: confirmed}
-                    )
-                );
-            };
-
-            function confirmed() {
-                if (metadataCache) {
-                    if (metadataCache.billing)
-                        metadataCache.billing.complete = true;
-                    else
-                        metadataCache.billing = {complete: true}
-                } else
-                    metadataCache = {billing: {complete: true}}
-            }
-        }
     }
 }

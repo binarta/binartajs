@@ -7,9 +7,11 @@
                 ui = new UI();
                 var factory = new BinartajsFactory();
                 factory.addUI(ui);
+                var checkpoint = new BinartaCheckpointjs();
+                var shop = new BinartaShopjs(checkpoint);
                 factory.addSubSystems({
-                    checkpoint: new BinartaCheckpointjs(),
-                    shop: new BinartaShopjs()
+                    checkpoint: checkpoint,
+                    shop: shop
                 });
                 binarta = factory.create();
             });
@@ -255,9 +257,103 @@
                     expect(binarta.shop.checkout.status()).toEqual('completed');
                 });
             });
+
+            describe('profile extensions', function () {
+                describe('billing details', function () {
+                    it('start out incomplete', function () {
+                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
+                    });
+
+                    it('profile refresh loads incomplete billing details', function () {
+                        binarta.checkpoint.gateway = new InCompleteBillingDetailsGateway();
+                        binarta.checkpoint.profile.refresh();
+                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
+                    });
+
+                    it('profile refresh loads complete billing details', function () {
+                        binarta.checkpoint.gateway = new CompleteBillingDetailsGateway();
+                        binarta.checkpoint.profile.refresh();
+                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
+                    });
+
+                    it('initiate billing agreement delegates to gateway', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.billing.initiate('payment-provider');
+                        expect(binarta.shop.gateway.initiateBillingAgreementRequest).toEqual('payment-provider');
+                    });
+
+                    it('initiate billing agreement remembers payment provider on session storage', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.billing.initiate('payment-provider');
+                        expect(sessionStorage.billingAgreementProvider).toEqual('payment-provider');
+                    });
+
+                    it('initiate billing agreement passes ui to gateway', function () {
+                        binarta.shop.gateway = new InterfacesWithUIGateway();
+                        binarta.checkpoint.profile.billing.initiate('irrelevant');
+                        expect(ui.isWiredToGateway).toBeTruthy();
+                    });
+
+                    it('initiate billing agreement reports start of work to ui', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.billing.initiate('irrelevant');
+                        expect(ui.isInitiatingBillingAgreement).toBeTruthy();
+                    });
+
+                    it('cancel billing agreement delegates to ui', function () {
+                        binarta.checkpoint.profile.billing.cancel();
+                        expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
+                    });
+
+                    it('confirm billing agreement delegates to gateway', function () {
+                        sessionStorage.billingAgreementProvider = 'p';
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.billing.confirm({confirmationToken: 't'});
+                        expect(binarta.shop.gateway.confirmBillingAgreementRequest).toEqual({
+                            paymentProvider: 'p',
+                            confirmationToken: 't'
+                        });
+                    });
+
+                    it('confirm billing agreement delegates passes ui to gateway', function () {
+                        binarta.shop.gateway = new InterfacesWithUIGateway();
+                        binarta.checkpoint.profile.billing.confirm({});
+                        expect(ui.isWiredToGateway).toBeTruthy();
+                    });
+
+                    it('confirm billing agreement delegates to ui', function () {
+                        binarta.shop.gateway = new CompleteBillingDetailsGateway();
+                        binarta.checkpoint.profile.billing.confirm({});
+                        expect(ui.confirmedBillingAgreementRequest).toBeTruthy();
+                    });
+
+                    it('when confirm billing agreement completes then billing details report as completed', function () {
+                        binarta.shop.gateway = new CompleteBillingDetailsGateway();
+                        binarta.checkpoint.profile.billing.confirm({});
+                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
+                    });
+                });
+            })
         });
 
         function UI() {
+            var self = this;
+
+            this.wiredToGateway = function () {
+                self.isWiredToGateway = true;
+            };
+
+            this.initiatingBillingAgreement = function () {
+                this.isInitiatingBillingAgreement = true;
+            };
+
+            this.canceledBillingAgreement = function () {
+                self.receivedCanceledBillingAgreementRequest = true;
+            };
+
+            this.confirmedBillingAgreement = function () {
+                self.confirmedBillingAgreementRequest = true;
+            }
         }
     })();
 })();

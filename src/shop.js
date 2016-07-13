@@ -1,6 +1,7 @@
-function BinartaShopjs() {
+function BinartaShopjs(checkpoint) {
     var shop = this;
 
+    checkpoint.profile.billing = new Billing(checkpoint.profile);
     this.checkout = new Checkout();
 
     this.previewOrder = function (order, render) {
@@ -48,7 +49,7 @@ function BinartaShopjs() {
             new stepDefinitions[id](self);
         };
 
-        this.isNextStep = function(it) {
+        this.isNextStep = function (it) {
             return self.context().roadmap[0] == it
         };
 
@@ -107,14 +108,10 @@ function BinartaShopjs() {
             }
 
             function proceedWhenPaymentProviderRequiresSetupOtherwise(next, fallback) {
-                console.log('proceedWhenPaymentProviderRequiresSetupOtherwise');
-                return function(report) {
-                    console.log('anonymous()');
-                    if(report && typeof(report) == 'object' && Object.keys(report).length == 1 && report.provider && report.provider[0] == 'setup' && fsm.isNextStep('setup-payment-provider')) {
-                        console.log('next()');
+                return function (report) {
+                    if (report && typeof(report) == 'object' && Object.keys(report).length == 1 && report.provider && report.provider[0] == 'setup' && fsm.isNextStep('setup-payment-provider')) {
                         next();
                     } else {
-                        console.log('fallback()');
                         fallback(report);
                     }
                 }
@@ -140,5 +137,44 @@ function BinartaShopjs() {
         }
 
         new IdleState(self);
+    }
+
+    function Billing(profile) {
+        this.isComplete = function () {
+            return profile.metadataCache && profile.metadataCache.billing && profile.metadataCache.billing.complete;
+        };
+
+        this.initiate = function (id) {
+            shop.ui.initiatingBillingAgreement();
+            sessionStorage.billingAgreementProvider = id;
+            shop.gateway.initiateBillingAgreement(id, shop.ui);
+        };
+
+        this.cancel = function () {
+            shop.ui.canceledBillingAgreement();
+        };
+
+        this.confirm = function (ctx) {
+            shop.gateway.confirmBillingAgreement(
+                {
+                    paymentProvider: sessionStorage.billingAgreementProvider,
+                    confirmationToken: ctx.confirmationToken
+                },
+                new BinartaMergingUI(
+                    shop.ui,
+                    {confirmedBillingAgreement: confirmed}
+                )
+            );
+        };
+
+        function confirmed() {
+            if (profile.metadataCache) {
+                if (profile.metadataCache.billing)
+                    profile.metadataCache.billing.complete = true;
+                else
+                    profile.metadataCache.billing = {complete: true}
+            } else
+                profile.metadataCache = {billing: {complete: true}}
+        }
     }
 }

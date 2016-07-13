@@ -61,17 +61,6 @@ function BinartaInMemoryGatewaysjs() {
             else
                 response.unauthenticated();
         };
-
-        this.initiateBillingAgreement = function (id, ui) {
-            ui.approveBillingAgreement({
-                paymentProvider: id,
-                url: 'http://' + id + '/billing/agreement?token=t'
-            });
-        };
-
-        this.confirmBillingAgreement = function (ctx, ui) {
-            ui.confirmedBillingAgreement();
-        }
     }
     
     function ShopGateway() {
@@ -84,6 +73,17 @@ function BinartaInMemoryGatewaysjs() {
                 response.rejected('violation-report');
             else
                 response.success();
+        };
+
+        this.initiateBillingAgreement = function (id, ui) {
+            ui.approveBillingAgreement({
+                paymentProvider: id,
+                url: 'http://' + id + '/billing/agreement?token=t'
+            });
+        };
+
+        this.confirmBillingAgreement = function (ctx, ui) {
+            ui.confirmedBillingAgreement();
         }
     }
 }
