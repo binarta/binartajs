@@ -3,17 +3,18 @@ function BinartaShopjs() {
 
     this.checkout = new Checkout();
 
-    this.previewOrder = function(order, render) {
-        shop.gateway.previewOrder(order, {success:render});
+    this.previewOrder = function (order, render) {
+        shop.gateway.previewOrder(order, {success: render});
     };
 
     function Checkout() {
         var self = this;
 
         var stepDefinitions = {
-            'authentication-required': AuthRequiredState,
-            'summary': SummaryState,
-            'completed': CompletedState
+            'authentication-required': AuthRequiredStep,
+            'summary': SummaryStep,
+            'setup-payment-provider': SetupPaymentProviderStep,
+            'completed': CompletedStep
         };
 
         this.installCustomStepDefinition = function (id, definition) {
@@ -47,6 +48,10 @@ function BinartaShopjs() {
             new stepDefinitions[id](self);
         };
 
+        this.isNextStep = function(it) {
+            return self.context().roadmap[0] == it
+        };
+
         this.next = function () {
             var ctx = self.context();
             var step = ctx.roadmap.shift();
@@ -71,7 +76,7 @@ function BinartaShopjs() {
             this.name = 'idle';
         }
 
-        function AuthRequiredState(fsm) {
+        function AuthRequiredStep(fsm) {
             fsm.currentState = this;
             this.name = 'authentication-required';
 
@@ -82,7 +87,7 @@ function BinartaShopjs() {
             fsm.retry();
         }
 
-        function SummaryState(fsm) {
+        function SummaryStep(fsm) {
             fsm.currentState = this;
             this.name = 'summary';
             var violationReportCache = {};
@@ -90,14 +95,28 @@ function BinartaShopjs() {
             fsm.confirm = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
-                    rejected: cacheViolationReport
+                    rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(onSuccess(onSuccessListener), cacheViolationReport)
                 });
             };
 
             function onSuccess(listener) {
-                return function() {
+                return function () {
                     fsm.next();
                     listener();
+                }
+            }
+
+            function proceedWhenPaymentProviderRequiresSetupOtherwise(next, fallback) {
+                console.log('proceedWhenPaymentProviderRequiresSetupOtherwise');
+                return function(report) {
+                    console.log('anonymous()');
+                    if(report && typeof(report) == 'object' && Object.keys(report).length == 1 && report.provider && report.provider[0] == 'setup' && fsm.isNextStep('setup-payment-provider')) {
+                        console.log('next()');
+                        next();
+                    } else {
+                        console.log('fallback()');
+                        fallback(report);
+                    }
                 }
             }
 
@@ -110,7 +129,12 @@ function BinartaShopjs() {
             }
         }
 
-        function CompletedState(fsm) {
+        function SetupPaymentProviderStep(fsm) {
+            fsm.currentState = this;
+            this.name = 'setup-payment-provider';
+        }
+
+        function CompletedStep(fsm) {
             fsm.currentState = this;
             this.name = 'completed';
         }

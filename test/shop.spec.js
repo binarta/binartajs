@@ -147,7 +147,7 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('on confirmation the order is rejected', function() {
+                    it('on confirmation the order can be rejected', function() {
                         binarta.shop.gateway = new InvalidOrderGateway();
 
                         binarta.shop.checkout.confirm();
@@ -156,13 +156,44 @@
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
 
-                    it('on confirmation the order is accepted', function() {
+                    it('when payment provider setup the only rejection reason proceed to next step', function() {
+                        binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                        binarta.shop.checkout.confirm();
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                    });
+
+                    it('on confirmation the order can be accepted', function() {
                         binarta.shop.gateway = new ValidOrderGateway();
                         var spy = jasmine.createSpy('spy');
 
                         binarta.shop.checkout.confirm(spy);
 
                         expect(binarta.shop.checkout.status()).toEqual('completed');
+                        expect(spy).toHaveBeenCalled();
+                    });
+                });
+
+                describe('order confirmation proceeds to next step when rejected because payment provider requires setup and next step is meant to setup the payment provider', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.start(order, [
+                            'summary',
+                            'setup-payment-provider'
+                        ])
+                    });
+
+                    it('when payment provider setup is not the only rejection reason do not proceed', function() {
+                        binarta.shop.gateway = new NotOnlyPaymentProviderRequiresSetupGateway();
+                        binarta.shop.checkout.confirm();
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                    });
+
+                    it('when payment provider setup is the only rejection reason proceed to next step', function() {
+                        binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                        var spy = jasmine.createSpy('spy');
+
+                        binarta.shop.checkout.confirm(spy);
+
+                        expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
                         expect(spy).toHaveBeenCalled();
                     });
                 });

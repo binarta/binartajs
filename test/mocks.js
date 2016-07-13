@@ -29,7 +29,7 @@ function UnauthenticatedGateway() {
 }
 
 function AuthenticatedGateway() {
-    this.signout = function() {
+    this.signout = function () {
     };
 
     this.fetchAccountMetadata = function (response) {
@@ -56,7 +56,7 @@ function ValidCredentialsGateway() {
         response.success();
     };
 
-    this.signout = function() {
+    this.signout = function () {
     };
 
     this.fetchAccountMetadata = function (response) {
@@ -70,8 +70,20 @@ function InvalidOrderGateway() {
     }
 }
 
+function NotOnlyPaymentProviderRequiresSetupGateway() {
+    this.submitOrder = function (request, response) {
+        response.rejected({provider: ['setup'], termsAndConditions: ['required']});
+    }
+}
+
+function PaymentProviderRequiresSetupGateway() {
+    this.submitOrder = function (request, response) {
+        response.rejected({provider: ['setup']});
+    }
+}
+
 function ValidOrderGateway() {
-    this.previewOrder = function(order, response) {
+    this.previewOrder = function (order, response) {
         response.success('previewed-order');
     };
 
