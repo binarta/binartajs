@@ -5,6 +5,7 @@ function GatewaySpy() {
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
     this.previewOrder = spy('previewOrderRequest');
+    this.submitOrder = spy('submitOrderRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {

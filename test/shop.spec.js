@@ -16,20 +16,20 @@
                 binarta = factory.create();
             });
 
-            describe('when previewing an order', function() {
+            describe('when previewing an order', function () {
                 var renderer;
 
-                beforeEach(function() {
+                beforeEach(function () {
                     renderer = jasmine.createSpy('spy');
                 });
 
-                it('then gateway receives a preview order request', function() {
+                it('then gateway receives a preview order request', function () {
                     binarta.shop.gateway = new GatewaySpy();
                     binarta.shop.previewOrder('order', renderer);
                     expect(binarta.shop.gateway.previewOrderRequest).toEqual('order');
                 });
 
-                it('then renderer receives previewed order', function() {
+                it('then renderer receives previewed order', function () {
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.previewOrder('-', renderer);
                     expect(renderer).toHaveBeenCalledWith('previewed-order');
@@ -40,7 +40,7 @@
                 var order;
 
                 beforeEach(function () {
-                    order = {items:[]};
+                    order = {items: []};
                 });
 
                 it('checkout starts out idle', function () {
@@ -53,8 +53,8 @@
                     });
                 });
 
-                describe('when checkout is started', function() {
-                    beforeEach(function() {
+                describe('when checkout is started', function () {
+                    beforeEach(function () {
                         binarta.shop.checkout.start(order, [
                             'authentication-required',
                             'completed'
@@ -69,7 +69,7 @@
                         expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).order).toEqual(order);
                     });
 
-                    it('then the roadmap is persisted in session storage', function() {
+                    it('then the roadmap is persisted in session storage', function () {
                         expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['completed']);
                     });
                 });
@@ -149,7 +149,7 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('on confirmation the order can be rejected', function() {
+                    it('on confirmation the order can be rejected', function () {
                         binarta.shop.gateway = new InvalidOrderGateway();
 
                         binarta.shop.checkout.confirm();
@@ -158,13 +158,13 @@
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
 
-                    it('when payment provider setup the only rejection reason proceed to next step', function() {
+                    it('when payment provider setup the only rejection reason proceed to next step', function () {
                         binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
                         binarta.shop.checkout.confirm();
                         expect(binarta.shop.checkout.status()).toEqual('summary');
                     });
 
-                    it('on confirmation the order can be accepted', function() {
+                    it('on confirmation the order can be accepted', function () {
                         binarta.shop.gateway = new ValidOrderGateway();
                         var spy = jasmine.createSpy('spy');
 
@@ -183,13 +183,13 @@
                         ])
                     });
 
-                    it('when payment provider setup is not the only rejection reason do not proceed', function() {
+                    it('when payment provider setup is not the only rejection reason do not proceed', function () {
                         binarta.shop.gateway = new NotOnlyPaymentProviderRequiresSetupGateway();
                         binarta.shop.checkout.confirm();
                         expect(binarta.shop.checkout.status()).toEqual('summary');
                     });
 
-                    it('when payment provider setup is the only rejection reason proceed to next step', function() {
+                    it('when payment provider setup is the only rejection reason proceed to next step', function () {
                         binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
                         var spy = jasmine.createSpy('spy');
 
@@ -197,6 +197,40 @@
 
                         expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
                         expect(spy).toHaveBeenCalled();
+                    });
+                });
+
+                describe('on the setup payment provider step', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.start(order, [
+                            'setup-payment-provider',
+                            'completed'
+                        ])
+                    });
+
+                    it('on retry attempt to place order', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.retry();
+                        expect(binarta.shop.gateway.submitOrderRequest).toEqual(order);
+                    });
+
+                    it('when order is accepted proceed to next step', function () {
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        var spy = jasmine.createSpy('spy');
+
+                        binarta.shop.checkout.retry(spy);
+
+                        expect(binarta.shop.checkout.status()).toEqual('completed');
+                        expect(spy).toHaveBeenCalled();
+                    });
+
+                    it('when order is rejected expose violation report', function () {
+                        binarta.shop.gateway = new InvalidOrderGateway();
+
+                        binarta.shop.checkout.retry();
+
+                        expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
+                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
                 });
 
