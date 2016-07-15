@@ -17,9 +17,17 @@ function BinartaShopjs(checkpoint) {
             'setup-payment-provider': SetupPaymentProviderStep,
             'completed': CompletedStep
         };
+        var gatewaySteps = [
+            'authentication-required',
+            'setup-payment-provider'
+        ];
 
-        this.installCustomStepDefinition = function (id, definition) {
+        this.installCustomStepDefinition = function (id, definition, metadata) {
             stepDefinitions[id] = definition;
+            if(metadata == undefined)
+                metadata = {};
+            if(metadata.isGatewayStep)
+                gatewaySteps.push(id);
         };
 
         this.status = function () {
@@ -28,7 +36,7 @@ function BinartaShopjs(checkpoint) {
 
         this.start = function (order, roadmap) {
             if (self.status() == 'idle' || self.status() == 'completed') {
-                self.persist({roadmap: roadmap, order: order});
+                self.persist({roadmap: roadmap, currentStep: 'idle', unlockedSteps: [roadmap[0]], order: order});
                 self.next();
             }
         };
@@ -41,6 +49,24 @@ function BinartaShopjs(checkpoint) {
             return JSON.parse(sessionStorage.getItem('binartaJSCheckout')) || {};
         };
 
+        this.roadmap = function () {
+            var ctx = self.context();
+            return ctx.roadmap.filter(function (it) {
+                return gatewaySteps.every(function (gatewayStep) {
+                    return it != gatewayStep;
+                });
+            }).map(function (it) {
+                var unlocked = ctx.unlockedSteps.some(function(step) {
+                    return step == it;
+                });
+                return {
+                    name: it,
+                    locked: !unlocked,
+                    unlocked: unlocked
+                }
+            });
+        };
+
         function clear() {
             sessionStorage.setItem('binartaJSCheckout', '{}');
         }
@@ -50,14 +76,20 @@ function BinartaShopjs(checkpoint) {
         };
 
         this.isNextStep = function (it) {
-            return self.context().roadmap[0] == it
+            var ctx = self.context();
+            return ctx.roadmap[toNextStepIndex(ctx)] == it
         };
+
+        function toNextStepIndex(ctx) {
+            return ctx.roadmap.lastIndexOf(ctx.currentStep) + 1;
+        }
 
         this.next = function () {
             var ctx = self.context();
-            var step = ctx.roadmap.shift();
+            ctx.currentStep = ctx.roadmap[toNextStepIndex(ctx)];
+            ctx.unlockedSteps.push(ctx.currentStep);
             self.persist(ctx);
-            new (stepDefinitions[step])(self);
+            return new (stepDefinitions[ctx.currentStep])(self);
         };
 
         this.cancel = function () {
@@ -131,7 +163,7 @@ function BinartaShopjs(checkpoint) {
             this.name = 'setup-payment-provider';
             var violationReportCache = {};
 
-            fsm.retry = function(onSuccessListener) {
+            fsm.retry = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
                     rejected: cacheViolationReport

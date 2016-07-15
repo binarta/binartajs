@@ -45,6 +45,10 @@ function InvalidCredentialsGateway() {
 
     this.signin = function (request, response) {
         response.rejected();
+    };
+
+    this.fetchAccountMetadata = function (response) {
+        response.unauthenticated();
     }
 }
 

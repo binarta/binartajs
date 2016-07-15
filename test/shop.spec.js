@@ -53,6 +53,33 @@
                     });
                 });
 
+                it('the exposed roadmap hides gateway steps', function () {
+                    binarta.shop.checkout.start(order, [
+                        'authentication-required',
+                        'summary',
+                        'setup-payment-provider',
+                        'completed'
+                    ]);
+                    expect(binarta.shop.checkout.roadmap()).toEqual([
+                        {name: 'summary', locked: true, unlocked: false},
+                        {name: 'completed', locked: true, unlocked: false}
+                    ]);
+                });
+
+                it('the exposed roadmap does not change as you proceed through it', function () {
+                    binarta.shop.checkout.start(order, [
+                        'authentication-required',
+                        'summary',
+                        'setup-payment-provider',
+                        'completed'
+                    ]);
+                    binarta.shop.checkout.next();
+                    expect(binarta.shop.checkout.roadmap()).toEqual([
+                        {name: 'summary', locked: false, unlocked: true},
+                        {name: 'completed', locked: true, unlocked: false}
+                    ]);
+                });
+
                 describe('when checkout is started', function () {
                     beforeEach(function () {
                         binarta.shop.checkout.start(order, [
@@ -70,7 +97,7 @@
                     });
 
                     it('then the roadmap is persisted in session storage', function () {
-                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['completed']);
+                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['authentication-required', 'completed']);
                     });
                 });
 
@@ -85,6 +112,8 @@
 
                 describe('on the authentication required step', function () {
                     beforeEach(function () {
+                        binarta.checkpoint.gateway = new InvalidCredentialsGateway();
+                        binarta.checkpoint.profile.refresh();
                         binarta.shop.checkout.start(order, [
                             'authentication-required',
                             'completed'
@@ -280,11 +309,25 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    function CustomStep(fsm) {
-                        fsm.currentState = this;
-                        this.name = 'custom-step';
-                    }
+                    it('then the custom step is included in the roadmap', function() {
+                        expect(binarta.shop.checkout.roadmap()).toEqual([
+                            {name: 'custom-step', locked: false, unlocked: true}
+                        ]);
+                    });
                 });
+
+                it('custom steps can be gateway steps and left out of the roadmap', function() {
+                    binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep, {isGatewayStep:true});
+                    binarta.shop.checkout.start(order, [
+                        'custom-step'
+                    ]);
+                    expect(binarta.shop.checkout.roadmap()).toEqual([]);
+                });
+
+                function CustomStep(fsm) {
+                    fsm.currentState = this;
+                    this.name = 'custom-step';
+                }
 
                 it('you can jump to a specific step directly', function () {
                     binarta.shop.checkout.jumpTo('completed');
