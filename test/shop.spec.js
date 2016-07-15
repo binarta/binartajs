@@ -263,6 +263,19 @@
                     });
                 });
 
+                it('setup payment provider step proceeds to next step when order has already been submitted', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.checkout.start(order, [
+                        'summary',
+                        'setup-payment-provider',
+                        'completed'
+                    ]);
+
+                    binarta.shop.checkout.confirm();
+
+                    expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
+
                 describe('on the checkout completed step', function () {
                     beforeEach(function () {
                         binarta.shop.checkout.start(order, [
@@ -309,15 +322,15 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('then the custom step is included in the roadmap', function() {
+                    it('then the custom step is included in the roadmap', function () {
                         expect(binarta.shop.checkout.roadmap()).toEqual([
                             {name: 'custom-step', locked: false, unlocked: true}
                         ]);
                     });
                 });
 
-                it('custom steps can be gateway steps and left out of the roadmap', function() {
-                    binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep, {isGatewayStep:true});
+                it('custom steps can be gateway steps and left out of the roadmap', function () {
+                    binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep, {isGatewayStep: true});
                     binarta.shop.checkout.start(order, [
                         'custom-step'
                     ]);

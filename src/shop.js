@@ -128,14 +128,24 @@ function BinartaShopjs(checkpoint) {
             fsm.confirm = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
-                    rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(onSuccess(onSuccessListener), cacheViolationReport)
+                    rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
                 });
             };
 
             function onSuccess(listener) {
                 return function () {
+                    var ctx = self.context();
+                    ctx.orderSubmitted = true;
+                    self.persist(ctx);
+                    next(listener)();
+                }
+            }
+
+            function next(listener) {
+                return function () {
                     fsm.next();
-                    listener();
+                    if(listener)
+                        listener();
                 }
             }
 
@@ -162,6 +172,9 @@ function BinartaShopjs(checkpoint) {
             fsm.currentState = this;
             this.name = 'setup-payment-provider';
             var violationReportCache = {};
+
+            if(fsm.context().orderSubmitted)
+                fsm.next();
 
             fsm.retry = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
