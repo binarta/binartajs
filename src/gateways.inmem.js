@@ -3,6 +3,7 @@ function BinartaInMemoryGatewaysjs() {
     this.shop = new ShopGateway();
 
     function CheckpointGateway() {
+        var self = this;
         var accounts = [];
         var activeProfile;
 
@@ -62,12 +63,16 @@ function BinartaInMemoryGatewaysjs() {
                 response.unauthenticated();
         };
     }
-    
+
     function ShopGateway() {
-        this.previewOrder = function(request, response) {
+        this.fetchBillingProfile = function (response) {
+            response.success({vat:'BE1234567890'});
+        };
+
+        this.previewOrder = function (request, response) {
             response.success(request);
         };
-        
+
         this.submitOrder = function (request, response) {
             if (request.provider == 'with-insufficient-funds')
                 response.rejected('violation-report');

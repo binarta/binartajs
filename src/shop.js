@@ -2,6 +2,7 @@ function BinartaShopjs(checkpoint) {
     var shop = this;
 
     checkpoint.profile.billing = new Billing(checkpoint.profile);
+    checkpoint.profile.refresh = checkpoint.profile.billing.refresh(checkpoint.profile.refresh);
     this.checkout = new Checkout();
 
     this.previewOrder = function (order, render) {
@@ -208,8 +209,28 @@ function BinartaShopjs(checkpoint) {
     }
 
     function Billing(profile) {
+        var profileCache = {};
+
+        this.refresh = function(upstreamRefresh) {
+            return function(response) {
+                upstreamRefresh(response);
+                shop.gateway.fetchBillingProfile({
+                    unauthenticated:function() {
+                        profileCache = {};
+                    },
+                    success:function(it) {
+                        profileCache = it;
+                    }
+                });
+            }
+        };
+
+        this.vatNumber = function() {
+            return profileCache.vat;
+        };
+
         this.isComplete = function () {
-            return profile.metadataCache && profile.metadataCache.billing && profile.metadataCache.billing.complete;
+            return billingDetails().complete;
         };
 
         this.initiate = function (id) {
@@ -243,6 +264,14 @@ function BinartaShopjs(checkpoint) {
                     profile.metadataCache.billing = {complete: true}
             } else
                 profile.metadataCache = {billing: {complete: true}}
+        }
+
+        function metadata() {
+            return profile.metadataCache || {};
+        }
+
+        function billingDetails() {
+            return metadata().billing || {};
         }
     }
 }

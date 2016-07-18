@@ -113,6 +113,7 @@
                 describe('on the authentication required step', function () {
                     beforeEach(function () {
                         binarta.checkpoint.gateway = new InvalidCredentialsGateway();
+                        binarta.shop.gateway = new InvalidCredentialsGateway();
                         binarta.checkpoint.profile.refresh();
                         binarta.shop.checkout.start(order, [
                             'authentication-required',
@@ -146,6 +147,7 @@
 
                 it('when already signed in proceed to next step', function () {
                     binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                    binarta.shop.gateway = new ValidCredentialsGateway();
                     binarta.checkpoint.profile.refresh();
 
                     binarta.shop.checkout.start(order, [
@@ -349,19 +351,57 @@
             });
 
             describe('profile extensions', function () {
-                describe('billing details', function () {
-                    it('start out incomplete', function () {
+                describe('profile refresh takes an optional event handler for the current request', function () {
+                    it('with optional success handler', function () {
+                        var spy = jasmine.createSpyObj('spy', ['success']);
+                        binarta.checkpoint.gateway = new AuthenticatedGateway();
+                        binarta.shop.gateway = new AuthenticatedGateway();
+                        binarta.checkpoint.profile.refresh(spy);
+                        expect(spy.success).toHaveBeenCalled();
+                    });
+
+                    it('with optional unauthenticated handler', function () {
+                        var spy = jasmine.createSpyObj('spy', ['unauthenticated']);
+                        binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                        binarta.shop.gateway = new UnauthenticatedGateway();
+                        binarta.checkpoint.profile.refresh(spy);
+                        expect(spy.unauthenticated).toHaveBeenCalled();
+                    });
+                });
+
+                describe('billing profile', function () {
+                    it('no vat number is initially exposed', function() {
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
+                    });
+
+                    it('an authenticated user may still not have a vat number specified', function() {
+                        binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
+                        binarta.shop.gateway = new InCompleteBillingProfileGateway();
+                        binarta.checkpoint.profile.refresh();
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
+                    });
+
+                    it('an authenticated user may have a vat number specified', function() {
+                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                        binarta.shop.gateway = new CompleteBillingProfileGateway();
+                        binarta.checkpoint.profile.refresh();
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
+                    });
+
+                    it('agreement start out incomplete', function () {
                         expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
                     });
 
-                    it('profile refresh loads incomplete billing details', function () {
-                        binarta.checkpoint.gateway = new InCompleteBillingDetailsGateway();
+                    it('profile refresh loads incomplete billing agreement', function () {
+                        binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
+                        binarta.shop.gateway = new InCompleteBillingProfileGateway();
                         binarta.checkpoint.profile.refresh();
                         expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
                     });
 
-                    it('profile refresh loads complete billing details', function () {
-                        binarta.checkpoint.gateway = new CompleteBillingDetailsGateway();
+                    it('profile refresh loads complete billing agreement', function () {
+                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                        binarta.shop.gateway = new CompleteBillingProfileGateway();
                         binarta.checkpoint.profile.refresh();
                         expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
                     });
@@ -412,13 +452,13 @@
                     });
 
                     it('confirm billing agreement delegates to ui', function () {
-                        binarta.shop.gateway = new CompleteBillingDetailsGateway();
+                        binarta.shop.gateway = new CompleteBillingProfileGateway();
                         binarta.checkpoint.profile.billing.confirm({});
                         expect(ui.confirmedBillingAgreementRequest).toBeTruthy();
                     });
 
                     it('when confirm billing agreement completes then billing details report as completed', function () {
-                        binarta.shop.gateway = new CompleteBillingDetailsGateway();
+                        binarta.shop.gateway = new CompleteBillingProfileGateway();
                         binarta.checkpoint.profile.billing.confirm({});
                         expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
                     });

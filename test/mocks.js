@@ -26,6 +26,10 @@ function InterfacesWithUIGateway() {
 function UnauthenticatedGateway() {
     this.fetchAccountMetadata = function (response) {
         response.unauthenticated();
+    };
+
+    this.fetchBillingProfile = function(response) {
+        response.unauthenticated();
     }
 }
 
@@ -35,6 +39,10 @@ function AuthenticatedGateway() {
 
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({principal: 'p'});
+    };
+
+    this.fetchBillingProfile = function(response) {
+        response.success({});
     }
 }
 
@@ -48,6 +56,10 @@ function InvalidCredentialsGateway() {
     };
 
     this.fetchAccountMetadata = function (response) {
+        response.unauthenticated();
+    };
+
+    this.fetchBillingProfile = function(response) {
         response.unauthenticated();
     }
 }
@@ -66,6 +78,10 @@ function ValidCredentialsGateway() {
 
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: false}});
+    };
+
+    this.fetchBillingProfile = function() {
+        
     }
 }
 
@@ -97,15 +113,23 @@ function ValidOrderGateway() {
     }
 }
 
-function InCompleteBillingDetailsGateway() {
+function InCompleteBillingProfileGateway() {
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: false}});
+    };
+
+    this.fetchBillingProfile = function(response) {
+        response.unauthenticated();
     }
 }
 
-function CompleteBillingDetailsGateway() {
+function CompleteBillingProfileGateway() {
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: true}});
+    };
+
+    this.fetchBillingProfile = function(response) {
+        response.success({vat:'BE1234567890'});
     };
 
     this.confirmBillingAgreement = function (request, response) {
