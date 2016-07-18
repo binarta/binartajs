@@ -369,19 +369,58 @@
                     });
                 });
 
+                describe('when putting the profile in edit mode', function () {
+                    beforeEach(function () {
+                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                        binarta.shop.gateway = new CompleteBillingProfileGateway();
+                        binarta.checkpoint.profile.refresh();
+                        binarta.checkpoint.profile.edit();
+                    });
+
+                    it('then the profile exposes an update request', function () {
+                        expect(binarta.checkpoint.profile.updateRequest()).toEqual({vat: 'BE1234567890'});
+                    });
+
+                    it('then modifying the update profile request does not affect the current profile', function () {
+                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                        expect(binarta.checkpoint.profile.updateRequest().vat).toEqual('BE0987654321');
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
+                    });
+
+                    it('then update delegates to gateway', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                        binarta.checkpoint.profile.update();
+                        expect(binarta.shop.gateway.updateBillingProfileRequest).toEqual({vat: 'BE0987654321'});
+                    });
+
+                    it('then update affects current profile', function () {
+                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                        binarta.checkpoint.profile.update();
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE0987654321');
+                    });
+
+                    it('then update returns profile to idle status', function () {
+                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                        binarta.checkpoint.profile.update();
+                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                    });
+                });
+
                 describe('billing profile', function () {
-                    it('no vat number is initially exposed', function() {
+                    it('no vat number is initially exposed', function () {
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
                     });
 
-                    it('an authenticated user may still not have a vat number specified', function() {
+                    it('an authenticated user may still not have a vat number specified', function () {
                         binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
                         binarta.shop.gateway = new InCompleteBillingProfileGateway();
                         binarta.checkpoint.profile.refresh();
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
                     });
 
-                    it('an authenticated user may have a vat number specified', function() {
+                    it('an authenticated user may have a vat number specified', function () {
                         binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
                         binarta.shop.gateway = new CompleteBillingProfileGateway();
                         binarta.checkpoint.profile.refresh();

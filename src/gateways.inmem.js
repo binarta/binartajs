@@ -69,6 +69,10 @@ function BinartaInMemoryGatewaysjs() {
             response.success({vat:'BE1234567890'});
         };
 
+        this.updateBillingProfile = function(request, response) {
+            response.success();
+        };
+
         this.previewOrder = function (request, response) {
             response.success(request);
         };

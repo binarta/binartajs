@@ -25,9 +25,9 @@ function BinartaShopjs(checkpoint) {
 
         this.installCustomStepDefinition = function (id, definition, metadata) {
             stepDefinitions[id] = definition;
-            if(metadata == undefined)
+            if (metadata == undefined)
                 metadata = {};
-            if(metadata.isGatewayStep)
+            if (metadata.isGatewayStep)
                 gatewaySteps.push(id);
         };
 
@@ -57,7 +57,7 @@ function BinartaShopjs(checkpoint) {
                     return it != gatewayStep;
                 });
             }).map(function (it) {
-                var unlocked = ctx.unlockedSteps.some(function(step) {
+                var unlocked = ctx.unlockedSteps.some(function (step) {
                     return step == it;
                 });
                 return {
@@ -145,7 +145,7 @@ function BinartaShopjs(checkpoint) {
             function next(listener) {
                 return function () {
                     fsm.next();
-                    if(listener)
+                    if (listener)
                         listener();
                 }
             }
@@ -174,7 +174,7 @@ function BinartaShopjs(checkpoint) {
             this.name = 'setup-payment-provider';
             var violationReportCache = {};
 
-            if(fsm.context().orderSubmitted)
+            if (fsm.context().orderSubmitted)
                 fsm.next();
 
             fsm.retry = function (onSuccessListener) {
@@ -209,23 +209,38 @@ function BinartaShopjs(checkpoint) {
     }
 
     function Billing(profile) {
+        var self = this;
         var profileCache = {};
 
-        this.refresh = function(upstreamRefresh) {
-            return function(response) {
+        profile.updateProfileRequestDecorators.push(function (request) {
+            request.vat = self.vatNumber();
+            return request;
+        });
+        profile.updateProfileHandlers.push(function (request, response) {
+            if (request.vat)
+                shop.gateway.updateBillingProfile({vat: request.vat}, {
+                    success: function () {
+                        profileCache.vat = request.vat;
+                        response.success();
+                    }
+                });
+        });
+
+        this.refresh = function (upstreamRefresh) {
+            return function (response) {
                 upstreamRefresh(response);
                 shop.gateway.fetchBillingProfile({
-                    unauthenticated:function() {
+                    unauthenticated: function () {
                         profileCache = {};
                     },
-                    success:function(it) {
+                    success: function (it) {
                         profileCache = it;
                     }
                 });
             }
         };
 
-        this.vatNumber = function() {
+        this.vatNumber = function () {
             return profileCache.vat;
         };
 

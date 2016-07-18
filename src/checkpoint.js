@@ -174,6 +174,13 @@ function BinartaCheckpointjs() {
     function Profile() {
         var self = this;
 
+        this.updateProfileRequestDecorators = [];
+        this.updateProfileHandlers = [];
+
+        this.status = function () {
+            return self.currentStatus.status;
+        };
+
         this.refresh = function (response) {
             response = toNoOpResponse(response);
             checkpoint.gateway.fetchAccountMetadata({
@@ -229,8 +236,50 @@ function BinartaCheckpointjs() {
             return self.metadataCache;
         };
 
-        this.email = function() {
+        this.email = function () {
             return self.metadata().email;
+        };
+
+        function IdleState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'idle';
+
+            fsm.edit = function () {
+                new EditState(fsm);
+            }
         }
+
+        function EditState(fsm) {
+            fsm.currentStatus = this;
+            this.status = 'editing';
+            var request = fsm.updateProfileRequestDecorators.reduce(function (p, c) {
+                return c(p);
+            }, {});
+
+            fsm.cancel = function () {
+                new IdleState(fsm);
+            };
+
+            fsm.updateRequest = function () {
+                return request;
+            };
+
+            fsm.update = function () {
+                var countdown = fsm.updateProfileHandlers.length;
+                if(countdown > 0)
+                    fsm.updateProfileHandlers.forEach(function (it) {
+                        it(request, {
+                            success: function () {
+                                if(--countdown == 0)
+                                    new IdleState(fsm);
+                            }
+                        });
+                    });
+                else
+                    new IdleState(fsm);
+            }
+        }
+
+        new IdleState(this);
     }
 }

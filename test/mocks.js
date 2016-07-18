@@ -2,6 +2,7 @@ function GatewaySpy() {
     this.signin = spy('signinRequest');
     this.signout = spy('signoutRequest');
     this.register = spy('registrationRequest');
+    this.updateBillingProfile = spy('updateBillingProfileRequest');
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
     this.previewOrder = spy('previewOrderRequest');
@@ -134,5 +135,11 @@ function CompleteBillingProfileGateway() {
 
     this.confirmBillingAgreement = function (request, response) {
         response.confirmedBillingAgreement();
+    }
+}
+
+function ValidBillingProfileGateway() {
+    this.updateBillingProfile = function(request, response) {
+        response.success();
     }
 }

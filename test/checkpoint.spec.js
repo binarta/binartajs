@@ -29,7 +29,7 @@
         it('profile is exposed on refresh', function () {
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
-            expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p', email:'e'});
+            expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p', email: 'e'});
             expect(binarta.checkpoint.profile.email()).toEqual('e');
         });
 
@@ -70,6 +70,52 @@
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.signout();
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
+        it('profile is initially in an idle status', function () {
+            expect(binarta.checkpoint.profile.status()).toEqual('idle');
+        });
+
+        describe('when putting the profile in edit mode', function () {
+            beforeEach(function () {
+                binarta.checkpoint.profile.edit();
+            });
+
+            it('then the status reflects it is in edit mode', function () {
+                expect(binarta.checkpoint.profile.status()).toEqual('editing');
+            });
+
+            it('then the profile exposes an update request', function () {
+                expect(binarta.checkpoint.profile.updateRequest()).toEqual({});
+            });
+
+            it('then edit mode can be canceled', function () {
+                binarta.checkpoint.profile.cancel();
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+            });
+
+            it('and update then profile returns to idle status', function () {
+                binarta.checkpoint.profile.update();
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+            });
+
+            it('and update with custom update handlers defers idle status until update handlers complete', function () {
+                var responseHandlers = [];
+                binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
+                    responseHandlers.push(response);
+                });
+                binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
+                    responseHandlers.push(response);
+                });
+
+                binarta.checkpoint.profile.update();
+
+                expect(binarta.checkpoint.profile.status()).toEqual('editing');
+                responseHandlers[0].success();
+                expect(binarta.checkpoint.profile.status()).toEqual('editing');
+                responseHandlers[1].success();
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+            });
         });
 
         describe('registration form', function () {
