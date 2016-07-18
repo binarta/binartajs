@@ -38,7 +38,7 @@ function AuthenticatedGateway() {
     };
 
     this.fetchAccountMetadata = function (response) {
-        response.activeAccountMetadata({principal: 'p'});
+        response.activeAccountMetadata({principal: 'p', email:'e'});
     };
 
     this.fetchBillingProfile = function(response) {

@@ -29,7 +29,8 @@
         it('profile is exposed on refresh', function () {
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
-            expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p'});
+            expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p', email:'e'});
+            expect(binarta.checkpoint.profile.email()).toEqual('e');
         });
 
         it('profile is unauthenticated on refresh when session expires', function () {
@@ -341,9 +342,6 @@
                     expect(listener.rejected).toHaveBeenCalledWith('credentials.mismatch');
                 })
             });
-        });
-
-        describe('active profile', function () {
         });
     });
 

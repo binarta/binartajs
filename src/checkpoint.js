@@ -228,5 +228,9 @@ function BinartaCheckpointjs() {
         this.metadata = function () {
             return self.metadataCache;
         };
+
+        this.email = function() {
+            return self.metadata().email;
+        }
     }
 }
