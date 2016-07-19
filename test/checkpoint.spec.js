@@ -99,22 +99,47 @@
                 expect(binarta.checkpoint.profile.status()).toEqual('idle');
             });
 
-            it('and update with custom update handlers defers idle status until update handlers complete', function () {
-                var responseHandlers = [];
-                binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
-                    responseHandlers.push(response);
-                });
-                binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
-                    responseHandlers.push(response);
+            describe('and update supports custom update handlers', function () {
+                var responseHandlers;
+                beforeEach(function () {
+                    responseHandlers = [];
+                    binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
+                        responseHandlers.push(response);
+                    });
+                    binarta.checkpoint.profile.updateProfileHandlers.push(function (request, response) {
+                        responseHandlers.push(response);
+                    });
                 });
 
-                binarta.checkpoint.profile.update();
+                it('idle status is deferred until all update handlers complete', function () {
+                    binarta.checkpoint.profile.update();
 
-                expect(binarta.checkpoint.profile.status()).toEqual('editing');
-                responseHandlers[0].success();
-                expect(binarta.checkpoint.profile.status()).toEqual('editing');
-                responseHandlers[1].success();
-                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[0].success();
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[1].success();
+                    expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                });
+
+                it('when the last custom update handler rejects the request then return to editing state', function () {
+                    binarta.checkpoint.profile.update();
+
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[0].success();
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[1].rejected({last: 'x'});
+                    expect(binarta.checkpoint.profile.status()).toEqual('editing');
+                });
+
+                it('when the first custom update handler rejects the request then return to editing state', function () {
+                    binarta.checkpoint.profile.update();
+
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[0].rejected({first: 'x'});
+                    expect(binarta.checkpoint.profile.status()).toEqual('working');
+                    responseHandlers[1].success();
+                    expect(binarta.checkpoint.profile.status()).toEqual('editing');
+                });
             });
         });
 

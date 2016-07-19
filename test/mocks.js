@@ -3,6 +3,8 @@ function GatewaySpy() {
     this.signout = spy('signoutRequest');
     this.register = spy('registrationRequest');
     this.updateBillingProfile = spy('updateBillingProfileRequest');
+    this.addAddress = spy('addAddressRequest');
+    this.updateAddress = spy('updateAddressRequest');
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
     this.previewOrder = spy('previewOrderRequest');
@@ -29,7 +31,11 @@ function UnauthenticatedGateway() {
         response.unauthenticated();
     };
 
-    this.fetchBillingProfile = function(response) {
+    this.fetchBillingProfile = function (response) {
+        response.unauthenticated();
+    };
+
+    this.fetchAddresses = function (response) {
         response.unauthenticated();
     }
 }
@@ -39,11 +45,34 @@ function AuthenticatedGateway() {
     };
 
     this.fetchAccountMetadata = function (response) {
-        response.activeAccountMetadata({principal: 'p', email:'e'});
+        response.activeAccountMetadata({principal: 'p', email: 'e'});
     };
 
-    this.fetchBillingProfile = function(response) {
+    this.fetchBillingProfile = function (response) {
         response.success({});
+    };
+
+    this.fetchAddresses = function (response) {
+        response.success([
+            {
+                label: 'home',
+                addressee: 'John Doe',
+                street: 'Johny Lane',
+                number: '1',
+                zip: '1000',
+                city: 'Johnyville',
+                country: 'BE'
+            },
+            {
+                label: 'work',
+                addressee: 'John Doe',
+                street: 'Johny Lane',
+                number: '1',
+                zip: '1000',
+                city: 'Johnyville',
+                country: 'BE'
+            }
+        ]);
     }
 }
 
@@ -60,7 +89,11 @@ function InvalidCredentialsGateway() {
         response.unauthenticated();
     };
 
-    this.fetchBillingProfile = function(response) {
+    this.fetchBillingProfile = function (response) {
+        response.unauthenticated();
+    };
+
+    this.fetchAddresses = function (response) {
         response.unauthenticated();
     }
 }
@@ -81,8 +114,10 @@ function ValidCredentialsGateway() {
         response.activeAccountMetadata({billing: {complete: false}});
     };
 
-    this.fetchBillingProfile = function() {
-        
+    this.fetchBillingProfile = function () {
+    };
+
+    this.fetchAddresses = function () {
     }
 }
 
@@ -119,8 +154,12 @@ function InCompleteBillingProfileGateway() {
         response.activeAccountMetadata({billing: {complete: false}});
     };
 
-    this.fetchBillingProfile = function(response) {
+    this.fetchBillingProfile = function (response) {
         response.unauthenticated();
+    };
+
+    this.fetchAddresses = function (response) {
+        response.success([]);
     }
 }
 
@@ -129,8 +168,12 @@ function CompleteBillingProfileGateway() {
         response.activeAccountMetadata({billing: {complete: true}});
     };
 
-    this.fetchBillingProfile = function(response) {
-        response.success({vat:'BE1234567890'});
+    this.fetchBillingProfile = function (response) {
+        response.success({vat: 'BE1234567890'});
+    };
+
+    this.fetchAddresses = function (response) {
+        response.success([]);
     };
 
     this.confirmBillingAgreement = function (request, response) {
@@ -138,8 +181,26 @@ function CompleteBillingProfileGateway() {
     }
 }
 
+function InvalidBillingProfileGateway() {
+    this.addAddress = function (request, response) {
+        response.rejected('violation-report');
+    };
+
+    this.updateAddress = function (request, response) {
+        response.rejected('violation-report');
+    }
+}
+
 function ValidBillingProfileGateway() {
-    this.updateBillingProfile = function(request, response) {
+    this.updateBillingProfile = function (request, response) {
+        response.success();
+    };
+
+    this.addAddress = function (request, response) {
+        response.success();
+    };
+
+    this.updateAddress = function (request, response) {
         response.success();
     }
 }

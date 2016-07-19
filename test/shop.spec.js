@@ -369,6 +369,95 @@
                     });
                 });
 
+                it('addresses are initially empty', function () {
+                    expect(binarta.checkpoint.profile.addresses()).toEqual([]);
+                });
+
+                describe('existing addresses are loaded on refresh', function () {
+                    beforeEach(function () {
+                        binarta.checkpoint.gateway = new AuthenticatedGateway();
+                        binarta.shop.gateway = new AuthenticatedGateway();
+                        binarta.checkpoint.profile.refresh();
+                    });
+
+                    it('and exposed', function () {
+                        expect(binarta.checkpoint.profile.addresses().map(function (it) {
+                            return it.label;
+                        })).toEqual(['home', 'work']);
+                    });
+
+                    it('an address sits in idle status', function () {
+                        expect(binarta.checkpoint.profile.addresses()[0].status()).toEqual('idle');
+                    });
+
+                    describe('editing an address', function () {
+                        var address;
+
+                        beforeEach(function () {
+                            address = binarta.checkpoint.profile.addresses()[0];
+                            address.edit();
+                        });
+
+                        it('exposes status as editing', function () {
+                            expect(address.status()).toEqual('editing');
+                        });
+
+                        it('exposes an update request', function () {
+                            expect(address.updateRequest()).toEqual({
+                                id: {label: 'home'},
+                                label: 'home',
+                                addressee: 'John Doe',
+                                street: 'Johny Lane',
+                                number: '1',
+                                zip: '1000',
+                                city: 'Johnyville',
+                                country: 'BE'
+                            });
+                        });
+
+                        it('changes to the update request do not affect the actual address yet', function () {
+                            address.updateRequest().addressee = 'x';
+                            expect(address.addressee).toEqual('John Doe');
+                        });
+
+                        it('canceling returns to idle status', function () {
+                            address.cancel();
+                            expect(address.status()).toEqual('idle');
+                        });
+
+                        it('then update delegates to gateway', function () {
+                            binarta.shop.gateway = new GatewaySpy();
+                            address.updateRequest().addressee = 'Jane Smith';
+                            address.update();
+                            expect(binarta.shop.gateway.updateAddressRequest).toEqual({
+                                id: {label: 'home'},
+                                label: 'home',
+                                addressee: 'Jane Smith',
+                                street: 'Johny Lane',
+                                number: '1',
+                                zip: '1000',
+                                city: 'Johnyville',
+                                country: 'BE'
+                            });
+                        });
+
+                        it('then update can be rejected', function () {
+                            binarta.shop.gateway = new InvalidBillingProfileGateway();
+                            address.update();
+                            expect(address.status()).toEqual('editing');
+                            expect(address.violationReport()).toEqual('violation-report');
+                        });
+
+                        it('then update affects current profile', function () {
+                            binarta.shop.gateway = new ValidBillingProfileGateway();
+                            address.updateRequest().addressee = 'x';
+                            address.update();
+                            expect(address.status()).toEqual('idle');
+                            expect(address.addressee).toEqual('x');
+                        });
+                    });
+                });
+
                 describe('when putting the profile in edit mode', function () {
                     beforeEach(function () {
                         binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
@@ -378,7 +467,7 @@
                     });
 
                     it('then the profile exposes an update request', function () {
-                        expect(binarta.checkpoint.profile.updateRequest()).toEqual({vat: 'BE1234567890'});
+                        expect(binarta.checkpoint.profile.updateRequest()).toEqual({vat: 'BE1234567890', address: {}});
                     });
 
                     it('then modifying the update profile request does not affect the current profile', function () {
@@ -387,24 +476,65 @@
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
                     });
 
-                    it('then update delegates to gateway', function () {
+                    it('then update vat delegates to gateway', function () {
                         binarta.shop.gateway = new GatewaySpy();
                         binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
                         binarta.checkpoint.profile.update();
                         expect(binarta.shop.gateway.updateBillingProfileRequest).toEqual({vat: 'BE0987654321'});
                     });
 
-                    it('then update affects current profile', function () {
+                    it('then update vat affects current profile', function () {
                         binarta.shop.gateway = new ValidBillingProfileGateway();
                         binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
                         binarta.checkpoint.profile.update();
+                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE0987654321');
                     });
 
-                    it('then update returns profile to idle status', function () {
-                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                    it('then update to add a new address does not delegate to gateway when address is empty', function () {
+                        binarta.shop.gateway = new GatewaySpy();
                         binarta.checkpoint.profile.update();
+                        expect(binarta.shop.gateway.addAddressRequest).toBeUndefined();
+                    });
+
+                    it('then update to add a new address delegates to the gateway', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
+                        binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
+                        binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                        binarta.checkpoint.profile.updateRequest().address.number = '1';
+                        binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+                        binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
+                        binarta.checkpoint.profile.updateRequest().address.country = 'BE';
+
+                        binarta.checkpoint.profile.update();
+
+                        expect(binarta.shop.gateway.addAddressRequest).toEqual({
+                            label: 'home',
+                            addressee: 'John Doe',
+                            street: 'Johny Lane',
+                            number: '1',
+                            zip: '1000',
+                            city: 'Johnyville',
+                            country: 'BE'
+                        });
+                    });
+
+                    it('then update to add a new address is rejected', function () {
+                        binarta.shop.gateway = new InvalidBillingProfileGateway();
+                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
+                        binarta.checkpoint.profile.update();
+                        expect(binarta.checkpoint.profile.violationReport()).toEqual({address: 'violation-report'});
+                    });
+
+                    it('then update to add a new address is accepted', function () {
+                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
+
+                        binarta.checkpoint.profile.update();
+
                         expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                        expect(binarta.checkpoint.profile.addresses()[0].label).toEqual('home');
                     });
                 });
 

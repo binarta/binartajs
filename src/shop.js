@@ -211,32 +211,26 @@ function BinartaShopjs(checkpoint) {
     function Billing(profile) {
         var self = this;
         var profileCache = {};
+        var addressesCache = [];
 
         profile.updateProfileRequestDecorators.push(function (request) {
             request.vat = self.vatNumber();
+            request.address = {};
             return request;
         });
         profile.updateProfileHandlers.push(function (request, response) {
-            if (request.vat)
-                shop.gateway.updateBillingProfile({vat: request.vat}, {
-                    success: function () {
-                        profileCache.vat = request.vat;
-                        response.success();
-                    }
-                });
+            updateBillingProfile(request, response, self.vatNumber());
+            addAddress(request, response);
         });
+        profile.addresses = function () {
+            return addressesCache;
+        };
 
         this.refresh = function (upstreamRefresh) {
             return function (response) {
                 upstreamRefresh(response);
-                shop.gateway.fetchBillingProfile({
-                    unauthenticated: function () {
-                        profileCache = {};
-                    },
-                    success: function (it) {
-                        profileCache = it;
-                    }
-                });
+                fetchBillingProfile();
+                fetchAddresses();
             }
         };
 
@@ -287,6 +281,129 @@ function BinartaShopjs(checkpoint) {
 
         function billingDetails() {
             return metadata().billing || {};
+        }
+
+        function fetchBillingProfile() {
+            shop.gateway.fetchBillingProfile({
+                unauthenticated: function () {
+                    profileCache = {};
+                },
+                success: function (it) {
+                    profileCache = it;
+                }
+            });
+        }
+
+        function fetchAddresses() {
+            shop.gateway.fetchAddresses({
+                unauthenticated: function () {
+                    addressesCache = [];
+                },
+                success: function (addresses) {
+                    addressesCache = addresses.map(function (it) {
+                        return new Address(it);
+                    });
+                }
+            });
+        }
+
+        function updateBillingProfile(request, response, existingVatNumber) {
+            if (request.vat && request.vat != existingVatNumber)
+                shop.gateway.updateBillingProfile({vat: request.vat}, {
+                    success: function () {
+                        profileCache.vat = request.vat;
+                        response.success();
+                    }
+                });
+        }
+
+        function addAddress(request, response) {
+            if (request.address && Object.keys(request.address).length > 0)
+                shop.gateway.addAddress(request.address, {
+                    success: function () {
+                        addressesCache.push(new Address(request.address));
+                        response.success();
+                    },
+                    rejected: function (report) {
+                        response.rejected({address: report});
+                    }
+                });
+        }
+
+        function Address(data) {
+            var self = this;
+            var emptyViolationReport = {};
+
+            function hydrate(it) {
+                Object.keys(it).forEach(function (k) {
+                    self[k] = it[k];
+                });
+            }
+
+            hydrate(data);
+
+            this.status = function () {
+                return self.currentStatus.status;
+            };
+
+            this.violationReport = function () {
+                return self.currentStatus.violationReport || emptyViolationReport;
+            };
+
+            function IdleState(fsm) {
+                fsm.currentStatus = this;
+                this.status = 'idle';
+
+                fsm.edit = function () {
+                    new EditState(fsm);
+                }
+            }
+
+            function EditState(fsm, violationReport) {
+                fsm.currentStatus = this;
+                this.status = 'editing';
+                this.violationReport = violationReport || {};
+
+                var request = {
+                    id: {label: fsm.label},
+                    label: fsm.label,
+                    addressee: fsm.addressee,
+                    street: fsm.street,
+                    number: fsm.number,
+                    zip: fsm.zip,
+                    city: fsm.city,
+                    country: fsm.country
+                };
+
+                fsm.cancel = function () {
+                    new IdleState(fsm);
+                };
+
+                fsm.updateRequest = function () {
+                    return request;
+                };
+
+                fsm.update = function () {
+                    new WorkingState(fsm, request);
+                };
+            }
+
+            function WorkingState(fsm, request) {
+                fsm.currentStatus = this;
+                this.status = 'working';
+
+                shop.gateway.updateAddress(request, {
+                    success: function () {
+                        hydrate(request);
+                        new IdleState(fsm);
+                    },
+                    rejected: function (report) {
+                        new EditState(fsm, report);
+                    }
+                });
+            }
+
+            new IdleState(this);
         }
     }
 }

@@ -65,11 +65,34 @@ function BinartaInMemoryGatewaysjs() {
     }
 
     function ShopGateway() {
+        var addresses = [];
+
         this.fetchBillingProfile = function (response) {
-            response.success({vat:'BE1234567890'});
+            response.success({vat: 'BE1234567890'});
         };
 
-        this.updateBillingProfile = function(request, response) {
+        this.fetchAddresses = function (response) {
+            response.success(addresses);
+        };
+
+        this.addAddress = function (request, response) {
+            addresses.push(request);
+            response.success();
+        };
+
+        this.updateAddress = function (request, response) {
+            var address = addresses.reduce(function (p, c) {
+                if (c.label == request.label)
+                    return c;
+                return p;
+            }, {});
+            Object.keys(request).forEach(function (k) {
+                address[k] = request[k];
+            });
+            response.success();
+        };
+
+        this.updateBillingProfile = function (request, response) {
             response.success();
         };
 

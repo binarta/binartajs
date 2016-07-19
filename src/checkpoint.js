@@ -173,12 +173,17 @@ function BinartaCheckpointjs() {
 
     function Profile() {
         var self = this;
+        var emptyViolationReport = {};
 
         this.updateProfileRequestDecorators = [];
         this.updateProfileHandlers = [];
 
         this.status = function () {
             return self.currentStatus.status;
+        };
+
+        this.violationReport = function () {
+            return self.currentStatus.violationReport || emptyViolationReport;
         };
 
         this.refresh = function (response) {
@@ -249,9 +254,11 @@ function BinartaCheckpointjs() {
             }
         }
 
-        function EditState(fsm) {
+        function EditState(fsm, violationReport) {
             fsm.currentStatus = this;
             this.status = 'editing';
+            this.violationReport = violationReport || {};
+
             var request = fsm.updateProfileRequestDecorators.reduce(function (p, c) {
                 return c(p);
             }, {});
@@ -265,19 +272,37 @@ function BinartaCheckpointjs() {
             };
 
             fsm.update = function () {
-                var countdown = fsm.updateProfileHandlers.length;
-                if(countdown > 0)
-                    fsm.updateProfileHandlers.forEach(function (it) {
-                        it(request, {
-                            success: function () {
-                                if(--countdown == 0)
+                new WorkingState(fsm, request);
+            };
+        }
+
+        function WorkingState(fsm, request) {
+            fsm.currentStatus = this;
+            this.status = 'working';
+
+            var violationReport = {};
+            var countdown = fsm.updateProfileHandlers.length;
+            if (countdown > 0)
+                fsm.updateProfileHandlers.forEach(function (it) {
+                    it(request, {
+                        success: function () {
+                            if (--countdown == 0)
+                                if (Object.keys(violationReport).length > 0)
+                                    new EditState(fsm, violationReport);
+                                else
                                     new IdleState(fsm);
-                            }
-                        });
+                        },
+                        rejected: function (report) {
+                            Object.keys(report).forEach(function (k) {
+                                violationReport[k] = report[k];
+                            });
+                            if (--countdown == 0)
+                                new EditState(fsm, violationReport);
+                        }
                     });
-                else
-                    new IdleState(fsm);
-            }
+                });
+            else
+                new IdleState(fsm);
         }
 
         new IdleState(this);
