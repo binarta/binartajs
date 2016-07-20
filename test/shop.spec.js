@@ -16,6 +16,504 @@
                 binarta = factory.create();
             });
 
+            describe('basket', function () {
+                var eventListener;
+
+                beforeEach(function () {
+                    binarta.shop.basket.clear();
+
+                    eventListener = jasmine.createSpyObj('event-listener', ['itemAdded', 'itemRemoved', 'itemUpdated']);
+                    binarta.shop.basket.eventRegistry.add(eventListener);
+                });
+
+                it('refreshing an empty basket remains empty', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.basket.refresh();
+                    expect(binarta.shop.basket.items()).toEqual([]);
+                    expect(binarta.shop.basket.subTotal()).toEqual(0);
+                    expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                });
+
+                it('expose coupon code', function () {
+                    expect(binarta.shop.basket.couponCode()).toBeUndefined();
+                    binarta.shop.basket.couponCode('1234');
+                    expect(binarta.shop.basket.couponCode()).toEqual('1234');
+                    expect(JSON.parse(localStorage.basket).coupon).toEqual('1234');
+                });
+
+                it('restore coupon code from local storage', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    localStorage.basket = JSON.stringify({items: [], coupon: '1234'});
+                    binarta.shop.basket.restore();
+                    expect(binarta.shop.basket.couponCode()).toEqual('1234');
+                });
+
+                describe('when adding an item to the basket', function () {
+                    var item;
+                    var error = jasmine.createSpy('error');
+                    var success = jasmine.createSpy('success');
+
+                    beforeEach(function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                    });
+
+                    it('return value from toOrder can be modified without affecting the actual basket', function () {
+                        binarta.shop.basket.toOrder().quantity = 99;
+                        expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                    });
+
+                    it('validate the order', function () {
+                        item = {id: 'sale-id', price: 100, quantity: 2};
+                        binarta.shop.basket.add({item: item, success: success, error: error});
+                        expect(binarta.shop.gateway.validateOrderRequest).toEqual({
+                            items: [
+                                {id: 'sale-id', price: 100, quantity: 2}
+                            ]
+                        });
+                    });
+
+                    describe('on succesful validation', function () {
+                        beforeEach(function () {
+                            binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                            item = {id: 'sale-id', quantity: 2};
+                            binarta.shop.basket.add({item: item, success: success, error: error});
+                        });
+
+                        it('basket refresh request is made', function () {
+                            expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                                items: [{
+                                    id: 'sale-id',
+                                    quantity: 2
+                                }]
+                            });
+                        });
+
+                        it('basket status is not yet updated', function () {
+                            expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                            expect(success).not.toHaveBeenCalled();
+                            expect(eventListener.itemAdded).not.toHaveBeenCalled();
+                        });
+
+                        describe('when refresh completes', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.doPreviewOrders();
+                            });
+
+                            it('then the item is added to the item list', function () {
+                                expect(binarta.shop.basket.items()).toEqual([{id: 'sale-id', price: 100, quantity: 2}]);
+                                expect(binarta.shop.basket.toOrder().items[0].id).toEqual('sale-id');
+                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(2);
+                                expect(binarta.shop.basket.toOrder().items[0].price).toEqual(100);
+                                expect(binarta.shop.basket.toOrder().quantity).toEqual(2);
+                            });
+
+                            it('calculate sub total', function () {
+                                expect(binarta.shop.basket.subTotal()).toEqual(200);
+                            });
+
+                            it('expose presentable sub total', function () {
+                                expect(binarta.shop.basket.presentableSubTotal()).toEqual('$99.99');
+                            });
+
+                            it('success callback has been called', function () {
+                                expect(success).toHaveBeenCalled();
+                                expect(eventListener.itemAdded).toHaveBeenCalled();
+                            });
+
+                            describe('repeatedly', function () {
+                                beforeEach(function () {
+                                });
+
+                                describe('with success', function () {
+                                    beforeEach(function () {
+                                        binarta.shop.basket.add({item: item});
+                                    });
+
+                                    it('causes increments', function () {
+                                        expect(binarta.shop.basket.items()).toEqual([
+                                            {id: item.id, price: 100, quantity: 4}
+                                        ]);
+                                    });
+
+                                    it('calculate sub total', function () {
+                                        expect(binarta.shop.basket.subTotal()).toEqual(400);
+                                    });
+                                });
+
+                                describe('with rejection', function () {
+                                    beforeEach(function () {
+                                        binarta.shop.gateway = new InvalidOrderGateway();
+                                        binarta.shop.basket.add({item: item});
+                                    });
+
+                                    it('test', function () {
+                                        expect(binarta.shop.basket.items()).toEqual([
+                                            {id: item.id, price: 100, quantity: 2}
+                                        ])
+                                    });
+                                });
+                            });
+                        });
+
+                        it('add with configuration', function () {
+                            binarta.shop.gateway = new ValidOrderGateway();
+                            var item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
+                            binarta.shop.basket.add({item: item2, success: success, error: error});
+                            expect(binarta.shop.basket.items()[1].configuration).toEqual({x: 'y'});
+                        });
+
+                        describe('and any additional items', function () {
+                            var item2;
+
+                            beforeEach(function () {
+                                binarta.shop.gateway = new ValidOrderGateway();
+                                item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
+                                binarta.shop.basket.couponCode('coupon-code');
+                                binarta.shop.basket.add({item: item2, success: success, error: error});
+                            });
+
+                            it('are added to the item list', function () {
+                                expect(binarta.shop.basket.items()).toEqual([
+                                    {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
+                                    {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
+                                ]);
+                            });
+
+                            it('calculate sub total', function () {
+                                expect(binarta.shop.basket.subTotal()).toEqual(300);
+                            });
+
+                            it('are flushed', function () {
+                                expect(JSON.parse(localStorage.basket)).toEqual({
+                                    items: [
+                                        {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
+                                        {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
+                                    ],
+                                    quantity: 3,
+                                    presentableItemTotal: '$99.99',
+                                    presentablePrice: '$99.99',
+                                    additionalCharges: 'additional-charges',
+                                    coupon: 'coupon-code'
+                                });
+                            });
+
+                            describe('and updating an item', function () {
+                                var updatedQuantity;
+
+                                function resetSpies(spies) {
+                                    spies.forEach(function (it) {
+                                        it.calls.reset()
+                                    });
+                                }
+
+                                beforeEach(function () {
+                                    resetSpies([success, error]);
+                                    binarta.shop.gateway = new GatewaySpy();
+                                    updatedQuantity = 10;
+                                    var it = binarta.shop.basket.toOrder().items[0];
+                                    it.quantity = updatedQuantity;
+                                    it.update();
+                                });
+
+                                it('then validate the order', function () {
+                                    expect(binarta.shop.gateway.validateOrderRequest).toEqual({items: binarta.shop.basket.items()});
+                                });
+
+                                it('with the updated quantity', function () {
+                                    expect(binarta.shop.gateway.validateOrderRequest.items[0].quantity).toEqual(updatedQuantity);
+                                });
+
+                                describe('with success', function () {
+                                    beforeEach(function () {
+                                        binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                                        var it = binarta.shop.basket.toOrder().items[0];
+                                        it.quantity = updatedQuantity;
+                                        it.update();
+                                    });
+
+                                    it('basket refresh request is made', function () {
+                                        expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                                            items: [
+                                                {
+                                                    id: 'sale-id',
+                                                    quantity: 10,
+                                                    couponCode: 'coupon-code'
+                                                },
+                                                {
+                                                    id: 'sale-id-2',
+                                                    quantity: 1,
+                                                    configuration: {x: 'y'}
+                                                }]
+                                        });
+                                    });
+
+                                    it('basket status is not yet updated', function () {
+                                        expect(binarta.shop.basket.toOrder().quantity).toEqual(3);
+                                        expect(success).not.toHaveBeenCalled();
+                                        expect(eventListener.itemUpdated).not.toHaveBeenCalled();
+                                    });
+
+                                    describe('when refresh completes', function () {
+                                        beforeEach(function () {
+                                            binarta.shop.gateway.doPreviewOrders();
+                                        });
+
+                                        it('then quantity is updated', function () {
+                                            expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                        });
+
+                                        it('then updates are flushed', function () {
+                                            expect(JSON.parse(localStorage.basket)).toEqual({
+                                                items: [
+                                                    {
+                                                        id: 'sale-id',
+                                                        quantity: 10,
+                                                        couponCode: 'coupon-code',
+                                                        price: 100
+                                                    },
+                                                    {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
+                                                ],
+                                                quantity: 11,
+                                                presentableItemTotal: '$99.99',
+                                                presentablePrice: '$99.99',
+                                                additionalCharges: 'additional-charges',
+                                                coupon: 'coupon-code'
+                                            });
+                                        });
+
+                                        it('success callback has been called', function () {
+                                            expect(eventListener.itemUpdated).toHaveBeenCalled();
+                                        });
+
+                                        describe('to blank', function () {
+                                            beforeEach(function () {
+                                                updatedItem = {id: item.id, price: item.price, quantity: ''};
+                                                binarta.shop.basket.update({item: updatedItem});
+                                            });
+
+                                            it('then quantity is unaffected', function () {
+                                                expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                            });
+                                        });
+
+                                        describe('to zero', function () {
+                                            beforeEach(function () {
+                                                updatedItem = {id: item.id, price: item.price, quantity: 0};
+                                                binarta.shop.basket.update({item: updatedItem});
+                                            });
+
+                                            it('then quantity is unaffected', function () {
+                                                expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                            });
+                                        });
+                                    });
+                                });
+
+                                describe('with rejection', function () {
+                                    beforeEach(function () {
+                                        binarta.shop.gateway = new InvalidOrderGateway();
+                                        var it = binarta.shop.basket.toOrder().items[0];
+                                        it.quantity = updatedQuantity;
+                                        it.update();
+                                    });
+
+                                    it('original values are retained', function () {
+                                        expect(binarta.shop.basket.items()[0].quantity).toEqual(item.quantity);
+                                    });
+
+                                    describe('for different item', function () {
+                                        beforeEach(function () {
+                                            binarta.shop.gateway = new ValidOrderGateway();
+                                            updatedItem = {id: item.id, price: item.price, quantity: 10};
+                                            binarta.shop.basket.update({item: updatedItem});
+                                        });
+
+                                        it('then quantity is updated', function () {
+                                            expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                        });
+
+                                        it('then updates are flushed', function () {
+                                            expect(JSON.parse(localStorage.basket)).toEqual({
+                                                items: [
+                                                    {
+                                                        id: 'sale-id',
+                                                        quantity: 10,
+                                                        couponCode: 'coupon-code',
+                                                        price: 100
+                                                    },
+                                                    {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
+                                                ],
+                                                quantity: 11,
+                                                presentableItemTotal: '$99.99',
+                                                presentablePrice: '$99.99',
+                                                additionalCharges: 'additional-charges',
+                                                coupon: 'coupon-code'
+                                            });
+                                        });
+                                    });
+
+                                    describe('with rejection callback', function () {
+                                        beforeEach(function () {
+                                            resetSpies([success, error]);
+                                            binarta.shop.gateway = new InvalidOrderGateway();
+                                            updatedItem = {id: item.id, price: item.price, quantity: 10};
+                                            binarta.shop.basket.update({item: updatedItem, error: error});
+                                        });
+
+                                        it('then callback is executed', function () {
+                                            expect(error.calls.argsFor(0)[0]).toEqual({
+                                                quantity: ['invalid']
+                                            });
+                                        })
+                                    });
+
+                                });
+                            });
+
+                            it('increment item quantity', function() {
+                                binarta.shop.basket.toOrder().items[0].incrementQuantity();
+                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(3);
+                            });
+
+                            it('decrement item quantity', function() {
+                                binarta.shop.basket.toOrder().items[0].decrementQuantity();
+                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(1);
+                            });
+
+                            it('removing an item is flushed to local storage', function () {
+                                binarta.shop.basket.toOrder().items[0].remove();
+                                expect(JSON.parse(localStorage.basket)).toEqual({
+                                    items: [
+                                        {
+                                            id: 'sale-id-2',
+                                            quantity: 1,
+                                            configuration: {x: 'y'},
+                                            couponCode: 'coupon-code',
+                                            price: 100
+                                        }
+                                    ],
+                                    quantity: 1,
+                                    presentableItemTotal: '$99.99',
+                                    presentablePrice: '$99.99',
+                                    additionalCharges: 'additional-charges',
+                                    coupon: 'coupon-code'
+                                });
+                            });
+
+                            describe('remove', function () {
+                                beforeEach(function () {
+                                    binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                                    binarta.shop.basket.toOrder().items[0].remove();
+                                });
+
+                                it('basket refresh request is made', function () {
+                                    expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                                        items: [
+                                            {
+                                                id: 'sale-id-2',
+                                                quantity: 1,
+                                                configuration: {x: 'y'},
+                                                couponCode: 'coupon-code'
+                                            }]
+                                    });
+                                });
+
+                                it('remove will not trigger on success listener before refresh completes', function () {
+                                    expect(eventListener.itemRemoved).not.toHaveBeenCalled();
+                                });
+
+                                it('when refresh completes on success listeners are triggered', function () {
+                                    binarta.shop.gateway.doPreviewOrders();
+                                    expect(eventListener.itemRemoved).toHaveBeenCalled();
+                                });
+                            });
+
+                            describe('and clearing the basket', function () {
+                                beforeEach(function () {
+                                    binarta.shop.basket.clear();
+                                });
+
+                                it('then contents reset', function () {
+                                    expect(binarta.shop.basket.items()).toEqual([]);
+                                    expect(binarta.shop.basket.subTotal()).toEqual(0);
+                                });
+                            });
+                        })
+                    });
+
+                    describe('on rejection', function () {
+                        beforeEach(function () {
+                            error.calls.reset();
+                            binarta.shop.gateway = new InvalidOrderGateway();
+                            item = {id: 'sale-id', price: 100, quantity: 2};
+                            binarta.shop.basket.add({item: item, success: success, error: error});
+                        });
+
+                        it('the basket remains empty', function () {
+                            expect(binarta.shop.basket.items()).toEqual([]);
+                        });
+
+                        it('error callback is executed', function () {
+                            expect(error.calls.argsFor(0)[0]).toEqual({
+                                quantity: ['invalid']
+                            });
+                        });
+
+                        describe('for different item', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway = new ValidOrderGateway();
+                                binarta.shop.basket.add({item: item, success: success, error: error});
+                                error.calls.reset();
+                            });
+
+                            it('error callback is not called', function () {
+                                expect(error.calls.count()).toEqual(0);
+                            });
+
+                            it('then the item is added to the item list', function () {
+                                expect(binarta.shop.basket.items()).toEqual([item]);
+                            });
+
+                            it('calculate sub total', function () {
+                                expect(binarta.shop.basket.subTotal()).toEqual(200);
+                            });
+
+                            it('success callback has been called', function () {
+                                expect(success.calls.count() > 0).toEqual(true);
+                            });
+                        });
+                    });
+                });
+
+                describe('when adding an item to the basket for 0 quantity', function () {
+                    var item;
+
+                    beforeEach(function () {
+                        item = {id: 'sale-id', price: 100, quantity: 0};
+                        binarta.shop.basket.add({item: item});
+                    });
+
+                    it('then the item is added to the item list', function () {
+                        expect(binarta.shop.basket.items()).toEqual([]);
+                    });
+                });
+
+                describe('when rendering removed items', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        binarta.shop.basket.add({item: {id: 'item-1', quantity: 1}});
+                        binarta.shop.gateway = new UnknownOrderGateway();
+                        binarta.shop.basket.add({item: {id: 'item-2', quantity: 1}});
+                        binarta.shop.basket.refresh();
+                    });
+
+                    it('then removed item is removed from basket and localstorage', function () {
+                        expect(binarta.shop.basket.items()).toEqual([]);
+                        expect(localStorage.basket).toEqual(JSON.stringify(binarta.shop.basket.toOrder()));
+                    });
+                });
+            });
+
             describe('when previewing an order', function () {
                 var renderer;
 
@@ -30,9 +528,29 @@
                 });
 
                 it('then renderer receives previewed order', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.gateway = new PreviewOrderGateway();
                     binarta.shop.previewOrder('-', renderer);
                     expect(renderer).toHaveBeenCalledWith('previewed-order');
+                });
+            });
+
+            describe('when validating an order', function () {
+                var renderer;
+
+                beforeEach(function () {
+                    renderer = jasmine.createSpyObj('spy', ['rejected']);
+                });
+
+                it('then gateway receives a validate order request', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.validateOrder('order', renderer);
+                    expect(binarta.shop.gateway.validateOrderRequest).toEqual('order');
+                });
+
+                it('then renderer receives violation report', function () {
+                    binarta.shop.gateway = new InvalidOrderGateway();
+                    binarta.shop.validateOrder({items: []}, renderer);
+                    expect(renderer.rejected).toHaveBeenCalledWith({items: {}});
                 });
             });
 

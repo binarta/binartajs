@@ -8,6 +8,7 @@ function GatewaySpy() {
     this.initiateBillingAgreement = spy('initiateBillingAgreementRequest');
     this.confirmBillingAgreement = spy('confirmBillingAgreementRequest');
     this.previewOrder = spy('previewOrderRequest');
+    this.validateOrder = spy('validateOrderRequest');
     this.submitOrder = spy('submitOrderRequest');
 
     function spy(requestAttribute) {
@@ -124,6 +125,18 @@ function ValidCredentialsGateway() {
 function InvalidOrderGateway() {
     this.submitOrder = function (request, response) {
         response.rejected('violation-report');
+    };
+
+    this.previewOrder = function (request, response) {
+        response.success('previewed-order');
+    };
+
+    this.validateOrder = function (request, response) {
+        var items = {};
+        request.items.forEach(function (it) {
+            items[it.id] = {quantity: ['invalid']};
+        });
+        response.rejected({items: items});
     }
 }
 
@@ -139,14 +152,71 @@ function PaymentProviderRequiresSetupGateway() {
     }
 }
 
-function ValidOrderGateway() {
+function UnknownOrderGateway() {
+    var delegate = new ValidOrderGateway();
+
+    this.previewOrder = function (order, response) {
+        response.success({items: []});
+    };
+
+    this.validateOrder = delegate.validateOrder;
+    this.submitOrder = delegate.submitOrder
+}
+
+function PreviewOrderGateway() {
+    var delegate = new ValidOrderGateway();
+
     this.previewOrder = function (order, response) {
         response.success('previewed-order');
+    };
+
+    this.validateOrder = delegate.validateOrder;
+    this.submitOrder = delegate.submitOrder
+}
+
+function ValidOrderGateway() {
+    this.previewOrder = function (request, response) {
+        request.items = request.items.map(function (it) {
+            it.price = 100;
+            return it;
+        });
+        request.presentableItemTotal = '$99.99';
+        request.presentablePrice = '$99.99';
+        request.additionalCharges = 'additional-charges';
+        response.success(request);
+    };
+
+    this.validateOrder = function (request, response) {
+        response.success();
     };
 
     this.submitOrder = function (request, response) {
         response.success();
     }
+}
+
+function ValidOrderWithDeferredPreviewGateway() {
+    var self = this;
+    var delegate = new ValidOrderGateway();
+    var spy = new GatewaySpy();
+    var deferredPreviews = [];
+
+    this.previewOrder = function(request, response) {
+        spy.previewOrder(request, response);
+        self.previewOrderRequest = spy.previewOrderRequest;
+        deferredPreviews.push(function() {
+            delegate.previewOrder(request, response);
+        });
+    };
+    this.doPreviewOrders = function() {
+        deferredPreviews.forEach(function(it) {
+            it();
+        });
+        deferredPreviews = [];
+    };
+
+    this.validateOrder = delegate.validateOrder;
+    this.submitOrder = delegate.submitOrder;
 }
 
 function InCompleteBillingProfileGateway() {

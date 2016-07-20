@@ -100,6 +100,10 @@ function BinartaInMemoryGatewaysjs() {
             response.success(request);
         };
 
+        this.validateOrder = function(request, response) {
+            response.success();
+        };
+
         this.submitOrder = function (request, response) {
             if (request.provider == 'with-insufficient-funds')
                 response.rejected('violation-report');
