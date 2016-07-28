@@ -253,6 +253,7 @@ function BinartaShopjs(checkpoint) {
 
         var stepDefinitions = {
             'authentication-required': AuthRequiredStep,
+            'address-selection': AddressSelectionStep,
             'summary': SummaryStep,
             'setup-payment-provider': SetupPaymentProviderStep,
             'completed': CompletedStep
@@ -261,6 +262,8 @@ function BinartaShopjs(checkpoint) {
             'authentication-required',
             'setup-payment-provider'
         ];
+
+        this.eventRegistry = new BinartaRX();
 
         this.installCustomStepDefinition = function (id, definition, metadata) {
             stepDefinitions[id] = definition;
@@ -329,7 +332,10 @@ function BinartaShopjs(checkpoint) {
             ctx.currentStep = ctx.roadmap[toNextStepIndex(ctx)];
             ctx.unlockedSteps.push(ctx.currentStep);
             self.persist(ctx);
-            return new (stepDefinitions[ctx.currentStep])(self);
+            new (stepDefinitions[ctx.currentStep])(self);
+            self.eventRegistry.forEach(function(l) {
+                l.goto(self.status());
+            });
         };
 
         this.cancel = function () {
@@ -358,6 +364,23 @@ function BinartaShopjs(checkpoint) {
                     fsm.next();
             };
             fsm.retry();
+        }
+
+        function AddressSelectionStep(fsm) {
+            fsm.currentState = this;
+            this.name = 'address-selection';
+
+            fsm.selectAddresses = function(args) {
+                if(!args || !args.billing && !args.shipping)
+                    throw new Error('at.least.a.billing.address.must.be.selected');
+
+                var ctx = self.context();
+                ctx.order.billing = args.billing;
+                ctx.order.shipping = args.shipping || args.billing;
+                self.persist(ctx);
+
+                fsm.next();
+            };
         }
 
         function SummaryStep(fsm) {

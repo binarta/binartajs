@@ -370,12 +370,12 @@
                                 });
                             });
 
-                            it('increment item quantity', function() {
+                            it('increment item quantity', function () {
                                 binarta.shop.basket.toOrder().items[0].incrementQuantity();
                                 expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(3);
                             });
 
-                            it('decrement item quantity', function() {
+                            it('decrement item quantity', function () {
                                 binarta.shop.basket.toOrder().items[0].decrementQuantity();
                                 expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(1);
                             });
@@ -555,10 +555,12 @@
             });
 
             describe('checkout', function () {
-                var order;
+                var order, eventListener;
 
                 beforeEach(function () {
                     order = {items: []};
+                    eventListener = jasmine.createSpyObj('event-listener', ['goto']);
+                    binarta.shop.checkout.eventRegistry.add(eventListener);
                 });
 
                 it('checkout starts out idle', function () {
@@ -674,6 +676,83 @@
                     ]);
 
                     expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
+
+                describe('on the address selection step', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.start(order, [
+                            'address-selection',
+                            'completed'
+                        ])
+                    });
+
+                    it('then status exposes the current step', function () {
+                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
+                    });
+
+                    it('then restarting checkout has no effect', function () {
+                        binarta.shop.checkout.start(order);
+                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
+                    });
+
+                    it('then you can cancel checkout', function () {
+                        binarta.shop.checkout.cancel();
+                        expect(binarta.shop.checkout.status()).toEqual('idle');
+                    });
+
+                    it('when selecting neither a billing or shipping address', function () {
+                        expect(binarta.shop.checkout.selectAddresses).toThrowError('at.least.a.billing.address.must.be.selected');
+                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
+                    });
+
+                    describe('when selecting a billing address', function () {
+                        beforeEach(function () {
+                            binarta.shop.checkout.selectAddresses({billing: {label: 'l', addressee: 'a'}});
+                        });
+
+                        it('then billing address is added to the backing order', function () {
+                            expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'l', addressee: 'a'});
+                        });
+
+                        it('then shipping address is added to the backing order', function () {
+                            expect(binarta.shop.checkout.context().order.shipping).toEqual({
+                                label: 'l',
+                                addressee: 'a'
+                            });
+                        });
+
+                        it('then flow proceeds to the next step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('completed');
+                        });
+
+                        it('then event listener is requested to go to the next step', function () {
+                            expect(eventListener.goto).toHaveBeenCalledWith('completed');
+                        });
+                    });
+
+                    describe('when selecting both a billing and shipping address', function () {
+                        beforeEach(function () {
+                            binarta.shop.checkout.selectAddresses({
+                                billing: {label: 'b', addressee: 'a'},
+                                shipping: {label: 's', addressee: 'a'}
+                            });
+                        });
+
+                        it('then billing address is added to the backing order', function () {
+                            expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'b', addressee: 'a'});
+                        });
+
+                        it('then shipping address is added to the backing order', function () {
+                            expect(binarta.shop.checkout.context().order.shipping).toEqual({
+                                label: 's',
+                                addressee: 'a'
+                            });
+                        });
+
+                        it('then flow proceeds to the next step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('completed');
+                        });
+                    })
                 });
 
                 describe('on the checkout summary step', function () {
