@@ -254,12 +254,12 @@ function BinartaCheckpointjs() {
             }
         }
 
-        function EditState(fsm, violationReport) {
+        function EditState(fsm, rejectedRequest, violationReport) {
             fsm.currentStatus = this;
             this.status = 'editing';
             this.violationReport = violationReport || {};
 
-            var request = fsm.updateProfileRequestDecorators.reduce(function (p, c) {
+            var request = rejectedRequest || fsm.updateProfileRequestDecorators.reduce(function (p, c) {
                 return c(p);
             }, {});
 
@@ -297,7 +297,7 @@ function BinartaCheckpointjs() {
                                 violationReport[k] = report[k];
                             });
                             if (--countdown == 0)
-                                new EditState(fsm, violationReport);
+                                new EditState(fsm, request, violationReport);
                         }
                     });
                 });

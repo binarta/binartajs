@@ -76,8 +76,12 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.addAddress = function (request, response) {
-            addresses.push(request);
-            response.success();
+            if(request.label == 'invalid')
+                response.rejected({label:['invalid']});
+            else {
+                addresses.push(request);
+                response.success();
+            }
         };
 
         this.updateAddress = function (request, response) {

@@ -1131,11 +1131,26 @@
                         expect(binarta.shop.gateway.addAddressRequest.label).toEqual('(1000) Johny Lane 1');
                     });
 
+                    ['street', 'number', 'zip'].forEach(function(field) {
+                        it('when '+field+' is undefined a label can not be generated', function () {
+                            binarta.shop.gateway = new GatewaySpy();
+                            binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                            binarta.checkpoint.profile.updateRequest().address.number = '1';
+                            binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+
+                            binarta.checkpoint.profile.updateRequest().address[field] = undefined;
+                            binarta.checkpoint.profile.update();
+
+                            expect(binarta.shop.gateway.addAddressRequest.label).toBeUndefined();
+                        });
+                    });
+
                     it('then update to add a new address is rejected', function () {
                         binarta.shop.gateway = new InvalidBillingProfileGateway();
                         binarta.checkpoint.profile.updateRequest().address.label = 'home';
                         binarta.checkpoint.profile.update();
                         expect(binarta.checkpoint.profile.violationReport()).toEqual({address: 'violation-report'});
+                        expect(binarta.checkpoint.profile.updateRequest().address.label).toEqual('home');
                     });
 
                     it('then update to add a new address is accepted', function () {

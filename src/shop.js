@@ -681,7 +681,7 @@ function BinartaShopjs(checkpoint) {
 
         function addAddress(request, response) {
             if (request.address && Object.keys(request.address).length > 0) {
-                if (!request.address.label)
+                if (!request.address.label && request.address.street && request.address.number && request.address.zip)
                     request.address.label = '(' + request.address.zip + ') ' + request.address.street + ' ' + request.address.number;
                 shop.gateway.addAddress(request.address, {
                     success: function () {
