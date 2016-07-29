@@ -1117,6 +1117,20 @@
                         });
                     });
 
+                    it('then address label is optional when adding a new address', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
+                        binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                        binarta.checkpoint.profile.updateRequest().address.number = '1';
+                        binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+                        binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
+                        binarta.checkpoint.profile.updateRequest().address.country = 'BE';
+
+                        binarta.checkpoint.profile.update();
+
+                        expect(binarta.shop.gateway.addAddressRequest.label).toEqual('(1000) Johny Lane 1');
+                    });
+
                     it('then update to add a new address is rejected', function () {
                         binarta.shop.gateway = new InvalidBillingProfileGateway();
                         binarta.checkpoint.profile.updateRequest().address.label = 'home';
