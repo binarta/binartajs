@@ -681,8 +681,7 @@ function BinartaShopjs(checkpoint) {
 
         function addAddress(request, response) {
             if (request.address && Object.keys(request.address).length > 0) {
-                if (!request.address.label && request.address.street && request.address.number && request.address.zip)
-                    request.address.label = '(' + request.address.zip + ') ' + request.address.street + ' ' + request.address.number;
+                generateLabel(request.address);
                 shop.gateway.addAddress(request.address, {
                     success: function () {
                         addressesCache.push(new Address(request.address));
@@ -693,6 +692,11 @@ function BinartaShopjs(checkpoint) {
                     }
                 });
             }
+        }
+
+        function generateLabel(address) {
+            if ((address.generateLabel || !address.label) && address.street && address.number && address.zip)
+                address.label = '(' + address.zip + ') ' + address.street + ' ' + address.number;
         }
 
         function Address(data) {
@@ -757,6 +761,7 @@ function BinartaShopjs(checkpoint) {
                 fsm.currentStatus = this;
                 this.status = 'working';
 
+                generateLabel(request);
                 shop.gateway.updateAddress(request, {
                     success: function () {
                         hydrate(request);

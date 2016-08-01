@@ -1052,6 +1052,28 @@
                             expect(address.status()).toEqual('idle');
                             expect(address.addressee).toEqual('x');
                         });
+
+                        it('then label can be modified', function () {
+                            binarta.shop.gateway = new GatewaySpy();
+                            address.updateRequest().label = 'work';
+
+                            address.update();
+
+                            expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('work');
+                            expect(binarta.shop.gateway.updateAddressRequest.id.label).toEqual('home');
+                        });
+
+                        it('then label can be regenerated', function () {
+                            binarta.shop.gateway = new GatewaySpy();
+                            address.updateRequest().generateLabel = true;
+                            address.updateRequest().street = 'Johny Boulevard';
+                            address.updateRequest().number = '2';
+                            address.updateRequest().zip = '2000';
+
+                            address.update();
+
+                            expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('(2000) Johny Boulevard 2');
+                        });
                     });
                 });
 
@@ -1131,8 +1153,8 @@
                         expect(binarta.shop.gateway.addAddressRequest.label).toEqual('(1000) Johny Lane 1');
                     });
 
-                    ['street', 'number', 'zip'].forEach(function(field) {
-                        it('when '+field+' is undefined a label can not be generated', function () {
+                    ['street', 'number', 'zip'].forEach(function (field) {
+                        it('when ' + field + ' is undefined a label can not be generated', function () {
                             binarta.shop.gateway = new GatewaySpy();
                             binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
                             binarta.checkpoint.profile.updateRequest().address.number = '1';
@@ -1259,8 +1281,110 @@
                     });
                 });
 
-                it('profile exposes a list of supported countries', function() {
-                    expect(binarta.checkpoint.profile.supportedCountries()).toEqual([{country:'Albania', code:'AL'},{country:'Algeria', code:'DZ'},{country:'Argentina', code:'AR'},{country:'Australia', code:'AU'},{country:'Austria', code:'AT'},{country:'Bahrain', code:'BH'},{country:'Belarus', code:'BY'},{country:'Belgium', code:'BE'},{country:'Bolivia', code:'BO'},{country:'Bosnia and Herzegovina', code:'BA'},{country:'Brazil', code:'BR'},{country:'Bulgaria', code:'BG'},{country:'Canada', code:'CA'},{country:'Chile', code:'CL'},{country:'China', code:'CN'},{country:'Colombia', code:'CO'},{country:'Costa Rica', code:'CR'},{country:'Croatia', code:'HR'},{country:'Cuba', code:'CU'},{country:'Cyprus', code:'CY'},{country:'Czech Republic', code:'CZ'},{country:'Denmark', code:'DK'},{country:'Dominican Republic', code:'DO'},{country:'Ecuador', code:'EC'},{country:'Egypt', code:'EG'},{country:'El Salvador', code:'SV'},{country:'Estonia', code:'EE'},{country:'Finland', code:'FI'},{country:'France', code:'FR'},{country:'Germany', code:'DE'},{country:'Greece', code:'GR'},{country:'Guatemala', code:'GT'},{country:'Honduras', code:'HN'},{country:'Hong Kong', code:'HK'},{country:'Hungary', code:'HU'},{country:'Iceland', code:'IS'},{country:'India', code:'IN'},{country:'Indonesia', code:'ID'},{country:'Iraq', code:'IQ'},{country:'Ireland', code:'IE'},{country:'Israel', code:'IL'},{country:'Italy', code:'IT'},{country:'Japan', code:'JP'},{country:'Jordan', code:'JO'},{country:'Kuwait', code:'KW'},{country:'Latvia', code:'LV'},{country:'Lebanon', code:'LB'},{country:'Libya', code:'LY'},{country:'Lithuania', code:'LT'},{country:'Luxembourg', code:'LU'},{country:'Macedonia', code:'MK'},{country:'Malaysia', code:'MY'},{country:'Malta', code:'MT'},{country:'Mexico', code:'MX'},{country:'Montenegro', code:'ME'},{country:'Morocco', code:'MA'},{country:'Netherlands', code:'NL'},{country:'New Zealand', code:'NZ'},{country:'Nicaragua', code:'NI'},{country:'Norway', code:'NO'},{country:'Oman', code:'OM'},{country:'Panama', code:'PA'},{country:'Paraguay', code:'PY'},{country:'Peru', code:'PE'},{country:'Philippines', code:'PH'},{country:'Poland', code:'PL'},{country:'Portugal', code:'PT'},{country:'Puerto Rico', code:'PR'},{country:'Qatar', code:'QA'},{country:'Romania', code:'RO'},{country:'Russia', code:'RU'},{country:'Saudi Arabia', code:'SA'},{country:'Serbia', code:'RS'},{country:'Serbia and Montenegro', code:'CS'},{country:'Singapore', code:'SG'},{country:'Slovakia', code:'SK'},{country:'Slovenia', code:'SI'},{country:'South Africa', code:'ZA'},{country:'South Korea', code:'KR'},{country:'Spain', code:'ES'},{country:'Sudan', code:'SD'},{country:'Sweden', code:'SE'},{country:'Switzerland', code:'CH'},{country:'Syria', code:'SY'},{country:'Taiwan', code:'TW'},{country:'Thailand', code:'TH'},{country:'Tunisia', code:'TN'},{country:'Turkey', code:'TR'},{country:'Ukraine', code:'UA'},{country:'United Arab Emirates', code:'AE'},{country:'United Kingdom', code:'GB'},{country:'United States', code:'US'},{country:'Uruguay', code:'UY'},{country:'Venezuela', code:'VE'},{country:'Vietnam', code:'VN'},{country:'Yemen', code:'YE'}]);
+                it('profile exposes a list of supported countries', function () {
+                    expect(binarta.checkpoint.profile.supportedCountries()).toEqual([{
+                        country: 'Albania',
+                        code: 'AL'
+                    }, {country: 'Algeria', code: 'DZ'}, {country: 'Argentina', code: 'AR'}, {
+                        country: 'Australia',
+                        code: 'AU'
+                    }, {country: 'Austria', code: 'AT'}, {country: 'Bahrain', code: 'BH'}, {
+                        country: 'Belarus',
+                        code: 'BY'
+                    }, {country: 'Belgium', code: 'BE'}, {
+                        country: 'Bolivia',
+                        code: 'BO'
+                    }, {country: 'Bosnia and Herzegovina', code: 'BA'}, {
+                        country: 'Brazil',
+                        code: 'BR'
+                    }, {country: 'Bulgaria', code: 'BG'}, {country: 'Canada', code: 'CA'}, {
+                        country: 'Chile',
+                        code: 'CL'
+                    }, {country: 'China', code: 'CN'}, {country: 'Colombia', code: 'CO'}, {
+                        country: 'Costa Rica',
+                        code: 'CR'
+                    }, {country: 'Croatia', code: 'HR'}, {country: 'Cuba', code: 'CU'}, {
+                        country: 'Cyprus',
+                        code: 'CY'
+                    }, {country: 'Czech Republic', code: 'CZ'}, {
+                        country: 'Denmark',
+                        code: 'DK'
+                    }, {country: 'Dominican Republic', code: 'DO'}, {country: 'Ecuador', code: 'EC'}, {
+                        country: 'Egypt',
+                        code: 'EG'
+                    }, {country: 'El Salvador', code: 'SV'}, {country: 'Estonia', code: 'EE'}, {
+                        country: 'Finland',
+                        code: 'FI'
+                    }, {country: 'France', code: 'FR'}, {country: 'Germany', code: 'DE'}, {
+                        country: 'Greece',
+                        code: 'GR'
+                    }, {country: 'Guatemala', code: 'GT'}, {country: 'Honduras', code: 'HN'}, {
+                        country: 'Hong Kong',
+                        code: 'HK'
+                    }, {country: 'Hungary', code: 'HU'}, {country: 'Iceland', code: 'IS'}, {
+                        country: 'India',
+                        code: 'IN'
+                    }, {country: 'Indonesia', code: 'ID'}, {country: 'Iraq', code: 'IQ'}, {
+                        country: 'Ireland',
+                        code: 'IE'
+                    }, {country: 'Israel', code: 'IL'}, {country: 'Italy', code: 'IT'}, {
+                        country: 'Japan',
+                        code: 'JP'
+                    }, {country: 'Jordan', code: 'JO'}, {country: 'Kuwait', code: 'KW'}, {
+                        country: 'Latvia',
+                        code: 'LV'
+                    }, {country: 'Lebanon', code: 'LB'}, {country: 'Libya', code: 'LY'}, {
+                        country: 'Lithuania',
+                        code: 'LT'
+                    }, {country: 'Luxembourg', code: 'LU'}, {country: 'Macedonia', code: 'MK'}, {
+                        country: 'Malaysia',
+                        code: 'MY'
+                    }, {country: 'Malta', code: 'MT'}, {country: 'Mexico', code: 'MX'}, {
+                        country: 'Montenegro',
+                        code: 'ME'
+                    }, {country: 'Morocco', code: 'MA'}, {country: 'Netherlands', code: 'NL'}, {
+                        country: 'New Zealand',
+                        code: 'NZ'
+                    }, {country: 'Nicaragua', code: 'NI'}, {country: 'Norway', code: 'NO'}, {
+                        country: 'Oman',
+                        code: 'OM'
+                    }, {country: 'Panama', code: 'PA'}, {country: 'Paraguay', code: 'PY'}, {
+                        country: 'Peru',
+                        code: 'PE'
+                    }, {country: 'Philippines', code: 'PH'}, {country: 'Poland', code: 'PL'}, {
+                        country: 'Portugal',
+                        code: 'PT'
+                    }, {country: 'Puerto Rico', code: 'PR'}, {country: 'Qatar', code: 'QA'}, {
+                        country: 'Romania',
+                        code: 'RO'
+                    }, {country: 'Russia', code: 'RU'}, {country: 'Saudi Arabia', code: 'SA'}, {
+                        country: 'Serbia',
+                        code: 'RS'
+                    }, {country: 'Serbia and Montenegro', code: 'CS'}, {
+                        country: 'Singapore',
+                        code: 'SG'
+                    }, {country: 'Slovakia', code: 'SK'}, {country: 'Slovenia', code: 'SI'}, {
+                        country: 'South Africa',
+                        code: 'ZA'
+                    }, {country: 'South Korea', code: 'KR'}, {country: 'Spain', code: 'ES'}, {
+                        country: 'Sudan',
+                        code: 'SD'
+                    }, {country: 'Sweden', code: 'SE'}, {country: 'Switzerland', code: 'CH'}, {
+                        country: 'Syria',
+                        code: 'SY'
+                    }, {country: 'Taiwan', code: 'TW'}, {country: 'Thailand', code: 'TH'}, {
+                        country: 'Tunisia',
+                        code: 'TN'
+                    }, {country: 'Turkey', code: 'TR'}, {
+                        country: 'Ukraine',
+                        code: 'UA'
+                    }, {country: 'United Arab Emirates', code: 'AE'}, {
+                        country: 'United Kingdom',
+                        code: 'GB'
+                    }, {country: 'United States', code: 'US'}, {country: 'Uruguay', code: 'UY'}, {
+                        country: 'Venezuela',
+                        code: 'VE'
+                    }, {country: 'Vietnam', code: 'VN'}, {country: 'Yemen', code: 'YE'}]);
                 });
             })
         });
