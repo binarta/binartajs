@@ -1053,6 +1053,15 @@
                             expect(address.addressee).toEqual('x');
                         });
 
+                        it('when update succeeds trigger on success listener', function () {
+                            binarta.shop.gateway = new ValidBillingProfileGateway();
+                            var onSuccessListener = jasmine.createSpy('on-success');
+
+                            address.update(onSuccessListener);
+
+                            expect(onSuccessListener).toHaveBeenCalled();
+                        });
+
                         it('then label can be modified', function () {
                             binarta.shop.gateway = new GatewaySpy();
                             address.updateRequest().label = 'work';

@@ -752,12 +752,12 @@ function BinartaShopjs(checkpoint) {
                     return request;
                 };
 
-                fsm.update = function () {
-                    new WorkingState(fsm, request);
+                fsm.update = function (onSuccess) {
+                    new WorkingState(fsm, request, onSuccess);
                 };
             }
 
-            function WorkingState(fsm, request) {
+            function WorkingState(fsm, request, onSuccess) {
                 fsm.currentStatus = this;
                 this.status = 'working';
 
@@ -766,6 +766,8 @@ function BinartaShopjs(checkpoint) {
                     success: function () {
                         hydrate(request);
                         new IdleState(fsm);
+                        if(onSuccess)
+                            onSuccess();
                     },
                     rejected: function (report) {
                         new EditState(fsm, report);
