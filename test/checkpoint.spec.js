@@ -10,6 +10,10 @@
             binarta = factory.create();
         });
 
+        it('metadata is empty before refresh to avoid null pointer exceptions', function() {
+            expect(binarta.checkpoint.profile.metadata()).toEqual({});
+        });
+
         it('profile is unauthenticated', function () {
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
         });

@@ -175,6 +175,7 @@ function BinartaCheckpointjs() {
         var self = this;
         var emptyViolationReport = {};
 
+        this.metadataCache = {};
         this.updateProfileRequestDecorators = [];
         this.updateProfileHandlers = [];
 
