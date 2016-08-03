@@ -1,6 +1,13 @@
 function BinartaInMemoryGatewaysjs() {
+    this.application = new ApplicationGateway();
     this.checkpoint = new CheckpointGateway();
     this.shop = new ShopGateway();
+
+    function ApplicationGateway() {
+        this.fetchApplicationProfile = function (request, response) {
+            response.success({name: 'myapp'});
+        }
+    }
 
     function CheckpointGateway() {
         var self = this;
@@ -76,8 +83,8 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.addAddress = function (request, response) {
-            if(request.label == 'invalid')
-                response.rejected({label:['invalid']});
+            if (request.label == 'invalid')
+                response.rejected({label: ['invalid']});
             else {
                 addresses.push(request);
                 response.success();
@@ -104,7 +111,7 @@ function BinartaInMemoryGatewaysjs() {
             response.success(request);
         };
 
-        this.validateOrder = function(request, response) {
+        this.validateOrder = function (request, response) {
             response.success();
         };
 

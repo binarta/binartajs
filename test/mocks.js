@@ -1,4 +1,5 @@
 function GatewaySpy() {
+    this.fetchApplicationProfile = spy('fetchApplicationProfileRequest');
     this.signin = spy('signinRequest');
     this.signout = spy('signoutRequest');
     this.register = spy('registrationRequest');
@@ -24,6 +25,12 @@ function InterfacesWithUIGateway() {
 
     function wire(ignored, ui) {
         ui.wiredToGateway();
+    }
+}
+
+function ValidApplicationGateway() {
+    this.fetchApplicationProfile = function (request, response) {
+        response.success({name: 'test-application'});
     }
 }
 
@@ -201,15 +208,15 @@ function ValidOrderWithDeferredPreviewGateway() {
     var spy = new GatewaySpy();
     var deferredPreviews = [];
 
-    this.previewOrder = function(request, response) {
+    this.previewOrder = function (request, response) {
         spy.previewOrder(request, response);
         self.previewOrderRequest = spy.previewOrderRequest;
-        deferredPreviews.push(function() {
+        deferredPreviews.push(function () {
             delegate.previewOrder(request, response);
         });
     };
-    this.doPreviewOrders = function() {
-        deferredPreviews.forEach(function(it) {
+    this.doPreviewOrders = function () {
+        deferredPreviews.forEach(function (it) {
             it();
         });
         deferredPreviews = [];
