@@ -279,6 +279,7 @@ function BinartaShopjs(checkpoint) {
 
         this.start = function (order, roadmap) {
             if (self.status() == 'idle' || self.status() == 'completed') {
+                order.termsAndConditions = 'accepted';
                 self.persist({roadmap: roadmap, currentStep: 'idle', unlockedSteps: [roadmap[0]], order: order});
                 self.next();
             }

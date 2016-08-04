@@ -619,6 +619,10 @@
                     it('then the roadmap is persisted in session storage', function () {
                         expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['authentication-required', 'completed']);
                     });
+
+                    it('then the terms and conditions are implicitly accepted', function() {
+                        expect(binarta.shop.checkout.context().order.termsAndConditions).toEqual('accepted');
+                    });
                 });
 
                 it('when checkout is canceled the context is removed from session storage', function () {
