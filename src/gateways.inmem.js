@@ -119,7 +119,7 @@ function BinartaInMemoryGatewaysjs() {
             if (request.provider == 'with-insufficient-funds')
                 response.rejected('violation-report');
             else
-                response.success();
+                response.success({approvalUrl: 'approval-url'});
         };
 
         this.initiateBillingAgreement = function (id, ui) {

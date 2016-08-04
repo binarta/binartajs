@@ -198,8 +198,21 @@ function ValidOrderGateway() {
     };
 
     this.submitOrder = function (request, response) {
-        response.success();
+        response.success({id:'order-id'});
     }
+}
+
+function ValidOrderWithPaymentRequiredGateway() {
+    var delegate = new ValidOrderGateway();
+
+    this.submitOrder = function (request, response) {
+        var onSuccess = response.success;
+        response.success = function (ctx) {
+            ctx.approvalUrl = 'approval-url';
+            onSuccess(ctx);
+        };
+        delegate.submitOrder(request, response);
+    };
 }
 
 function ValidOrderWithDeferredPreviewGateway() {

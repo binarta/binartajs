@@ -256,11 +256,13 @@ function BinartaShopjs(checkpoint) {
             'address-selection': AddressSelectionStep,
             'summary': SummaryStep,
             'setup-payment-provider': SetupPaymentProviderStep,
+            'payment': PaymentStep,
             'completed': CompletedStep
         };
         var gatewaySteps = [
             'authentication-required',
-            'setup-payment-provider'
+            'setup-payment-provider',
+            'payment'
         ];
 
         this.eventRegistry = new BinartaRX();
@@ -389,7 +391,7 @@ function BinartaShopjs(checkpoint) {
             this.name = 'summary';
             var violationReportCache = {};
 
-            fsm.setPaymentProvider = function(provider) {
+            fsm.setPaymentProvider = function (provider) {
                 var ctx = self.context();
                 ctx.order.provider = provider;
                 self.persist(ctx);
@@ -403,12 +405,12 @@ function BinartaShopjs(checkpoint) {
             };
 
             function onSuccess(listener) {
-                return function () {
+                return onOrderAccepted(function (args) {
                     var ctx = self.context();
                     ctx.orderSubmitted = true;
                     self.persist(ctx);
                     next(listener)();
-                }
+                });
             }
 
             function next(listener) {
@@ -438,6 +440,18 @@ function BinartaShopjs(checkpoint) {
             }
         }
 
+        function onOrderAccepted(listener) {
+            return function (args) {
+                var ctx = self.context();
+                ctx.order.id = args.id;
+                if (args.approvalUrl) {
+                    ctx.order.approvalUrl = args.approvalUrl;
+                }
+                self.persist(ctx);
+                listener(args);
+            }
+        }
+
         function SetupPaymentProviderStep(fsm) {
             fsm.currentState = this;
             this.name = 'setup-payment-provider';
@@ -454,10 +468,11 @@ function BinartaShopjs(checkpoint) {
             };
 
             function onSuccess(listener) {
-                return function () {
+                return onOrderAccepted(function (args) {
                     fsm.next();
-                    listener();
-                }
+                    if (listener)
+                        listener();
+                });
             }
 
             function cacheViolationReport(report) {
@@ -467,6 +482,11 @@ function BinartaShopjs(checkpoint) {
             fsm.violationReport = function () {
                 return violationReportCache;
             }
+        }
+
+        function PaymentStep(fsm) {
+            fsm.currentState = this;
+            this.name = 'payment';
         }
 
         function CompletedStep(fsm) {
@@ -773,7 +793,7 @@ function BinartaShopjs(checkpoint) {
                     success: function () {
                         hydrate(request);
                         new IdleState(fsm);
-                        if(onSuccess)
+                        if (onSuccess)
                             onSuccess();
                     },
                     rejected: function (report) {

@@ -578,6 +578,7 @@
                         'authentication-required',
                         'summary',
                         'setup-payment-provider',
+                        'payment',
                         'completed'
                     ]);
                     expect(binarta.shop.checkout.roadmap()).toEqual([
@@ -620,7 +621,7 @@
                         expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['authentication-required', 'completed']);
                     });
 
-                    it('then the terms and conditions are implicitly accepted', function() {
+                    it('then the terms and conditions are implicitly accepted', function () {
                         expect(binarta.shop.checkout.context().order.termsAndConditions).toEqual('accepted');
                     });
                 });
@@ -781,7 +782,7 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('then you can set the payment provider', function() {
+                    it('then you can set the payment provider', function () {
                         binarta.shop.checkout.setPaymentProvider('payment-provider');
                         expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
                     });
@@ -809,6 +810,13 @@
 
                         expect(binarta.shop.checkout.status()).toEqual('completed');
                         expect(spy).toHaveBeenCalled();
+                    });
+
+                    it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
+                        binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
+                        binarta.shop.checkout.confirm();
+                        expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
+                        expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
                     });
                 });
 
@@ -851,6 +859,13 @@
                         expect(binarta.shop.gateway.submitOrderRequest).toEqual(order);
                     });
 
+                    it('when order is accepted and requires payment expose payment details on order', function () {
+                        binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
+                        binarta.shop.checkout.retry();
+                        expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
+                        expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                    });
+
                     it('when order is accepted proceed to next step', function () {
                         binarta.shop.gateway = new ValidOrderGateway();
                         var spy = jasmine.createSpy('spy');
@@ -882,6 +897,18 @@
                     binarta.shop.checkout.confirm();
 
                     expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
+
+                describe('on the payment step', function () {
+                    beforeEach(function () {
+                        binarta.shop.checkout.start(order, [
+                            'payment',
+                            'completed'
+                        ])
+                    });
+
+                    it('placeholder but for now the UI will need to proceed as appropriate', function () {
+                    });
                 });
 
                 describe('on the checkout completed step', function () {
