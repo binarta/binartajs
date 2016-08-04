@@ -777,6 +777,11 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
+                    it('then you can set the payment provider', function() {
+                        binarta.shop.checkout.setPaymentProvider('payment-provider');
+                        expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
+                    });
+
                     it('on confirmation the order can be rejected', function () {
                         binarta.shop.gateway = new InvalidOrderGateway();
 

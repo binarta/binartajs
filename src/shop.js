@@ -388,6 +388,12 @@ function BinartaShopjs(checkpoint) {
             this.name = 'summary';
             var violationReportCache = {};
 
+            fsm.setPaymentProvider = function(provider) {
+                var ctx = self.context();
+                ctx.order.provider = provider;
+                self.persist(ctx);
+            };
+
             fsm.confirm = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
