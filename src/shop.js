@@ -237,6 +237,9 @@ function BinartaShopjs(checkpoint) {
 
         this.clear = function () {
             initialize();
+            self.eventRegistry.forEach(function(it) {
+                it.cleared();
+            });
         };
 
         this.couponCode = function (code) {
@@ -512,6 +515,9 @@ function BinartaShopjs(checkpoint) {
         function CompletedStep(fsm) {
             fsm.currentState = this;
             this.name = 'completed';
+
+            if(fsm.context().order.clearBasketOnComplete)
+                shop.basket.clear();
         }
 
         new IdleState(self);
