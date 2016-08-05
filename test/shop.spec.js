@@ -907,7 +907,39 @@
                         ])
                     });
 
-                    it('placeholder but for now the UI will need to proceed as appropriate', function () {
+                    it('when confirming the payment then confirm payment request is sent', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.confirm('confirmation-context');
+                        expect(binarta.shop.gateway.confirmPaymentRequest).toEqual('confirmation-context');
+                    });
+
+                    it('when payment confirmation has not yet completed then optional on success listener is not yet triggered', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.confirm('-', spy);
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it('when payment confirmation succeeds then proceed to next step', function () {
+                        binarta.shop.gateway = new ValidPaymentGateway();
+                        binarta.shop.checkout.confirm('-');
+                        expect(binarta.shop.checkout.status()).toEqual('completed');
+                    });
+
+                    it('when payment confirmation succeeds then trigger an optional on success listener', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new ValidPaymentGateway();
+                        binarta.shop.checkout.confirm('-', spy);
+                        expect(spy).toHaveBeenCalled();
+                    });
+
+                    it('when payment confirmation is rejected expose violation report', function () {
+                        binarta.shop.gateway = new InvalidPaymentGateway();
+
+                        binarta.shop.checkout.confirm('-');
+
+                        expect(binarta.shop.checkout.status()).toEqual('payment');
+                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
                 });
 

@@ -73,6 +73,7 @@ function BinartaInMemoryGatewaysjs() {
 
     function ShopGateway() {
         var addresses = [];
+        this.paymentConfirmations = [];
 
         this.fetchBillingProfile = function (response) {
             response.success({vat: 'BE1234567890'});
@@ -120,6 +121,14 @@ function BinartaInMemoryGatewaysjs() {
                 response.rejected('violation-report');
             else
                 response.success({approvalUrl: 'approval-url'});
+        };
+
+        this.confirmPayment = function (request, response) {
+            this.paymentConfirmations.push(request);
+            if (request.token == 'invalid')
+                response.rejected({token: ['invalid']});
+            else
+                response.success();
         };
 
         this.initiateBillingAgreement = function (id, ui) {

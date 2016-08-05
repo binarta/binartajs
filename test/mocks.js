@@ -11,6 +11,7 @@ function GatewaySpy() {
     this.previewOrder = spy('previewOrderRequest');
     this.validateOrder = spy('validateOrderRequest');
     this.submitOrder = spy('submitOrderRequest');
+    this.confirmPayment = spy('confirmPaymentRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -199,6 +200,18 @@ function ValidOrderGateway() {
 
     this.submitOrder = function (request, response) {
         response.success({id:'order-id'});
+    }
+}
+
+function ValidPaymentGateway() {
+    this.confirmPayment = function(request, response) {
+        response.success();
+    }
+}
+
+function InvalidPaymentGateway() {
+    this.confirmPayment = function(request, response) {
+        response.rejected('violation-report');
     }
 }
 

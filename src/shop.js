@@ -487,6 +487,26 @@ function BinartaShopjs(checkpoint) {
         function PaymentStep(fsm) {
             fsm.currentState = this;
             this.name = 'payment';
+            var violationReportCache = {};
+
+            fsm.confirm = function(request, onSuccess) {
+                shop.gateway.confirmPayment(request, {
+                    success:function() {
+                        fsm.next();
+                        if(onSuccess)
+                            onSuccess();
+                    },
+                    rejected: cacheViolationReport
+                });
+            };
+
+            function cacheViolationReport(report) {
+                violationReportCache = report;
+            }
+
+            fsm.violationReport = function () {
+                return violationReportCache;
+            }
         }
 
         function CompletedStep(fsm) {
