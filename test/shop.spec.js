@@ -1039,6 +1039,11 @@
                     binarta.shop.checkout.jumpTo('completed');
                     expect(binarta.shop.checkout.status()).toEqual('completed');
                 });
+
+                it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function() {
+                    binarta.shop.checkout.jumpTo('completed');
+                    expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
+                });
             });
 
             describe('profile extensions', function () {

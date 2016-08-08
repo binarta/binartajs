@@ -322,6 +322,9 @@ function BinartaShopjs(checkpoint) {
 
         this.jumpTo = function (id) {
             new stepDefinitions[id](self);
+            var ctx = self.context();
+            ctx.currentStep = id;
+            self.persist(ctx);
         };
 
         this.isNextStep = function (it) {
