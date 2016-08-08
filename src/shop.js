@@ -509,13 +509,19 @@ function BinartaShopjs(checkpoint) {
 
             fsm.violationReport = function () {
                 return violationReportCache;
-            }
+            };
+
+            clearBasketOnComplete(fsm);
         }
 
         function CompletedStep(fsm) {
             fsm.currentState = this;
             this.name = 'completed';
 
+            clearBasketOnComplete(fsm);
+        }
+
+        function clearBasketOnComplete(fsm) {
             if(fsm.context().order.clearBasketOnComplete)
                 shop.basket.clear();
         }

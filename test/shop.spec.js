@@ -437,8 +437,8 @@
                                     expect(binarta.shop.basket.items()).toEqual([]);
                                     expect(binarta.shop.basket.subTotal()).toEqual(0);
                                 });
-                                
-                                it('then on cleared listener is triggered', function() {
+
+                                it('then on cleared listener is triggered', function () {
                                     expect(eventListener.cleared).toHaveBeenCalled();
                                 });
                             });
@@ -971,12 +971,23 @@
                     });
                 });
 
-                it('basket can optionally be cleared when checkout reaches completed step', function() {
+                it('basket can optionally be cleared when checkout reaches completed step', function () {
                     binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.basket.add({item:{id:'i', quantity:1}});
+                    binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
 
-                    binarta.shop.checkout.start({clearBasketOnComplete:true}, [
+                    binarta.shop.checkout.start({clearBasketOnComplete: true}, [
                         'completed'
+                    ]);
+
+                    expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                });
+
+                it('basket can optionally be cleared when checkout reaches payment step and wire transfer is selected', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
+
+                    binarta.shop.checkout.start({clearBasketOnComplete: true, provider: 'wire-transfer'}, [
+                        'payment'
                     ]);
 
                     expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
