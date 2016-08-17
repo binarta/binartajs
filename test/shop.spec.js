@@ -14,6 +14,8 @@
                     shop: shop
                 });
                 binarta = factory.create();
+
+                localStorage.removeItem('binartaJSPaymentProvider');
             });
 
             describe('basket', function () {
@@ -769,7 +771,7 @@
                         binarta.shop.checkout.start(order, [
                             'summary',
                             'completed'
-                        ])
+                        ]);
                     });
 
                     it('then status exposes the current step', function () {
@@ -786,9 +788,24 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('then you can set the payment provider', function () {
-                        binarta.shop.checkout.setPaymentProvider('payment-provider');
-                        expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
+                    it('then the selected payment provider defaults to wire-transfer', function() {
+                        expect(binarta.shop.checkout.getPaymentProvider()).toEqual('wire-transfer');
+                    });
+
+                    describe('and setting the payment provider', function() {
+                        beforeEach(function() {
+                            binarta.shop.checkout.setPaymentProvider('payment-provider');
+                        });
+
+                        it('then the order exposes the selected payment provider', function () {
+                            expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
+                        });
+
+                        it('then new checkouts default to the selected payment provider', function() {
+                            binarta.shop.checkout.cancel();
+                            binarta.shop.checkout.start(order, ['summary']);
+                        expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+                        });
                     });
 
                     it('on confirmation the order can be rejected', function () {
@@ -822,6 +839,15 @@
                         expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
                         expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
                     });
+                });
+
+                it('on the checkout summary step then the payment provider can be specified at checkout start', function() {
+                    order.provider = 'payment-provider';
+                    binarta.shop.checkout.start(order, [
+                        'summary',
+                        'completed'
+                    ]);
+                    expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
                 });
 
                 describe('order confirmation proceeds to next step when rejected because payment provider requires setup and next step is meant to setup the payment provider', function () {

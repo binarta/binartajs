@@ -237,7 +237,7 @@ function BinartaShopjs(checkpoint) {
 
         this.clear = function () {
             initialize();
-            self.eventRegistry.forEach(function(it) {
+            self.eventRegistry.forEach(function (it) {
                 it.cleared();
             });
         };
@@ -397,11 +397,21 @@ function BinartaShopjs(checkpoint) {
             this.name = 'summary';
             var violationReportCache = {};
 
+            fsm.getPaymentProvider = function () {
+                return self.context().order.provider;
+            };
+
             fsm.setPaymentProvider = function (provider) {
                 var ctx = self.context();
                 ctx.order.provider = provider;
                 self.persist(ctx);
+                localStorage.setItem('binartaJSPaymentProvider', provider)
             };
+            if(!fsm.getPaymentProvider())
+                if(localStorage.getItem('binartaJSPaymentProvider'))
+                    fsm.setPaymentProvider(localStorage.getItem('binartaJSPaymentProvider'));
+                else
+                    fsm.setPaymentProvider('wire-transfer');
 
             fsm.confirm = function (onSuccessListener) {
                 shop.gateway.submitOrder(fsm.context().order, {
@@ -495,11 +505,11 @@ function BinartaShopjs(checkpoint) {
             this.name = 'payment';
             var violationReportCache = {};
 
-            fsm.confirm = function(request, onSuccess) {
+            fsm.confirm = function (request, onSuccess) {
                 shop.gateway.confirmPayment(request, {
-                    success:function() {
+                    success: function () {
                         fsm.next();
-                        if(onSuccess)
+                        if (onSuccess)
                             onSuccess();
                     },
                     rejected: cacheViolationReport
@@ -525,7 +535,7 @@ function BinartaShopjs(checkpoint) {
         }
 
         function clearBasketOnComplete(fsm) {
-            if(fsm.context().order.clearBasketOnComplete)
+            if (fsm.context().order.clearBasketOnComplete)
                 shop.basket.clear();
         }
 
