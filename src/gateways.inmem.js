@@ -123,6 +123,10 @@ function BinartaInMemoryGatewaysjs() {
                 response.success({approvalUrl: 'approval-url'});
         };
 
+        this.cancelOrder = function(request, response) {
+            response.success();
+        };
+
         this.confirmPayment = function (request, response) {
             this.paymentConfirmations.push(request);
             if (request.token == 'invalid')

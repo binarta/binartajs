@@ -407,8 +407,8 @@ function BinartaShopjs(checkpoint) {
                 self.persist(ctx);
                 localStorage.setItem('binartaJSPaymentProvider', provider)
             };
-            if(!fsm.getPaymentProvider())
-                if(localStorage.getItem('binartaJSPaymentProvider'))
+            if (!fsm.getPaymentProvider())
+                if (localStorage.getItem('binartaJSPaymentProvider'))
                     fsm.setPaymentProvider(localStorage.getItem('binartaJSPaymentProvider'));
                 else
                     fsm.setPaymentProvider('wire-transfer');
@@ -510,6 +510,20 @@ function BinartaShopjs(checkpoint) {
                     success: function () {
                         fsm.next();
                         if (onSuccess)
+                            onSuccess();
+                    },
+                    rejected: cacheViolationReport
+                });
+            };
+
+            fsm.cancelPayment = function (onSuccess) {
+                shop.gateway.cancelOrder(fsm.context().order, {
+                    success: function () {
+                        var ctx = fsm.context();
+                        delete ctx.order.id;
+                        fsm.persist(ctx);
+                        fsm.jumpTo('summary');
+                        if(onSuccess)
                             onSuccess();
                     },
                     rejected: cacheViolationReport

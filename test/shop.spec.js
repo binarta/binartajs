@@ -971,6 +971,53 @@
                         expect(binarta.shop.checkout.status()).toEqual('payment');
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
+
+                    it('when canceling the payment then cancel order request is sent', function () {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.cancelPayment();
+                        expect(binarta.shop.gateway.cancelOrderRequest).toEqual(order);
+                    });
+
+                    it('when cancel has not yet completed then optional on success listener is not yet triggered', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.cancelPayment(spy);
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    describe('when cancel completes', function() {
+                        beforeEach(function() {
+                            var ctx = binarta.shop.checkout.context();
+                            ctx.order.id = 'o';
+                            binarta.shop.checkout.persist(ctx);
+                            binarta.shop.gateway = new ValidOrderGateway();
+                            binarta.shop.checkout.cancelPayment();
+                        });
+
+                        it('then return to summary step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
+
+                        it('then remove id from order so ti can be resubmitted', function () {
+                            expect(binarta.shop.checkout.context().order.id).toBeUndefined();
+                        });
+                    });
+
+                    it('when cancel completes then trigger an optional on success listener', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        binarta.shop.checkout.cancelPayment(spy);
+                        expect(spy).toHaveBeenCalled();
+                    });
+
+                    it('when cancel is rejected expose violation report', function () {
+                        binarta.shop.gateway = new InvalidOrderGateway();
+
+                        binarta.shop.checkout.cancelPayment();
+
+                        expect(binarta.shop.checkout.status()).toEqual('payment');
+                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    });
                 });
 
                 describe('on the checkout completed step', function () {

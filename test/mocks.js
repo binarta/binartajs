@@ -12,6 +12,7 @@ function GatewaySpy() {
     this.validateOrder = spy('validateOrderRequest');
     this.submitOrder = spy('submitOrderRequest');
     this.confirmPayment = spy('confirmPaymentRequest');
+    this.cancelOrder = spy('cancelOrderRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -145,6 +146,10 @@ function InvalidOrderGateway() {
             items[it.id] = {quantity: ['invalid']};
         });
         response.rejected({items: items});
+    };
+
+    this.cancelOrder = function(request, response) {
+        response.rejected('violation-report');
     }
 }
 
@@ -200,6 +205,10 @@ function ValidOrderGateway() {
 
     this.submitOrder = function (request, response) {
         response.success({id:'order-id'});
+    };
+    
+    this.cancelOrder = function(request, response) {
+        response.success();
     }
 }
 
