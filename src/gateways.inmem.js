@@ -59,8 +59,10 @@ function BinartaInMemoryGatewaysjs() {
             return request.token && request.token == account.token
         }
 
-        this.signout = function () {
+        this.signout = function(response) {
             activeProfile = undefined;
+            if(response && response.unauthenticated)
+                response.unauthenticated();
         };
 
         this.fetchAccountMetadata = function (response) {

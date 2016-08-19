@@ -70,10 +70,19 @@
             expect(binarta.checkpoint.gateway.signoutRequest).toBeTruthy();
         });
 
-        it('profile signout', function () {
+        it('on profile signout success then the profile is unauthenticated', function () {
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.signout();
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
+        it('on profile signout success then an optional success listener is triggered', function () {
+            var spy = jasmine.createSpy('on-success');
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+
+            binarta.checkpoint.profile.signout({unauthenticated:spy});
+
+            expect(spy).toHaveBeenCalled();
         });
 
         it('profile is initially in an idle status', function () {
@@ -280,6 +289,7 @@
                 });
 
                 it('when profile signout is executed then the form resets', function () {
+                    binarta.checkpoint.gateway = new AuthenticatedGateway();
                     binarta.checkpoint.profile.signout();
                     expect(binarta.checkpoint.registrationForm.status()).toEqual('idle');
                 });
@@ -393,6 +403,7 @@
                 });
 
                 it('when profile signout is executed then the form resets', function () {
+                    binarta.checkpoint.gateway = new AuthenticatedGateway();
                     binarta.checkpoint.profile.signout();
                     expect(binarta.checkpoint.signinForm.status()).toEqual('idle');
                 });

@@ -213,9 +213,8 @@ function BinartaCheckpointjs() {
             }
         }
 
-        this.signout = function () {
-            checkpoint.gateway.signout();
-            onSignout(toNoOpResponse())();
+        this.signout = function (response) {
+            checkpoint.gateway.signout({unauthenticated:onSignout(toNoOpResponse(response))});
         };
 
         function toNoOpResponse(it) {

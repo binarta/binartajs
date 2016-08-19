@@ -51,7 +51,8 @@ function UnauthenticatedGateway() {
 }
 
 function AuthenticatedGateway() {
-    this.signout = function () {
+    this.signout = function (response) {
+        response.unauthenticated();
     };
 
     this.fetchAccountMetadata = function (response) {
