@@ -336,6 +336,22 @@ function BinartaShopjs(checkpoint) {
             return ctx.roadmap.lastIndexOf(ctx.currentStep) + 1;
         }
 
+        this.hasPreviousStep = function () {
+            return self.previousStep();
+        };
+
+        this.previousStep = function() {
+            var ctx = self.context();
+            var finished = false;
+            return ctx.roadmap.reduce(function (p, c, i) {
+                if (p && !finished && ctx.roadmap.length == i + 1) return false;
+                if (c == ctx.currentStep) finished = true;
+                return p || (!finished && !gatewaySteps.some(function (gatewayStep) {
+                        return c == gatewayStep;
+                    }) ? c : p);
+            }, undefined);
+        };
+
         this.next = function () {
             var ctx = self.context();
             ctx.currentStep = ctx.roadmap[toNextStepIndex(ctx)];
@@ -523,7 +539,7 @@ function BinartaShopjs(checkpoint) {
                         delete ctx.order.id;
                         fsm.persist(ctx);
                         fsm.jumpTo('summary');
-                        if(onSuccess)
+                        if (onSuccess)
                             onSuccess();
                     },
                     rejected: cacheViolationReport

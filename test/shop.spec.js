@@ -607,6 +607,78 @@
                     ]);
                 });
 
+                describe('back navigation support', function() {
+                    beforeEach(function() {
+                        binarta.shop.checkout.start(order, [
+                            'authentication-required',
+                            'summary',
+                            'setup-payment-provider',
+                            'payment',
+                            'completed'
+                        ]);
+                    });
+
+                    describe('on first step', function() {
+                        it('exposes there is no previous step', function() {
+                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
+                        });
+                    });
+
+                    describe('when the previous step is a transitionary step', function() {
+                        beforeEach(function() {
+                            binarta.shop.checkout.next();
+                        });
+
+                        it('then expose there is no previous step', function() {
+                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
+                        });
+                    });
+
+                    describe('when there is a previous step', function() {
+                        beforeEach(function() {
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                        });
+
+                        it('then expose there is one', function() {
+                            expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
+                        });
+
+                        it('then expose the step name', function() {
+                            expect(binarta.shop.checkout.previousStep()).toEqual('summary');
+                        });
+                    });
+
+                    describe('when there is a step prior to a transitional step', function() {
+                        beforeEach(function() {
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                        });
+
+                        it('then expose there is one', function() {
+                            expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
+                        });
+
+                        it('then expose the step name', function() {
+                            expect(binarta.shop.checkout.previousStep()).toEqual('summary');
+                        });
+                    });
+
+                    describe('when on the last step', function() {
+                        beforeEach(function() {
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                            binarta.shop.checkout.next();
+                        });
+
+                        it('then expose there is no previous step', function() {
+                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
+                        });
+                    });
+                });
+
                 describe('when checkout is started', function () {
                     beforeEach(function () {
                         binarta.shop.checkout.start(order, [
