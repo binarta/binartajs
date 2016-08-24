@@ -1192,6 +1192,13 @@
             });
 
             describe('profile extensions', function () {
+                var eventListener;
+
+                beforeEach(function() {
+                    eventListener = jasmine.createSpyObj('event-listener', ['updated']);
+                    binarta.checkpoint.profile.eventRegistry.add(eventListener);
+                });
+
                 describe('profile refresh takes an optional event handler for the current request', function () {
                     it('with optional success handler', function () {
                         var spy = jasmine.createSpyObj('spy', ['success']);
@@ -1369,6 +1376,13 @@
                         binarta.checkpoint.profile.update();
                         expect(binarta.checkpoint.profile.status()).toEqual('idle');
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('');
+                    });
+
+                    it('then update vat triggers event listener', function () {
+                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                        binarta.checkpoint.profile.update();
+                        expect(eventListener.updated).toHaveBeenCalled();
                     });
 
                     it('then update to add a new address does not delegate to gateway when address is empty', function () {

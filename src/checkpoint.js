@@ -178,6 +178,7 @@ function BinartaCheckpointjs() {
         this.metadataCache = {};
         this.updateProfileRequestDecorators = [];
         this.updateProfileHandlers = [];
+        this.eventRegistry = new BinartaRX();
 
         this.status = function () {
             return self.currentStatus.status;
@@ -289,8 +290,12 @@ function BinartaCheckpointjs() {
                             if (--countdown == 0)
                                 if (Object.keys(violationReport).length > 0)
                                     new EditState(fsm, violationReport);
-                                else
+                                else {
                                     new IdleState(fsm);
+                                    fsm.eventRegistry.forEach(function(l) {
+                                        l.updated();
+                                    });
+                                }
                         },
                         rejected: function (report) {
                             Object.keys(report).forEach(function (k) {
