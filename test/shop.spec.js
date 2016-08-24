@@ -1363,6 +1363,14 @@
                         expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE0987654321');
                     });
 
+                    it('then update vat can clear the vat number', function () {
+                        binarta.shop.gateway = new ValidBillingProfileGateway();
+                        binarta.checkpoint.profile.updateRequest().vat = '';
+                        binarta.checkpoint.profile.update();
+                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('');
+                    });
+
                     it('then update to add a new address does not delegate to gateway when address is empty', function () {
                         binarta.shop.gateway = new GatewaySpy();
                         binarta.checkpoint.profile.update();

@@ -772,7 +772,7 @@ function BinartaShopjs(checkpoint) {
         }
 
         function updateBillingProfile(request, response, existingVatNumber) {
-            if (request.vat && request.vat != existingVatNumber)
+            if (request.hasOwnProperty('vat') && request.vat != existingVatNumber)
                 shop.gateway.updateBillingProfile({vat: request.vat}, {
                     success: function () {
                         profileCache.vat = request.vat;
