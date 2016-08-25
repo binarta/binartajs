@@ -611,6 +611,7 @@
                     beforeEach(function() {
                         binarta.shop.checkout.start(order, [
                             'authentication-required',
+                            'address-selection',
                             'summary',
                             'setup-payment-provider',
                             'payment',
@@ -645,12 +646,13 @@
                         });
 
                         it('then expose the step name', function() {
-                            expect(binarta.shop.checkout.previousStep()).toEqual('summary');
+                            expect(binarta.shop.checkout.previousStep()).toEqual('address-selection');
                         });
                     });
 
                     describe('when there is a step prior to a transitional step', function() {
                         beforeEach(function() {
+                            binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
@@ -667,6 +669,7 @@
 
                     describe('when on the last step', function() {
                         beforeEach(function() {
+                            binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();

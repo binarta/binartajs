@@ -340,15 +340,17 @@ function BinartaShopjs(checkpoint) {
             return self.previousStep();
         };
 
-        this.previousStep = function() {
+        this.previousStep = function () {
             var ctx = self.context();
             var finished = false;
             return ctx.roadmap.reduce(function (p, c, i) {
                 if (p && !finished && ctx.roadmap.length == i + 1) return false;
                 if (c == ctx.currentStep) finished = true;
-                return p || (!finished && !gatewaySteps.some(function (gatewayStep) {
+                if (!finished && !gatewaySteps.some(function (gatewayStep) {
                         return c == gatewayStep;
-                    }) ? c : p);
+                    }))
+                    return c;
+                return p;
             }, undefined);
         };
 
