@@ -564,7 +564,7 @@
                 var order, eventListener;
 
                 beforeEach(function () {
-                    order = {items: []};
+                    order = {items: [{}]};
                     eventListener = jasmine.createSpyObj('event-listener', ['goto']);
                     binarta.shop.checkout.eventRegistry.add(eventListener);
                 });
@@ -879,7 +879,7 @@
                         it('then new checkouts default to the selected payment provider', function() {
                             binarta.shop.checkout.cancel();
                             binarta.shop.checkout.start(order, ['summary']);
-                        expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+                            expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
                         });
                     });
 
@@ -913,6 +913,13 @@
                         binarta.shop.checkout.confirm();
                         expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
                         expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                    });
+
+                    it('on confirmation with coupon code', function() {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.setCouponCode('coupon-code');
+                        binarta.shop.checkout.confirm();
+                        expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
                     });
                 });
 

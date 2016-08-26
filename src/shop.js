@@ -411,18 +411,19 @@ function BinartaShopjs(checkpoint) {
         }
 
         function SummaryStep(fsm) {
+            var self = this;
             fsm.currentState = this;
             this.name = 'summary';
             var violationReportCache = {};
 
             fsm.getPaymentProvider = function () {
-                return self.context().order.provider;
+                return fsm.context().order.provider;
             };
 
             fsm.setPaymentProvider = function (provider) {
-                var ctx = self.context();
+                var ctx = fsm.context();
                 ctx.order.provider = provider;
-                self.persist(ctx);
+                fsm.persist(ctx);
                 localStorage.setItem('binartaJSPaymentProvider', provider)
             };
             if (!fsm.getPaymentProvider())
@@ -431,8 +432,19 @@ function BinartaShopjs(checkpoint) {
                 else
                     fsm.setPaymentProvider('wire-transfer');
 
+            fsm.setCouponCode = function(code) {
+                self.couponCode = code;
+            };
+
             fsm.confirm = function (onSuccessListener) {
-                shop.gateway.submitOrder(fsm.context().order, {
+                var request = fsm.context().order;
+
+                if(self.couponCode)
+                    request.items.forEach(function(item) {
+                        item.couponCode = self.couponCode;
+                    });
+
+                shop.gateway.submitOrder(request, {
                     success: onSuccess(onSuccessListener),
                     rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
                 });
@@ -440,9 +452,9 @@ function BinartaShopjs(checkpoint) {
 
             function onSuccess(listener) {
                 return onOrderAccepted(function (args) {
-                    var ctx = self.context();
+                    var ctx = fsm.context();
                     ctx.orderSubmitted = true;
-                    self.persist(ctx);
+                    fsm.persist(ctx);
                     next(listener)();
                 });
             }
