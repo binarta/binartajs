@@ -409,7 +409,22 @@
                 });
             });
 
-            describe('you can optionally pass an event listener for the current request', function () {
+            describe('you can optionally pass an event listener', function () {
+                var listener;
+
+                beforeEach(function () {
+                    listener = jasmine.createSpyObj('listener', ['signedin']);
+                    binarta.checkpoint.signinForm.eventRegistry.add(listener);
+                });
+
+                it('on success', function () {
+                    binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                    binarta.checkpoint.signinForm.submit('-');
+                    expect(listener.signedin).toHaveBeenCalled();
+                });
+            });
+
+            describe('you can optionally pass an event listener for the current request only', function () {
                 var listener;
 
                 beforeEach(function () {

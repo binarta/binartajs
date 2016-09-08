@@ -99,6 +99,8 @@ function BinartaCheckpointjs() {
     function SigninForm() {
         var self = this;
 
+        this.eventRegistry = new BinartaRX();
+
         this.reset = function () {
             new IdleState(self);
         };
@@ -140,6 +142,9 @@ function BinartaCheckpointjs() {
                 new AuthenticatedState(fsm);
                 checkpoint.registrationForm.setAlreadyRegistered();
                 checkpoint.profile.refresh(response);
+                fsm.eventRegistry.forEach(function(l) {
+                    l.signedin();
+                });
             }
 
             function onRejection() {
