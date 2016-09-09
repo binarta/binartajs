@@ -59,8 +59,9 @@ function AuthenticatedGateway() {
         response.activeAccountMetadata({principal: 'p', email: 'e'});
     };
 
-    this.fetchPermissions = function (response) {
-        response(['p1', 'p2', 'p3']);
+    this.fetchPermissions = function (request, response) {
+        if (request.principal == 'p')
+            response.success(['p1', 'p2', 'p3']);
     };
 
     this.fetchBillingProfile = function (response) {
@@ -128,7 +129,7 @@ function ValidCredentialsGateway() {
     };
 
     this.fetchAccountMetadata = function (response) {
-        response.activeAccountMetadata({billing: {complete: false}});
+        response.activeAccountMetadata({principal: 'p', email: 'e', billing: {complete: false}});
     };
 
     this.fetchPermissions = delegate.fetchPermissions;
@@ -292,7 +293,7 @@ function CompleteBillingProfileGateway() {
     var delegate = new AuthenticatedGateway();
 
     this.fetchAccountMetadata = function (response) {
-        response.activeAccountMetadata({billing: {complete: true}});
+        response.activeAccountMetadata({principal: 'p', email: 'e', billing: {complete: true}});
     };
 
     this.fetchPermissions = delegate.fetchPermissions;

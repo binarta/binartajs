@@ -72,8 +72,8 @@ function BinartaInMemoryGatewaysjs() {
                 response.unauthenticated();
         };
 
-        this.fetchPermissions = function(response) {
-            response([]);
+        this.fetchPermissions = function(request, response) {
+            response.success([]);
         }
     }
 
