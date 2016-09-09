@@ -264,6 +264,13 @@ function BinartaCheckpointjs() {
             return self.permissionCache;
         };
 
+        this.hasPermission = function(expected) {
+            return self.permissions().some(function(permission) {
+                console.log(permission.name + ' == ' + expected);
+                return permission.name == expected;
+            });
+        };
+
         this.email = function () {
             return self.metadata().email;
         };

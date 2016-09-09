@@ -10,11 +10,11 @@
             binarta = factory.create();
         });
 
-        it('metadata is empty before refresh to avoid null pointer exceptions', function() {
+        it('metadata is empty before refresh to avoid null pointer exceptions', function () {
             expect(binarta.checkpoint.profile.metadata()).toEqual({});
         });
 
-        it('permissions are empty before refresh to avoid null pointer exceptions', function() {
+        it('permissions are empty before refresh to avoid null pointer exceptions', function () {
             expect(binarta.checkpoint.profile.permissions()).toEqual([]);
         });
 
@@ -38,8 +38,15 @@
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
             expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p', email: 'e'});
-            expect(binarta.checkpoint.profile.permissions()).toEqual(['p1', 'p2', 'p3']);
+            expect(binarta.checkpoint.profile.permissions()).toEqual([{name: 'p1'}, {name: 'p2'}, {name: 'p3'}]);
             expect(binarta.checkpoint.profile.email()).toEqual('e');
+        });
+
+        it('profile exposes test for a specific permission', function () {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.refresh();
+            expect(binarta.checkpoint.profile.hasPermission('p1')).toBeTruthy();
+            expect(binarta.checkpoint.profile.hasPermission('-')).toBeFalsy();
         });
 
         it('profile is unauthenticated on refresh when session expires', function () {
@@ -73,7 +80,7 @@
         describe('profile event registry triggers listeners on every refresh', function () {
             var spy;
 
-            beforeEach(function() {
+            beforeEach(function () {
                 spy = jasmine.createSpyObj('spy', ['signedin', 'signedout']);
                 binarta.checkpoint.profile.eventRegistry.add(spy);
             });
@@ -107,7 +114,7 @@
             var spy = jasmine.createSpy('on-success');
             binarta.checkpoint.gateway = new AuthenticatedGateway();
 
-            binarta.checkpoint.profile.signout({unauthenticated:spy});
+            binarta.checkpoint.profile.signout({unauthenticated: spy});
 
             expect(spy).toHaveBeenCalled();
         });

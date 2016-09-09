@@ -61,7 +61,9 @@ function AuthenticatedGateway() {
 
     this.fetchPermissions = function (request, response) {
         if (request.principal == 'p')
-            response.success(['p1', 'p2', 'p3']);
+            response.success(['p1', 'p2', 'p3'].map(function(it) {
+                return {name:it};
+            }));
     };
 
     this.fetchBillingProfile = function (response) {
