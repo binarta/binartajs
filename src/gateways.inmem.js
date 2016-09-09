@@ -59,9 +59,9 @@ function BinartaInMemoryGatewaysjs() {
             return request.token && request.token == account.token
         }
 
-        this.signout = function(response) {
+        this.signout = function (response) {
             activeProfile = undefined;
-            if(response && response.unauthenticated)
+            if (response && response.unauthenticated)
                 response.unauthenticated();
         };
 
@@ -72,8 +72,10 @@ function BinartaInMemoryGatewaysjs() {
                 response.unauthenticated();
         };
 
-        this.fetchPermissions = function(request, response) {
-            response.success([]);
+        this.fetchPermissions = function (request, response) {
+            response.success(['p1', 'p2', 'p3'].map(function (it) {
+                return {name: it}
+            }));
         }
     }
 
@@ -129,7 +131,7 @@ function BinartaInMemoryGatewaysjs() {
                 response.success({approvalUrl: 'approval-url'});
         };
 
-        this.cancelOrder = function(request, response) {
+        this.cancelOrder = function (request, response) {
             response.success();
         };
 
