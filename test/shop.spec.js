@@ -1205,7 +1205,7 @@
                 var eventListener;
 
                 beforeEach(function() {
-                    eventListener = jasmine.createSpyObj('event-listener', ['updated']);
+                    eventListener = jasmine.createSpyObj('event-listener', ['signedin', 'signedout', 'updated']);
                     binarta.checkpoint.profile.eventRegistry.add(eventListener);
                 });
 

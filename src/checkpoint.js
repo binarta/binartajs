@@ -181,6 +181,7 @@ function BinartaCheckpointjs() {
         var emptyViolationReport = {};
 
         this.metadataCache = {};
+        this.permissionCache = [];
         this.updateProfileRequestDecorators = [];
         this.updateProfileHandlers = [];
         this.eventRegistry = new BinartaRX();
@@ -205,17 +206,27 @@ function BinartaCheckpointjs() {
             return function () {
                 self.authenticated = false;
                 self.metadataCache = {};
+                self.permissionCache = [];
                 checkpoint.registrationForm.reset();
                 checkpoint.signinForm.reset();
                 response.unauthenticated();
+                self.eventRegistry.forEach(function(l) {
+                    l.signedout();
+                });
             }
         }
 
         function onSignin(response) {
-            return function (it) {
-                self.authenticated = true;
-                self.metadataCache = it;
-                response.success();
+            return function (metadata) {
+                checkpoint.gateway.fetchPermissions(function(permissions) {
+                    self.authenticated = true;
+                    self.metadataCache = metadata;
+                    self.permissionCache = permissions;
+                    response.success();
+                    self.eventRegistry.forEach(function(l) {
+                        l.signedin();
+                    });
+                });
             }
         }
 
@@ -245,6 +256,10 @@ function BinartaCheckpointjs() {
 
         this.metadata = function () {
             return self.metadataCache;
+        };
+
+        this.permissions = function() {
+            return self.permissionCache;
         };
 
         this.email = function () {

@@ -14,6 +14,10 @@
             expect(binarta.checkpoint.profile.metadata()).toEqual({});
         });
 
+        it('permissions are empty before refresh to avoid null pointer exceptions', function() {
+            expect(binarta.checkpoint.profile.permissions()).toEqual([]);
+        });
+
         it('profile is unauthenticated', function () {
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
         });
@@ -34,6 +38,7 @@
             binarta.checkpoint.gateway = new AuthenticatedGateway();
             binarta.checkpoint.profile.refresh();
             expect(binarta.checkpoint.profile.metadata()).toEqual({principal: 'p', email: 'e'});
+            expect(binarta.checkpoint.profile.permissions()).toEqual(['p1', 'p2', 'p3']);
             expect(binarta.checkpoint.profile.email()).toEqual('e');
         });
 
@@ -46,6 +51,7 @@
 
             expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
             expect(binarta.checkpoint.profile.metadata()).toEqual({});
+            expect(binarta.checkpoint.profile.permissions()).toEqual([]);
         });
 
         describe('profile refresh takes an optional event handler for the current request', function () {
@@ -61,6 +67,27 @@
                 binarta.checkpoint.gateway = new UnauthenticatedGateway();
                 binarta.checkpoint.profile.refresh(spy);
                 expect(spy.unauthenticated).toHaveBeenCalled();
+            });
+        });
+
+        describe('profile event registry triggers listeners on every refresh', function () {
+            var spy;
+
+            beforeEach(function() {
+                spy = jasmine.createSpyObj('spy', ['signedin', 'signedout']);
+                binarta.checkpoint.profile.eventRegistry.add(spy);
+            });
+
+            it('on signin success', function () {
+                binarta.checkpoint.gateway = new AuthenticatedGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(spy.signedin).toHaveBeenCalled();
+            });
+
+            it('on signout', function () {
+                binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(spy.signedout).toHaveBeenCalled();
             });
         });
 

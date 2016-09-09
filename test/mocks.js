@@ -59,6 +59,10 @@ function AuthenticatedGateway() {
         response.activeAccountMetadata({principal: 'p', email: 'e'});
     };
 
+    this.fetchPermissions = function (response) {
+        response(['p1', 'p2', 'p3']);
+    };
+
     this.fetchBillingProfile = function (response) {
         response.success({});
     };
@@ -110,6 +114,8 @@ function InvalidCredentialsGateway() {
 }
 
 function ValidCredentialsGateway() {
+    var delegate = new AuthenticatedGateway();
+
     this.register = function (request, response) {
         response.success();
     };
@@ -124,6 +130,8 @@ function ValidCredentialsGateway() {
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: false}});
     };
+
+    this.fetchPermissions = delegate.fetchPermissions;
 
     this.fetchBillingProfile = function () {
     };
@@ -149,7 +157,7 @@ function InvalidOrderGateway() {
         response.rejected({items: items});
     };
 
-    this.cancelOrder = function(request, response) {
+    this.cancelOrder = function (request, response) {
         response.rejected('violation-report');
     }
 }
@@ -205,22 +213,22 @@ function ValidOrderGateway() {
     };
 
     this.submitOrder = function (request, response) {
-        response.success({id:'order-id'});
+        response.success({id: 'order-id'});
     };
-    
-    this.cancelOrder = function(request, response) {
+
+    this.cancelOrder = function (request, response) {
         response.success();
     }
 }
 
 function ValidPaymentGateway() {
-    this.confirmPayment = function(request, response) {
+    this.confirmPayment = function (request, response) {
         response.success();
     }
 }
 
 function InvalidPaymentGateway() {
-    this.confirmPayment = function(request, response) {
+    this.confirmPayment = function (request, response) {
         response.rejected('violation-report');
     }
 }
@@ -263,9 +271,13 @@ function ValidOrderWithDeferredPreviewGateway() {
 }
 
 function InCompleteBillingProfileGateway() {
+    var delegate = new AuthenticatedGateway();
+
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: false}});
     };
+
+    this.fetchPermissions = delegate.fetchPermissions;
 
     this.fetchBillingProfile = function (response) {
         response.unauthenticated();
@@ -277,9 +289,13 @@ function InCompleteBillingProfileGateway() {
 }
 
 function CompleteBillingProfileGateway() {
+    var delegate = new AuthenticatedGateway();
+
     this.fetchAccountMetadata = function (response) {
         response.activeAccountMetadata({billing: {complete: true}});
     };
+
+    this.fetchPermissions = delegate.fetchPermissions;
 
     this.fetchBillingProfile = function (response) {
         response.success({vat: 'BE1234567890'});
