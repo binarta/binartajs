@@ -25,13 +25,14 @@
     });
 
     describe('binartarx', function() {
-        var registry, spy1, spy2;
+        var registry, spy1, spy2, spyUnsupportedEvent;
 
         beforeEach(function() {
             registry = new BinartaRX();
 
             spy1 = jasmine.createSpyObj('spy1', ['on']);
             spy2 = jasmine.createSpyObj('spy2', ['on']);
+            spyUnsupportedEvent = jasmine.createSpyObj('spy-unsupported-event', ['notSupported']);
         });
 
         it('register and invoke listeners', function() {
@@ -44,6 +45,24 @@
 
             expect(spy1.on).toHaveBeenCalledWith('ctx');
             expect(spy2.on).toHaveBeenCalledWith('ctx');
+        });
+
+        it('support notify for raising events', function() {
+            registry.add(spy1);
+
+            registry.forEach(function(l) {
+                l.notify('on', 'ctx');
+            });
+
+            expect(spy1.on).toHaveBeenCalledWith('ctx');
+        });
+
+        it('listeners which do not suport the event are not notified', function() {
+            registry.add(spyUnsupportedEvent);
+
+            registry.forEach(function(l) {
+                l.notify('on', 'ctx');
+            });
         });
 
         it('deregister listeners', function() {

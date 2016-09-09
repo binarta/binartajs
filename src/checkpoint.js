@@ -211,7 +211,7 @@ function BinartaCheckpointjs() {
                 checkpoint.signinForm.reset();
                 response.unauthenticated();
                 self.eventRegistry.forEach(function(l) {
-                    l.signedout();
+                    l.notify('signedout');
                 });
             }
         }
@@ -224,7 +224,7 @@ function BinartaCheckpointjs() {
                     self.permissionCache = permissions;
                     response.success();
                     self.eventRegistry.forEach(function(l) {
-                        l.signedin();
+                        l.notify('signedin');
                     });
                 });
             }

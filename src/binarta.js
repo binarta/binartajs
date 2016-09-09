@@ -56,6 +56,10 @@ function BinartaRX() {
     var listeners = [];
 
     this.add = function (l) {
+        l.notify = function(evt, ctx) {
+            if(l[evt])
+                l[evt](ctx);
+        };
         listeners.push(l);
     };
 
