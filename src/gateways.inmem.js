@@ -71,6 +71,10 @@ function BinartaInMemoryGatewaysjs() {
             else
                 response.unauthenticated();
         };
+
+        this.fetchPermissions = function(response) {
+            response([]);
+        }
     }
 
     function ShopGateway() {
