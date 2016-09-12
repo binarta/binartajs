@@ -88,6 +88,25 @@
             expect(spy2.on).not.toHaveBeenCalled();
         });
 
+        it('deregistering listeners while events are being raised', function() {
+            var deregisteringListener = new function() {
+                var self = this;
+
+                this.on = function() {
+                    registry.remove(self);
+                }
+            };
+
+            registry.add(deregisteringListener);
+            registry.add(spy1);
+
+            registry.forEach(function(l) {
+                l.on();
+            });
+
+            expect(spy1.on).toHaveBeenCalled();
+        });
+
         it('isEmpty exposes if any listeners are installed or not', function() {
             expect(registry.isEmpty()).toBeTruthy();
             registry.add(spy1);
