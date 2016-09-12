@@ -266,7 +266,6 @@ function BinartaCheckpointjs() {
 
         this.hasPermission = function(expected) {
             return self.permissions().some(function(permission) {
-                console.log(permission.name + ' == ' + expected);
                 return permission.name == expected;
             });
         };
