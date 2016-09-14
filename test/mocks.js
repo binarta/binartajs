@@ -13,6 +13,7 @@ function GatewaySpy() {
     this.submitOrder = spy('submitOrderRequest');
     this.confirmPayment = spy('confirmPaymentRequest');
     this.cancelOrder = spy('cancelOrderRequest');
+    this.fetchSectionData = spy('fetchSectionDataRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -33,6 +34,31 @@ function InterfacesWithUIGateway() {
 function ValidApplicationGateway() {
     this.fetchApplicationProfile = function (request, response) {
         response.success({name: 'test-application'});
+    };
+
+    this.fetchSectionData = function (request, response) {
+        response.success([
+            {type: 't', msg: 'Hello World!'}
+        ]);
+    }
+}
+
+function DeferredApplicationGateway() {
+    var delegate = new ValidApplicationGateway();
+    var eventRegistry = new BinartaRX();
+
+    this.fetchSectionData = function (request, response) {
+        eventRegistry.add({
+            continue: function () {
+                delegate.fetchSectionData(request, response);
+            }
+        });
+    };
+
+    this.continue = function () {
+        eventRegistry.forEach(function (l) {
+            l.continue();
+        });
     }
 }
 
@@ -61,8 +87,8 @@ function AuthenticatedGateway() {
 
     this.fetchPermissions = function (request, response) {
         if (request.principal == 'p')
-            response.success(['p1', 'p2', 'p3'].map(function(it) {
-                return {name:it};
+            response.success(['p1', 'p2', 'p3'].map(function (it) {
+                return {name: it};
             }));
     };
 

@@ -2,7 +2,7 @@
     describe('binarta-applicationjs', function () {
         var binarta, ui;
 
-        beforeEach(function() {
+        beforeEach(function () {
             localStorage.removeItem('locale');
             sessionStorage.removeItem('locale');
         });
@@ -32,10 +32,10 @@
             expect(binarta.application.profile().name).toEqual('test-application');
         });
 
-        describe('when passing an optional success listener to refresh', function() {
+        describe('when passing an optional success listener to refresh', function () {
             var spy;
 
-            beforeEach(function() {
+            beforeEach(function () {
                 spy = jasmine.createSpy('spy');
             });
 
@@ -125,8 +125,112 @@
                     expect(sessionStorage.locale).toEqual('swapped-locale');
                 });
 
-                it('then locale resolves without refresh', function() {
+                it('then locale resolves without refresh', function () {
                     expect(binarta.application.locale()).toEqual('swapped-locale');
+                });
+            });
+        });
+
+        describe('adhesive reading', function () {
+            beforeEach(function () {
+                binarta.application.setLocale('l');
+            });
+
+            it('read section delegates to gateway', function () {
+                binarta.application.gateway = new GatewaySpy();
+                binarta.application.adhesiveReading.read('s');
+                expect(binarta.application.gateway.fetchSectionDataRequest).toEqual({
+                    id: 's',
+                    locale: 'l'
+                });
+            });
+
+            it('read section does nothing when a section has already been read', function () {
+                binarta.application.gateway = new GatewaySpy();
+                binarta.application.adhesiveReading.read('s');
+                expect(binarta.application.gateway.fetchSectionDataRequest).toEqual({
+                    id: 's',
+                    locale: 'l'
+                });
+            });
+
+            it('read section without data handler has no effect', function () {
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.adhesiveReading.read('-');
+            });
+
+            it('read section with data handler', function () {
+                var cachedMsg;
+
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.adhesiveReading.handlers.add({
+                    type: 't',
+                    cache: function (it) {
+                        cachedMsg = it.msg;
+                    }
+                });
+                binarta.application.adhesiveReading.read('-');
+
+                expect(cachedMsg).toEqual('Hello World!');
+            });
+
+            it('read section only invokes supported handlers', function () {
+                var supportedHandler = jasmine.createSpy('supported-handler');
+                var notSupportedHandler = jasmine.createSpy('not-supported-handler');
+
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.adhesiveReading.handlers.add({type: 't', cache: supportedHandler});
+                binarta.application.adhesiveReading.handlers.add({type: '-', cache: notSupportedHandler});
+                binarta.application.adhesiveReading.read('-');
+
+                expect(supportedHandler).toHaveBeenCalled();
+                expect(notSupportedHandler).not.toHaveBeenCalled();
+            });
+
+            it('read section does nothing when reading an already read section', function () {
+                var handler = jasmine.createSpy('handler');
+
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.adhesiveReading.handlers.add({type: 't', cache: handler});
+                binarta.application.adhesiveReading.read('-');
+                binarta.application.adhesiveReading.read('-');
+
+                expect(handler).toHaveBeenCalledTimes(1);
+            });
+
+            describe('event listening', function() {
+                var spy;
+
+                beforeEach(function() {
+                    spy = jasmine.createSpyObj('spy', ['start', 'stop']);
+                    binarta.application.adhesiveReading.eventRegistry.add(spy);
+                    binarta.application.gateway = new DeferredApplicationGateway();
+                });
+
+                it('generates start and stop events', function() {
+                    binarta.application.adhesiveReading.read('-');
+
+                    expect(spy.start).toHaveBeenCalled();
+                    expect(spy.stop).not.toHaveBeenCalled();
+
+                    binarta.application.gateway.continue();
+
+                    expect(spy.stop).toHaveBeenCalled();
+                });
+
+                it('starting multiple reads generates only one start event', function() {
+                    binarta.application.adhesiveReading.read('a');
+                    binarta.application.adhesiveReading.read('b');
+                    expect(spy.start).toHaveBeenCalledTimes(1);
+                });
+
+                it('stopping multiple reads generates only one stop event', function() {
+                    binarta.application.adhesiveReading.read('a');
+                    binarta.application.adhesiveReading.read('b');
+
+                    binarta.application.gateway.continue();
+
+                    expect(spy.stop).toHaveBeenCalledTimes(1);
                 });
             });
         });
