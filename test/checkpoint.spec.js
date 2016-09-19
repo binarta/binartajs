@@ -85,16 +85,27 @@
                 binarta.checkpoint.profile.eventRegistry.add(spy);
             });
 
-            it('on signin success', function () {
-                binarta.checkpoint.gateway = new AuthenticatedGateway();
-                binarta.checkpoint.profile.refresh();
-                expect(spy.signedin).toHaveBeenCalled();
+            describe('on signin success', function() {
+                beforeEach(function() {
+                    binarta.checkpoint.gateway = new AuthenticatedGateway();
+                    binarta.checkpoint.profile.refresh();
+                });
+
+                it('signedin event is raised', function () {
+                    expect(spy.signedin).toHaveBeenCalled();
+                });
+
+                it('on signout signedout event is raised', function () {
+                    binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                    binarta.checkpoint.profile.refresh();
+                    expect(spy.signedout).toHaveBeenCalled();
+                });
             });
 
-            it('on signout', function () {
+            it('signedout event not raised when already signed out', function () {
                 binarta.checkpoint.gateway = new UnauthenticatedGateway();
                 binarta.checkpoint.profile.refresh();
-                expect(spy.signedout).toHaveBeenCalled();
+                expect(spy.signedout).not.toHaveBeenCalled();
             });
         });
 

@@ -204,15 +204,17 @@ function BinartaCheckpointjs() {
 
         function onSignout(response) {
             return function () {
+                var wasAuthenticated = self.authenticated;
                 self.authenticated = false;
                 self.metadataCache = {};
                 self.permissionCache = [];
                 checkpoint.registrationForm.reset();
                 checkpoint.signinForm.reset();
                 response.unauthenticated();
-                self.eventRegistry.forEach(function (l) {
-                    l.notify('signedout');
-                });
+                if(wasAuthenticated)
+                    self.eventRegistry.forEach(function (l) {
+                        l.notify('signedout');
+                    });
             }
         }
 
