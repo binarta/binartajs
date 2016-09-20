@@ -33,14 +33,17 @@ function InterfacesWithUIGateway() {
 
 function ValidApplicationGateway() {
     this.fetchApplicationProfile = function (request, response) {
-        response.success({name: 'test-application'});
+        response.success({
+            name: 'test-application',
+            supportedLanguages: ['en', 'nl']
+        });
     };
 
     this.fetchSectionData = function (request, response) {
         response.success([
             {type: 't', msg: 'Hello World!'}
         ]);
-    }
+    };
 }
 
 function DeferredApplicationGateway() {

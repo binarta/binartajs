@@ -20,16 +20,29 @@
             expect(binarta.application.profile()).toEqual({});
         });
 
+        it('exposes an empty list of supported languages', function() {
+            expect(binarta.application.supportedLanguages()).toEqual([]);
+        });
+
         it('on refresh request profile data', function () {
             binarta.application.gateway = new GatewaySpy();
             binarta.application.refresh();
             expect(binarta.application.gateway.fetchApplicationProfileRequest).toEqual({});
         });
 
-        it('when refresh success then profile cache is updated', function () {
-            binarta.application.gateway = new ValidApplicationGateway();
-            binarta.application.refresh();
-            expect(binarta.application.profile().name).toEqual('test-application');
+        describe('when refresh success', function() {
+            beforeEach(function() {
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.refresh();
+            });
+
+            it('then profile cache is updated', function () {
+                expect(binarta.application.profile().name).toEqual('test-application');
+            });
+
+            it('then expose supported languages', function() {
+                expect(binarta.application.supportedLanguages()).toEqual(['en', 'nl']);
+            });
         });
 
         describe('when passing an optional success listener to refresh', function () {
@@ -113,6 +126,12 @@
             });
 
             describe('when swapped locale', function () {
+                var spy;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['setLocale']);
+                    binarta.application.eventRegistry.add(spy);
+                });
                 beforeEach(function () {
                     binarta.application.setLocale('swapped-locale');
                 });
@@ -127,6 +146,10 @@
 
                 it('then locale resolves without refresh', function () {
                     expect(binarta.application.locale()).toEqual('swapped-locale');
+                });
+
+                it('then event listeners are notified of the new locale', function() {
+                    expect(spy.setLocale).toHaveBeenCalledWith('swapped-locale');
                 });
             });
         });

@@ -3,7 +3,13 @@ function BinartaApplicationjs() {
     var profileCache = {};
     var cachedLocale;
 
+    app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new ReadOnceAdhesiveReading(new AdhesiveReading(app));
+
+    app.refresh = function (onSuccess) {
+        refreshLocale();
+        refreshApplicationProfile(onSuccess);
+    };
 
     app.profile = function () {
         return profileCache;
@@ -17,11 +23,13 @@ function BinartaApplicationjs() {
         localStorage.locale = locale;
         sessionStorage.locale = locale;
         cachedLocale = locale;
+        app.eventRegistry.forEach(function(l) {
+            l.notify('setLocale', locale);
+        });
     };
 
-    app.refresh = function (onSuccess) {
-        refreshLocale();
-        refreshApplicationProfile(onSuccess);
+    app.supportedLanguages = function () {
+        return app.profile().supportedLanguages || [];
     };
 
     function refreshApplicationProfile(onSuccess) {
@@ -50,16 +58,16 @@ function BinartaApplicationjs() {
             var self = this;
             var count = 0;
 
-            self.execute = function(cb) {
-                if(count++ == 0)
+            self.execute = function (cb) {
+                if (count++ == 0)
                     eventRegistry.forEach(function (l) {
                         l.notify('start');
                     });
                 cb();
             };
 
-            self.countdown = function() {
-                if(--count == 0)
+            self.countdown = function () {
+                if (--count == 0)
                     eventRegistry.forEach(function (l) {
                         l.notify('stop');
                     });
@@ -67,7 +75,7 @@ function BinartaApplicationjs() {
         }
 
         self.read = function (id) {
-            self.executor.execute(function() {
+            self.executor.execute(function () {
                 app.gateway.fetchSectionData({id: id, locale: app.locale()}, {
                     success: function (stream) {
                         cache(stream);
