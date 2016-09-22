@@ -6,6 +6,15 @@ function BinartaInMemoryGatewaysjs() {
     function ApplicationGateway() {
         this.fetchApplicationProfile = function (request, response) {
             response.success({name: 'myapp'});
+        };
+
+        this.fetchSectionData = function (request, response) {
+            response.success([
+                {
+                    type: 'requested.section',
+                    id: request.id
+                }
+            ]);
         }
     }
 
