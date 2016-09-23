@@ -1,5 +1,8 @@
-function BinartaApplicationjs() {
+function BinartaApplicationjs(deps) {
     var app = this;
+    app.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
+    app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
+
     var profileCache = {};
     var cachedLocale;
 
@@ -20,8 +23,8 @@ function BinartaApplicationjs() {
     };
 
     app.setLocale = function (locale) {
-        localStorage.locale = locale;
-        sessionStorage.locale = locale;
+        app.localStorage.locale = locale;
+        app.sessionStorage.locale = locale;
         cachedLocale = locale;
         app.eventRegistry.forEach(function(l) {
             l.notify('setLocale', locale);
@@ -43,8 +46,8 @@ function BinartaApplicationjs() {
     }
 
     function refreshLocale() {
-        cachedLocale = sessionStorage.locale || localStorage.locale || undefined;
-        sessionStorage.locale = cachedLocale;
+        cachedLocale = app.sessionStorage.locale || app.localStorage.locale || undefined;
+        app.sessionStorage.locale = cachedLocale;
     }
 
     function AdhesiveReading(app) {

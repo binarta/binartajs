@@ -20,7 +20,7 @@
             expect(binarta.application.profile()).toEqual({});
         });
 
-        it('exposes an empty list of supported languages', function() {
+        it('exposes an empty list of supported languages', function () {
             expect(binarta.application.supportedLanguages()).toEqual([]);
         });
 
@@ -30,8 +30,8 @@
             expect(binarta.application.gateway.fetchApplicationProfileRequest).toEqual({});
         });
 
-        describe('when refresh success', function() {
-            beforeEach(function() {
+        describe('when refresh success', function () {
+            beforeEach(function () {
                 binarta.application.gateway = new ValidApplicationGateway();
                 binarta.application.refresh();
             });
@@ -40,7 +40,7 @@
                 expect(binarta.application.profile().name).toEqual('test-application');
             });
 
-            it('then expose supported languages', function() {
+            it('then expose supported languages', function () {
                 expect(binarta.application.supportedLanguages()).toEqual(['en', 'nl']);
             });
         });
@@ -148,7 +148,7 @@
                     expect(binarta.application.locale()).toEqual('swapped-locale');
                 });
 
-                it('then event listeners are notified of the new locale', function() {
+                it('then event listeners are notified of the new locale', function () {
                     expect(spy.setLocale).toHaveBeenCalledWith('swapped-locale');
                 });
             });
@@ -221,16 +221,16 @@
                 expect(handler).toHaveBeenCalledTimes(1);
             });
 
-            describe('event listening', function() {
+            describe('event listening', function () {
                 var spy;
 
-                beforeEach(function() {
+                beforeEach(function () {
                     spy = jasmine.createSpyObj('spy', ['start', 'stop']);
                     binarta.application.adhesiveReading.eventRegistry.add(spy);
                     binarta.application.gateway = new DeferredApplicationGateway();
                 });
 
-                it('generates start and stop events', function() {
+                it('generates start and stop events', function () {
                     binarta.application.adhesiveReading.read('-');
 
                     expect(spy.start).toHaveBeenCalled();
@@ -241,13 +241,13 @@
                     expect(spy.stop).toHaveBeenCalled();
                 });
 
-                it('starting multiple reads generates only one start event', function() {
+                it('starting multiple reads generates only one start event', function () {
                     binarta.application.adhesiveReading.read('a');
                     binarta.application.adhesiveReading.read('b');
                     expect(spy.start).toHaveBeenCalledTimes(1);
                 });
 
-                it('stopping multiple reads generates only one stop event', function() {
+                it('stopping multiple reads generates only one stop event', function () {
                     binarta.application.adhesiveReading.read('a');
                     binarta.application.adhesiveReading.read('b');
 

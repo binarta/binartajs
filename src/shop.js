@@ -1,5 +1,7 @@
-function BinartaShopjs(checkpoint) {
+function BinartaShopjs(checkpoint, deps) {
     var shop = this;
+    shop.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
+    shop.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
 
     checkpoint.profile.billing = new Billing(checkpoint.profile);
     checkpoint.profile.refresh = checkpoint.profile.billing.refresh(checkpoint.profile.refresh);
@@ -21,7 +23,7 @@ function BinartaShopjs(checkpoint) {
         this.eventRegistry = new BinartaRX();
 
         function isUninitialized() {
-            return !localStorage.basket;
+            return !shop.localStorage.basket;
         }
 
         function initialize() {
@@ -33,11 +35,11 @@ function BinartaShopjs(checkpoint) {
         }
 
         function flush() {
-            localStorage.basket = JSON.stringify(order);
+            shop.localStorage.basket = JSON.stringify(order);
         }
 
         function rehydrate() {
-            order = JSON.parse(localStorage.basket);
+            order = JSON.parse(shop.localStorage.basket);
         }
 
         function contains(it) {
@@ -291,11 +293,11 @@ function BinartaShopjs(checkpoint) {
         };
 
         this.persist = function (ctx) {
-            sessionStorage.setItem('binartaJSCheckout', JSON.stringify(ctx));
+            shop.sessionStorage.setItem('binartaJSCheckout', JSON.stringify(ctx));
         };
 
         this.context = function () {
-            return JSON.parse(sessionStorage.getItem('binartaJSCheckout')) || {};
+            return JSON.parse(shop.sessionStorage.getItem('binartaJSCheckout')) || {};
         };
 
         this.roadmap = function () {
@@ -317,7 +319,7 @@ function BinartaShopjs(checkpoint) {
         };
 
         function clear() {
-            sessionStorage.setItem('binartaJSCheckout', '{}');
+            shop.sessionStorage.setItem('binartaJSCheckout', '{}');
         }
 
         this.jumpTo = function (id) {
@@ -424,11 +426,11 @@ function BinartaShopjs(checkpoint) {
                 var ctx = fsm.context();
                 ctx.order.provider = provider;
                 fsm.persist(ctx);
-                localStorage.setItem('binartaJSPaymentProvider', provider)
+                shop.localStorage.setItem('binartaJSPaymentProvider', provider)
             };
             if (!fsm.getPaymentProvider())
-                if (localStorage.getItem('binartaJSPaymentProvider'))
-                    fsm.setPaymentProvider(localStorage.getItem('binartaJSPaymentProvider'));
+                if (shop.localStorage.getItem('binartaJSPaymentProvider'))
+                    fsm.setPaymentProvider(shop.localStorage.getItem('binartaJSPaymentProvider'));
                 else
                     fsm.setPaymentProvider('wire-transfer');
 
@@ -722,7 +724,7 @@ function BinartaShopjs(checkpoint) {
 
         this.initiate = function (id) {
             shop.ui.initiatingBillingAgreement();
-            sessionStorage.billingAgreementProvider = id;
+            shop.sessionStorage.billingAgreementProvider = id;
             shop.gateway.initiateBillingAgreement(id, shop.ui);
         };
 
@@ -733,7 +735,7 @@ function BinartaShopjs(checkpoint) {
         this.confirm = function (ctx) {
             shop.gateway.confirmBillingAgreement(
                 {
-                    paymentProvider: sessionStorage.billingAgreementProvider,
+                    paymentProvider: shop.sessionStorage.billingAgreementProvider,
                     confirmationToken: ctx.confirmationToken
                 },
                 new BinartaMergingUI(

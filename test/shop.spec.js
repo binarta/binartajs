@@ -607,8 +607,8 @@
                     ]);
                 });
 
-                describe('back navigation support', function() {
-                    beforeEach(function() {
+                describe('back navigation support', function () {
+                    beforeEach(function () {
                         binarta.shop.checkout.start(order, [
                             'authentication-required',
                             'address-selection',
@@ -619,56 +619,56 @@
                         ]);
                     });
 
-                    describe('on first step', function() {
-                        it('exposes there is no previous step', function() {
+                    describe('on first step', function () {
+                        it('exposes there is no previous step', function () {
                             expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
                         });
                     });
 
-                    describe('when the previous step is a transitionary step', function() {
-                        beforeEach(function() {
+                    describe('when the previous step is a transitionary step', function () {
+                        beforeEach(function () {
                             binarta.shop.checkout.next();
                         });
 
-                        it('then expose there is no previous step', function() {
+                        it('then expose there is no previous step', function () {
                             expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
                         });
                     });
 
-                    describe('when there is a previous step', function() {
-                        beforeEach(function() {
+                    describe('when there is a previous step', function () {
+                        beforeEach(function () {
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                         });
 
-                        it('then expose there is one', function() {
+                        it('then expose there is one', function () {
                             expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
                         });
 
-                        it('then expose the step name', function() {
+                        it('then expose the step name', function () {
                             expect(binarta.shop.checkout.previousStep()).toEqual('address-selection');
                         });
                     });
 
-                    describe('when there is a step prior to a transitional step', function() {
-                        beforeEach(function() {
+                    describe('when there is a step prior to a transitional step', function () {
+                        beforeEach(function () {
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                         });
 
-                        it('then expose there is one', function() {
+                        it('then expose there is one', function () {
                             expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
                         });
 
-                        it('then expose the step name', function() {
+                        it('then expose the step name', function () {
                             expect(binarta.shop.checkout.previousStep()).toEqual('summary');
                         });
                     });
 
-                    describe('when on the last step', function() {
-                        beforeEach(function() {
+                    describe('when on the last step', function () {
+                        beforeEach(function () {
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
                             binarta.shop.checkout.next();
@@ -676,7 +676,7 @@
                             binarta.shop.checkout.next();
                         });
 
-                        it('then expose there is no previous step', function() {
+                        it('then expose there is no previous step', function () {
                             expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
                         });
                     });
@@ -863,12 +863,12 @@
                         expect(binarta.shop.checkout.status()).toEqual('idle');
                     });
 
-                    it('then the selected payment provider defaults to wire-transfer', function() {
+                    it('then the selected payment provider defaults to wire-transfer', function () {
                         expect(binarta.shop.checkout.getPaymentProvider()).toEqual('wire-transfer');
                     });
 
-                    describe('and setting the payment provider', function() {
-                        beforeEach(function() {
+                    describe('and setting the payment provider', function () {
+                        beforeEach(function () {
                             binarta.shop.checkout.setPaymentProvider('payment-provider');
                         });
 
@@ -876,7 +876,7 @@
                             expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
                         });
 
-                        it('then new checkouts default to the selected payment provider', function() {
+                        it('then new checkouts default to the selected payment provider', function () {
                             binarta.shop.checkout.cancel();
                             binarta.shop.checkout.start(order, ['summary']);
                             expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
@@ -915,7 +915,7 @@
                         expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
                     });
 
-                    it('on confirmation with coupon code', function() {
+                    it('on confirmation with coupon code', function () {
                         binarta.shop.gateway = new GatewaySpy();
                         binarta.shop.checkout.setCouponCode('coupon-code');
                         binarta.shop.checkout.confirm();
@@ -923,7 +923,7 @@
                     });
                 });
 
-                it('on the checkout summary step then the payment provider can be specified at checkout start', function() {
+                it('on the checkout summary step then the payment provider can be specified at checkout start', function () {
                     order.provider = 'payment-provider';
                     binarta.shop.checkout.start(order, [
                         'summary',
@@ -1067,8 +1067,8 @@
                         expect(spy).not.toHaveBeenCalled();
                     });
 
-                    describe('when cancel completes', function() {
-                        beforeEach(function() {
+                    describe('when cancel completes', function () {
+                        beforeEach(function () {
                             var ctx = binarta.shop.checkout.context();
                             ctx.order.id = 'o';
                             binarta.shop.checkout.persist(ctx);
@@ -1195,7 +1195,7 @@
                     expect(binarta.shop.checkout.status()).toEqual('completed');
                 });
 
-                it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function() {
+                it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function () {
                     binarta.shop.checkout.jumpTo('completed');
                     expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
                 });
@@ -1204,7 +1204,7 @@
             describe('profile extensions', function () {
                 var eventListener;
 
-                beforeEach(function() {
+                beforeEach(function () {
                     eventListener = jasmine.createSpyObj('event-listener', ['signedin', 'signedout', 'updated']);
                     binarta.checkpoint.profile.eventRegistry.add(eventListener);
                 });
