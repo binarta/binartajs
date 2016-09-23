@@ -18,6 +18,10 @@
                 localStorage.removeItem('binartaJSPaymentProvider');
             });
 
+            afterEach(function() {
+                sessionStorage.removeItem('binartaJSCheckout');
+            });
+
             describe('basket', function () {
                 var eventListener;
 
@@ -1190,14 +1194,23 @@
                     this.name = 'custom-step';
                 }
 
-                it('you can jump to a specific step directly', function () {
-                    binarta.shop.checkout.jumpTo('completed');
-                    expect(binarta.shop.checkout.status()).toEqual('completed');
-                });
+                describe('jumping to a specific step', function() {
+                    beforeEach(function() {
+                        binarta.shop.checkout.start(order, [
+                            'payment',
+                            'completed'
+                        ]);
+                    });
 
-                it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function () {
-                    binarta.shop.checkout.jumpTo('completed');
-                    expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
+                    it('you can jump to a specific step directly', function () {
+                        binarta.shop.checkout.jumpTo('completed');
+                        expect(binarta.shop.checkout.status()).toEqual('completed');
+                    });
+
+                    it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function () {
+                        binarta.shop.checkout.jumpTo('completed');
+                        expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
+                    });
                 });
             });
 
