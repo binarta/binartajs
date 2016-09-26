@@ -32,12 +32,25 @@
                     binarta.shop.basket.eventRegistry.add(eventListener);
                 });
 
+                it('initializing when local storage exceeds quota silently succeeds', function() {
+                    binarta.shop.localStorage = {setItem:function() {
+                        throw new Error('QuotaExceeded');
+                    }};
+                    binarta.shop.basket.initialize();
+                });
+
                 it('refreshing an empty basket remains empty', function () {
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.basket.refresh();
                     expect(binarta.shop.basket.items()).toEqual([]);
                     expect(binarta.shop.basket.subTotal()).toEqual(0);
                     expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                });
+
+                fit('restore when local storage is disabled silently succeeds', function() {
+                    binarta.shop.localStorage = undefined;
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.basket.restore();
                 });
 
                 it('expose coupon code', function () {

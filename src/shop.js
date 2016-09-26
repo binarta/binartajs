@@ -26,20 +26,26 @@ function BinartaShopjs(checkpoint, deps) {
             return !shop.localStorage.basket;
         }
 
-        function initialize() {
+        this.initialize = function () {
             order = {
                 items: []
             };
             recalculateOrderQuantity();
             flush();
-        }
+        };
 
         function flush() {
-            shop.localStorage.basket = JSON.stringify(order);
+            try {
+                shop.localStorage.setItem('basket', JSON.stringify(order));
+            } catch(ignored) {
+            }
         }
 
         function rehydrate() {
-            order = JSON.parse(shop.localStorage.basket);
+            try {
+                order = JSON.parse(shop.localStorage.basket);
+            } catch(ignored) {
+            }
         }
 
         function contains(it) {
@@ -88,7 +94,7 @@ function BinartaShopjs(checkpoint, deps) {
             order.items.splice(idx, 1);
         }
 
-        if (isUninitialized()) initialize();
+        if (isUninitialized()) this.initialize();
         rehydrate();
 
         function onError(violationReport, order, cb, success) {
@@ -238,7 +244,7 @@ function BinartaShopjs(checkpoint, deps) {
         };
 
         this.clear = function () {
-            initialize();
+            self.initialize();
             self.eventRegistry.forEach(function (it) {
                 it.cleared();
             });
