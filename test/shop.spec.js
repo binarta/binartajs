@@ -47,7 +47,7 @@
                     expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
                 });
 
-                fit('restore when local storage is disabled silently succeeds', function() {
+                it('restore when local storage is disabled silently succeeds', function() {
                     binarta.shop.localStorage = undefined;
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.basket.restore();

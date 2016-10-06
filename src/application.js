@@ -8,6 +8,7 @@ function BinartaApplicationjs(deps) {
 
     app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new ReadOnceAdhesiveReading(new AdhesiveReading(app));
+    app.config = new Config();
 
     app.refresh = function (onSuccess) {
         refreshLocale();
@@ -109,6 +110,12 @@ function BinartaApplicationjs(deps) {
                 alreadyRead.push(id);
                 delegate.read(id);
             }
+        }
+    }
+
+    function Config() {
+        this.findPublic = function(key, success) {
+            app.gateway.findPublicConfig({id:key}, success);
         }
     }
 }

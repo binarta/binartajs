@@ -257,6 +257,32 @@
                 });
             });
         });
+
+        describe('config', function() {
+            var spy;
+
+            beforeEach(function() {
+                spy = jasmine.createSpy('spy');
+            });
+
+            it('find public config invokes gateway for lookup', function() {
+                binarta.application.gateway = new GatewaySpy();
+                binarta.application.config.findPublic('k', spy);
+                expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
+            });
+
+            it('find unknown config', function() {
+                binarta.application.gateway = new ConfigNotFoundApplicationGateway();
+                binarta.application.config.findPublic('k', spy);
+                expect(spy).toHaveBeenCalledWith('');
+            });
+
+            it('find known config', function() {
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.config.findPublic('k', spy);
+                expect(spy).toHaveBeenCalledWith('v');
+            });
+        });
     });
 
     function UI() {

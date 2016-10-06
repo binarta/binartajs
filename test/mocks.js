@@ -14,6 +14,7 @@ function GatewaySpy() {
     this.confirmPayment = spy('confirmPaymentRequest');
     this.cancelOrder = spy('cancelOrderRequest');
     this.fetchSectionData = spy('fetchSectionDataRequest');
+    this.findPublicConfig = spy('findPublicConfigRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -44,6 +45,16 @@ function ValidApplicationGateway() {
             {type: 't', msg: 'Hello World!'}
         ]);
     };
+
+    this.findPublicConfig = function(request, response){
+        response('v');
+    }
+}
+
+function ConfigNotFoundApplicationGateway() {
+    this.findPublicConfig = function(request, response) {
+        response('');
+    }
 }
 
 function DeferredApplicationGateway() {
