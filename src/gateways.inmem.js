@@ -15,6 +15,15 @@ function BinartaInMemoryGatewaysjs() {
                     id: request.id
                 }
             ]);
+        };
+
+        var config = {};
+        this.addPublicConfig = function(request) {
+            config[request.id] = request.value;
+        };
+
+        this.findPublicConfig = function (request, response) {
+            config[request.id] ? response.success(config[request.id]) : response.notFound()
         }
     }
 
