@@ -47,13 +47,13 @@ function ValidApplicationGateway() {
     };
 
     this.findPublicConfig = function(request, response){
-        response('v');
+        response.success('v');
     }
 }
 
 function ConfigNotFoundApplicationGateway() {
     this.findPublicConfig = function(request, response) {
-        response('');
+        response.notFound();
     }
 }
 

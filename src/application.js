@@ -27,7 +27,7 @@ function BinartaApplicationjs(deps) {
         app.localStorage.locale = locale;
         app.sessionStorage.locale = locale;
         cachedLocale = locale;
-        app.eventRegistry.forEach(function(l) {
+        app.eventRegistry.forEach(function (l) {
             l.notify('setLocale', locale);
         });
     };
@@ -114,8 +114,15 @@ function BinartaApplicationjs(deps) {
     }
 
     function Config() {
-        this.findPublic = function(key, success) {
-            app.gateway.findPublicConfig({id:key}, success);
+        this.findPublic = function (key, success) {
+            app.gateway.findPublicConfig({id: key}, {
+                success: function (value) {
+                    success(value);
+                },
+                notFound: function () {
+                    success('');
+                }
+            });
         }
     }
 }
