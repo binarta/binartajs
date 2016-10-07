@@ -258,30 +258,105 @@
             });
         });
 
-        describe('config', function() {
+        describe('config', function () {
             var spy;
 
-            beforeEach(function() {
+            beforeEach(function () {
                 spy = jasmine.createSpy('spy');
             });
 
-            it('find public config invokes gateway for lookup', function() {
-                binarta.application.gateway = new GatewaySpy();
-                binarta.application.config.findPublic('k', spy);
-                expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
+            describe('given empty cache', function () {
+                it('find public config invokes gateway for lookup', function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
+                });
+
+                it('find unknown config', function () {
+                    binarta.application.gateway = new ConfigNotFoundApplicationGateway();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
+                });
+
+                it('find known config', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
             });
 
-            it('find unknown config', function() {
-                binarta.application.gateway = new ConfigNotFoundApplicationGateway();
-                binarta.application.config.findPublic('k', spy);
-                expect(spy).toHaveBeenCalledWith('');
+            describe('given populated cache through public config lookups', function () {
+                beforeEach(function () {
+                    binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+                    binarta.application.gateway.addPublicConfig({id: 'k', value: 'v'});
+                    binarta.application.config.findPublic('k', function () {
+                    });
+                    binarta.application.gateway = new GatewaySpy();
+                });
+
+                xit('then repeated public config lookups do not go to the gateway anymore', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toBeUndefined();
+                });
+
+                it('then public config lookup for a non cached key invokes gateway', function () {
+                    binarta.application.config.findPublic('x', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'x'});
+                });
+
+                xit('then public config lookup for a cached key returns the cached value', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
             });
 
-            it('find known config', function() {
-                binarta.application.gateway = new ValidApplicationGateway();
-                binarta.application.config.findPublic('k', spy);
-                expect(spy).toHaveBeenCalledWith('v');
+            describe('given cache populated through adhesive reading', function () {
+                beforeEach(function () {
+                    binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+                    binarta.application.gateway.addSectionData({type:'config', key:'k', value:'v'});
+
+                    binarta.application.adhesiveReading.read('-');
+
+                    binarta.application.gateway = new GatewaySpy();
+                });
+
+                xit('then public config lookups for the cached key do not go to the gateway anymore', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toBeUndefined();
+                });
+
+                it('then public config lookup for a non cached key invokes gateway', function () {
+                    binarta.application.config.findPublic('x', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'x'});
+                });
+
+                xit('then public config lookup for the cached key returns the cached value', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
             });
+
+            describe('given cache populated through add cache record hook', function () {
+                beforeEach(function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.cache('k', 'v');
+                });
+
+                xit('then public config lookups for the cached key do not go to the gateway anymore', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toBeUndefined();
+                });
+
+                it('then public config lookup for a non cached key invokes gateway', function () {
+                    binarta.application.config.findPublic('x', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'x'});
+                });
+
+                xit('then public config lookup for the cached key returns the cached value', function () {
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
+            })
         });
     });
 

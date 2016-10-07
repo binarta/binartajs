@@ -8,13 +8,22 @@ function BinartaInMemoryGatewaysjs() {
             response.success({name: 'myapp'});
         };
 
+        var sectionData = [];
+        this.addSectionData = function(request) {
+            sectionData.push(request);
+        };
+
         this.fetchSectionData = function (request, response) {
-            response.success([
+            var result = [
                 {
                     type: 'requested.section',
                     id: request.id
                 }
-            ]);
+            ];
+            sectionData.forEach(function(it) {
+                result.push(it)
+            });
+            response.success(result);
         };
 
         var config = {};

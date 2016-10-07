@@ -8,7 +8,7 @@ function BinartaApplicationjs(deps) {
 
     app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new ReadOnceAdhesiveReading(new AdhesiveReading(app));
-    app.config = new Config();
+    app.config = new Config(app.adhesiveReading);
 
     app.refresh = function (onSuccess) {
         refreshLocale();
@@ -113,16 +113,31 @@ function BinartaApplicationjs(deps) {
         }
     }
 
-    function Config() {
+    function Config(adhesiveReading) {
+        var config = this;
+        var configCache = {};
+
+        adhesiveReading.handlers.add({type: 'config', cache: function(it) {
+            config.cache(it.key, it.value);
+        }});
+
         this.findPublic = function (key, success) {
-            app.gateway.findPublicConfig({id: key}, {
-                success: function (value) {
-                    success(value);
-                },
-                notFound: function () {
-                    success('');
-                }
-            });
+            if(!configCache[key])
+                app.gateway.findPublicConfig({id: key}, {
+                    success: function (value) {
+                        config.cache(key, value);
+                        success(value);
+                    },
+                    notFound: function () {
+                        success('');
+                    }
+                });
+            else
+                success(configCache[key]);
+        };
+
+        this.cache = function (key, value) {
+            // configCache[key] = value
         }
     }
 }
