@@ -137,7 +137,7 @@ function BinartaApplicationjs(deps) {
         };
 
         this.cache = function (key, value) {
-            // configCache[key] = value
+            configCache[key] = value
         }
     }
 }
