@@ -115,7 +115,7 @@ function BinartaApplicationjs(deps) {
 
     function Config(adhesiveReading) {
         var config = this;
-        var configCache = {};
+        var configCache;
 
         adhesiveReading.handlers.add({type: 'config', cache: function(it) {
             config.cache(it.key, it.value);
@@ -138,6 +138,11 @@ function BinartaApplicationjs(deps) {
 
         this.cache = function (key, value) {
             configCache[key] = value
-        }
+        };
+
+        this.clear = function() {
+            configCache = {};
+        };
+        this.clear();
     }
 }

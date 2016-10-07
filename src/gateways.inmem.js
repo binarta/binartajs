@@ -8,8 +8,8 @@ function BinartaInMemoryGatewaysjs() {
             response.success({name: 'myapp'});
         };
 
-        var sectionData = [];
-        this.addSectionData = function(request) {
+        var sectionData;
+        this.addSectionData = function (request) {
             sectionData.push(request);
         };
 
@@ -20,20 +20,26 @@ function BinartaInMemoryGatewaysjs() {
                     id: request.id
                 }
             ];
-            sectionData.forEach(function(it) {
+            sectionData.forEach(function (it) {
                 result.push(it)
             });
             response.success(result);
         };
 
-        var config = {};
-        this.addPublicConfig = function(request) {
+        var config;
+        this.addPublicConfig = function (request) {
             config[request.id] = request.value;
         };
 
         this.findPublicConfig = function (request, response) {
             config[request.id] ? response.success(config[request.id]) : response.notFound()
-        }
+        };
+
+        this.clear = function() {
+            config = {};
+            sectionData = [];
+        };
+        this.clear();
     }
 
     function CheckpointGateway() {
@@ -100,10 +106,10 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.permissions = ['p1', 'p2', 'p3'];
-        this.addPermission = function(permission) {
+        this.addPermission = function (permission) {
             this.permissions.push(permission);
         }
-        this.removePermission = function(permission) {
+        this.removePermission = function (permission) {
             this.permissions.splice(this.permissions.indexOf(permission), 1);
         }
 

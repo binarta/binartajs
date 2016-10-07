@@ -308,6 +308,13 @@
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
                 });
+
+                it('clear cache', function() {
+                    binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+                    binarta.application.config.clear();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
+                });
             });
 
             describe('given cache populated through adhesive reading', function () {
@@ -334,6 +341,13 @@
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
                 });
+
+                it('clear cache', function() {
+                    binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+                    binarta.application.config.clear();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
+                });
             });
 
             describe('given cache populated through add cache record hook', function () {
@@ -355,6 +369,13 @@
                 it('then public config lookup for the cached key returns the cached value', function () {
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
+                });
+
+                it('clear cache', function() {
+                    binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+                    binarta.application.config.clear();
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
                 });
             })
         });
