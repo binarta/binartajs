@@ -377,7 +377,14 @@
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('');
                 });
-            })
+            });
+
+            it('find public config resolves an empty string from cache', function() {
+                binarta.application.gateway = new GatewaySpy();
+                binarta.application.config.cache('k', '');
+                binarta.application.config.findPublic('k', spy);
+                expect(spy).toHaveBeenCalledWith('');
+            });
         });
     });
 

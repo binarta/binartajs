@@ -122,7 +122,7 @@ function BinartaApplicationjs(deps) {
         }});
 
         this.findPublic = function (key, success) {
-            if(!configCache[key])
+            if(configCache[key] == undefined)
                 app.gateway.findPublicConfig({id: key}, {
                     success: function (value) {
                         config.cache(key, value);
