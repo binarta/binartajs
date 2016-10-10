@@ -10,6 +10,10 @@ function BinartaApplicationjs(deps) {
     app.adhesiveReading = new ReadOnceAdhesiveReading(new AdhesiveReading(app));
     app.config = new Config(app.adhesiveReading);
 
+    app.installed = function() {
+        extendBinartaWithJobScheduler();
+    };
+
     app.refresh = function (onSuccess) {
         refreshLocale();
         refreshApplicationProfile(onSuccess);
@@ -35,6 +39,12 @@ function BinartaApplicationjs(deps) {
     app.supportedLanguages = function () {
         return app.profile().supportedLanguages || [];
     };
+
+    function extendBinartaWithJobScheduler() {
+        app.binarta.$scheduler = new JobScheduler();
+        app.adhesiveReading.eventRegistry.add(app.binarta.$scheduler);
+        app.binarta.schedule = app.binarta.$scheduler.execute;
+    }
 
     function refreshApplicationProfile(onSuccess) {
         app.gateway.fetchApplicationProfile({}, {
@@ -110,19 +120,21 @@ function BinartaApplicationjs(deps) {
                 alreadyRead.push(id);
                 delegate.read(id);
             }
-        }
+        };
     }
 
     function Config(adhesiveReading) {
         var config = this;
         var configCache;
 
-        adhesiveReading.handlers.add({type: 'config', cache: function(it) {
-            config.cache(it.key, it.value);
-        }});
+        adhesiveReading.handlers.add({
+            type: 'config', cache: function (it) {
+                config.cache(it.key, it.value);
+            }
+        });
 
         this.findPublic = function (key, success) {
-            if(configCache[key] == undefined)
+            if (configCache[key] == undefined)
                 app.gateway.findPublicConfig({id: key}, {
                     success: function (value) {
                         config.cache(key, value);
@@ -140,9 +152,30 @@ function BinartaApplicationjs(deps) {
             configCache[key] = value
         };
 
-        this.clear = function() {
+        this.clear = function () {
             configCache = {};
         };
         this.clear();
+    }
+
+    function JobScheduler() {
+        var self = this;
+        self.$jobs = [];
+        var initialised = false;
+
+        this.stop = function () {
+            initialised = true;
+            self.$jobs.forEach(function (it) {
+                it();
+            });
+            self.$jobs = [];
+        };
+
+        this.execute = function (job) {
+            if (initialised)
+                job();
+            else
+                self.$jobs.push(job);
+        }
     }
 }

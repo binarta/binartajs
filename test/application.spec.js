@@ -256,6 +256,61 @@
                     expect(spy.stop).toHaveBeenCalledTimes(1);
                 });
             });
+
+            describe('job scheduling', function() {
+                var job1, job2;
+
+                beforeEach(function() {
+                    job1 = jasmine.createSpy('-');
+                    job2 = jasmine.createSpy('-');
+                    binarta.schedule(job1);
+                    binarta.schedule(job2);
+                    binarta.application.gateway = new DeferredApplicationGateway();
+                });
+
+                it('on completion callback is not executed as long as adhesive reading does not complete', function() {
+                    binarta.application.adhesiveReading.read('-');
+                    expect(job1).not.toHaveBeenCalled();
+                    expect(job2).not.toHaveBeenCalled();
+                });
+
+                it('scheduled jobs are held internally while waiting for execution', function() {
+                    expect(binarta.$scheduler.$jobs.length).toEqual(2);
+                });
+
+                describe('when adhesive reading completes', function() {
+                    beforeEach(function() {
+                        binarta.application.adhesiveReading.read('-');
+                        binarta.application.gateway.continue();
+                    });
+
+                    it('on completion callback of scheduled jobs execute', function() {
+                        expect(job1).toHaveBeenCalled();
+                        expect(job2).toHaveBeenCalled();
+                    });
+
+                    it('the internal cache of scheduled jobs is cleared', function() {
+                        expect(binarta.$scheduler.$jobs.length).toEqual(0);
+                    });
+
+                    describe('jobs scheduled after completion', function() {
+                        var additionalJob;
+
+                        beforeEach(function() {
+                            additionalJob = jasmine.createSpy('-');
+                            binarta.schedule(additionalJob);
+                        });
+
+                        it('complete immediately', function() {
+                            expect(additionalJob).toHaveBeenCalled();
+                        });
+
+                        it('do not grow the internal job cache', function() {
+                            expect(binarta.$scheduler.$jobs.length).toEqual(0);
+                        });
+                    });
+                });
+            });
         });
 
         describe('config', function () {

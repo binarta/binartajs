@@ -24,7 +24,9 @@ function BinartajsFactory(deps) {
         Object.keys(from).forEach(function (key) {
             to[key] = from[key];
             to[key].ui = ui;
-            from[key].binarta = binartajs;
+            to[key].binarta = binartajs;
+            if(to[key].installed)
+                to[key].installed();
         });
     }
 }
