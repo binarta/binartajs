@@ -25,7 +25,7 @@ function BinartajsFactory(deps) {
             to[key] = from[key];
             to[key].ui = ui;
             to[key].binarta = binartajs;
-            if(to[key].installed)
+            if (to[key].installed)
                 to[key].installed();
         });
     }
@@ -58,14 +58,19 @@ function BinartaMergingUI() {
 }
 
 function BinartaRX() {
+    var rx = this;
     var listeners = [];
 
     this.add = function (l) {
-        l.notify = function(evt, ctx) {
-            if(l[evt])
+        l.notify = function (evt, ctx) {
+            if (l[evt])
                 l[evt](ctx);
         };
         listeners.push(l);
+    };
+
+    this.observe = function (l) {
+        return new Observer(rx, l);
     };
 
     this.forEach = function (cb) {
@@ -78,8 +83,18 @@ function BinartaRX() {
             listeners.splice(idx, 1);
     };
 
-    this.isEmpty = function() {
+    this.isEmpty = function () {
         return listeners.length == 0;
+    };
+
+    function Observer(root, listener) {
+        var observer = this;
+
+        root.add(listener);
+
+        observer.disconnect = function () {
+            rx.remove(listener);
+        }
     }
 }
 

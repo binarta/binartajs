@@ -126,6 +126,7 @@ function BinartaApplicationjs(deps) {
     function Config(adhesiveReading) {
         var config = this;
         var configCache;
+        var eventHandlers = new BinartaRX();
 
         adhesiveReading.handlers.add({
             type: 'config', cache: function (it) {
@@ -148,8 +149,19 @@ function BinartaApplicationjs(deps) {
                 success(configCache[key]);
         };
 
+        this.observePublic = function(key, success) {
+            var listener = {};
+            listener[key] = success;
+            var observer = eventHandlers.observe(listener);
+            config.findPublic(key, function() {});
+            return observer;
+        };
+
         this.cache = function (key, value) {
-            configCache[key] = value
+            configCache[key] = value;
+            eventHandlers.forEach(function(l) {
+                l.notify(key, value);
+            });
         };
 
         this.clear = function () {

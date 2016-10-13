@@ -57,6 +57,18 @@
             expect(spy1.on).toHaveBeenCalledWith('ctx');
         });
 
+        it('register and invoke listeners using the observe factory method', function() {
+            registry.observe(spy1);
+            registry.observe(spy2);
+
+            registry.forEach(function(l) {
+                l.on('ctx');
+            });
+
+            expect(spy1.on).toHaveBeenCalledWith('ctx');
+            expect(spy2.on).toHaveBeenCalledWith('ctx');
+        });
+
         it('listeners which do not suport the event are not notified', function() {
             registry.add(spyUnsupportedEvent);
 
@@ -68,6 +80,17 @@
         it('deregister listeners', function() {
             registry.add(spy1);
             registry.remove(spy1);
+
+            registry.forEach(function(l) {
+                l.on();
+            });
+
+            expect(spy1.on).not.toHaveBeenCalled();
+        });
+
+        it('disconnected observes are not notified', function() {
+            var observer = registry.observe(spy1);
+            observer.disconnect();
 
             registry.forEach(function(l) {
                 l.on();

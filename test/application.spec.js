@@ -338,6 +338,18 @@
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
                 });
+
+                it('observing public config invokes gateway for lookup', function() {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.observePublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
+                });
+
+                it('observing known public config triggers on success handler', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.observePublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
             });
 
             describe('given populated cache through public config lookups', function () {
@@ -369,6 +381,11 @@
                     binarta.application.config.clear();
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('');
+                });
+
+                it('then observing public config does not go to the gateway anymore', function () {
+                    binarta.application.config.observePublic('k', spy);
+                    expect(binarta.application.gateway.findPublicConfigRequest).toBeUndefined();
                 });
             });
 
@@ -439,6 +456,20 @@
                 binarta.application.config.cache('k', '');
                 binarta.application.config.findPublic('k', spy);
                 expect(spy).toHaveBeenCalledWith('');
+            });
+
+            it('when observing public config and cache is updated then observers are invoked', function () {
+                binarta.application.config.observePublic('k', spy);
+                expect(spy).toHaveBeenCalledWith('v');
+                binarta.application.config.cache('k', 'v2');
+                expect(spy).toHaveBeenCalledWith('v2');
+            });
+
+            it('when disconnecting public config observer and cache is updated then on success handler is no longer invoked', function () {
+                var observer = binarta.application.config.observePublic('k', spy);
+                observer.disconnect();
+                binarta.application.config.cache('k', '-');
+                expect(spy).not.toHaveBeenCalledWith('-');
             });
         });
     });
