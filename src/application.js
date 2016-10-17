@@ -7,10 +7,10 @@ function BinartaApplicationjs(deps) {
     var cachedLocale;
 
     app.eventRegistry = new BinartaRX();
-    app.adhesiveReading = new ReadOnceAdhesiveReading(new AdhesiveReading(app));
+    app.adhesiveReading = new ReadOnceAdhesiveReading(app, new AdhesiveReading(app));
     app.config = new Config(app.adhesiveReading);
 
-    app.installed = function() {
+    app.installed = function () {
         extendBinartaWithJobScheduler();
     };
 
@@ -109,15 +109,17 @@ function BinartaApplicationjs(deps) {
         }
     }
 
-    function ReadOnceAdhesiveReading(delegate) {
+    function ReadOnceAdhesiveReading(app, delegate) {
         var self = this;
-        var alreadyRead = [];
+        var alreadyRead = {};
 
         self.handlers = delegate.handlers;
         self.eventRegistry = delegate.eventRegistry;
         self.read = function (id) {
-            if (alreadyRead.indexOf(id) == -1) {
-                alreadyRead.push(id);
+            if (alreadyRead[app.locale()] == undefined)
+                alreadyRead[app.locale()] = [];
+            if (alreadyRead[app.locale()].indexOf(id) == -1) {
+                alreadyRead[app.locale()].push(id);
                 delegate.read(id);
             }
         };
@@ -149,17 +151,18 @@ function BinartaApplicationjs(deps) {
                 success(configCache[key]);
         };
 
-        this.observePublic = function(key, success) {
+        this.observePublic = function (key, success) {
             var listener = {};
             listener[key] = success;
             var observer = eventHandlers.observe(listener);
-            config.findPublic(key, function() {});
+            config.findPublic(key, function () {
+            });
             return observer;
         };
 
         this.cache = function (key, value) {
             configCache[key] = value;
-            eventHandlers.forEach(function(l) {
+            eventHandlers.forEach(function (l) {
                 l.notify(key, value);
             });
         };
