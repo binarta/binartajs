@@ -40,6 +40,10 @@ function BinartaApplicationjs(deps) {
         return app.profile().supportedLanguages || [];
     };
 
+    app.primaryLanguage = function() {
+        return app.supportedLanguages() ? app.supportedLanguages()[0] : undefined;
+    };
+
     function extendBinartaWithJobScheduler() {
         app.binarta.$scheduler = new JobScheduler();
         app.adhesiveReading.eventRegistry.add(app.binarta.$scheduler);

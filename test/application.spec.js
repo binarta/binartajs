@@ -24,6 +24,10 @@
             expect(binarta.application.supportedLanguages()).toEqual([]);
         });
 
+        it('the primary language is undefined', function() {
+            expect(binarta.application.primaryLanguage()).toBeUndefined();
+        });
+
         it('on refresh request profile data', function () {
             binarta.application.gateway = new GatewaySpy();
             binarta.application.refresh();
@@ -42,6 +46,10 @@
 
             it('then expose supported languages', function () {
                 expect(binarta.application.supportedLanguages()).toEqual(['en', 'nl']);
+            });
+
+            it('then the primary language is english', function () {
+                expect(binarta.application.primaryLanguage()).toEqual('en');
             });
         });
 
