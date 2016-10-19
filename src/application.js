@@ -40,7 +40,7 @@ function BinartaApplicationjs(deps) {
         return app.profile().supportedLanguages || [];
     };
 
-    app.primaryLanguage = function() {
+    app.primaryLanguage = function () {
         return app.supportedLanguages() ? app.supportedLanguages()[0] : undefined;
     };
 
@@ -56,6 +56,9 @@ function BinartaApplicationjs(deps) {
                 profileCache = profile;
                 if (onSuccess)
                     onSuccess();
+                app.eventRegistry.forEach(function (l) {
+                    l.notify('setPrimaryLanguage', app.primaryLanguage());
+                });
             }
         });
     }
