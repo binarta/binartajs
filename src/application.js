@@ -56,12 +56,16 @@ function BinartaApplicationjs(deps) {
                 profileCache = profile;
                 if (onSuccess)
                     onSuccess();
-                app.eventRegistry.forEach(function (l) {
-                    l.notify('setPrimaryLanguage', app.primaryLanguage());
-                });
+                app.refreshEvents();
             }
         });
     }
+
+    app.refreshEvents = function() {
+        app.eventRegistry.forEach(function (l) {
+            l.notify('setPrimaryLanguage', app.primaryLanguage());
+        });
+    };
 
     function refreshLocale() {
         cachedLocale = app.sessionStorage.locale || app.localStorage.locale || undefined;

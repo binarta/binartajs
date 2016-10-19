@@ -59,6 +59,12 @@
             it('then app event listeners receive a set primary language event', function () {
                 expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('en');
             });
+
+            it('and refresh events then listeners receive a set primary language event', function() {
+                binarta.application.profile().supportedLanguages = ['fr'];
+                binarta.application.refreshEvents();
+                expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('fr');
+            });
         });
 
         describe('when passing an optional success listener to refresh', function () {
