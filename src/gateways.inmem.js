@@ -4,8 +4,15 @@ function BinartaInMemoryGatewaysjs() {
     this.shop = new ShopGateway();
 
     function ApplicationGateway() {
+        var applicationProfile;
+        this.updateApplicationProfile = function (request) {
+            Object.keys(request).forEach(function (k) {
+                applicationProfile[k] = request[k];
+            });
+        };
+
         this.fetchApplicationProfile = function (request, response) {
-            response.success({name: 'myapp'});
+            response.success(applicationProfile);
         };
 
         var sectionData;
@@ -35,7 +42,8 @@ function BinartaInMemoryGatewaysjs() {
             config[request.id] ? response.success(config[request.id]) : response.notFound()
         };
 
-        this.clear = function() {
+        this.clear = function () {
+            applicationProfile = {name: 'myapp'};
             config = {};
             sectionData = [];
         };
