@@ -154,6 +154,7 @@
                     spy = jasmine.createSpyObj('spy', ['setLocale']);
                     binarta.application.eventRegistry.add(spy);
                 });
+
                 beforeEach(function () {
                     binarta.application.setLocale('swapped-locale');
                 });
@@ -174,6 +175,13 @@
                     expect(spy.setLocale).toHaveBeenCalledWith('swapped-locale');
                 });
             });
+        });
+
+        it('locale event listeners are not notified when setting locale to an existing value', function () {
+            var spy = jasmine.createSpyObj('spy', ['setLocale']);
+            binarta.application.eventRegistry.add(spy);
+            binarta.application.setLocale(undefined);
+            expect(spy.setLocale).not.toHaveBeenCalled();
         });
 
         describe('locale for presentation', function() {
@@ -207,6 +215,11 @@
                 it('triggers listener with updates to the locale for presentation', function() {
                     binarta.application.setLocaleForPresentation('fr');
                     expect(spy).toHaveBeenCalledWith('fr');
+                });
+
+                it('listeners are not triggered when the locale for presentation is set to the existing value', function() {
+                    binarta.application.setLocaleForPresentation('en');
+                    expect(spy).toHaveBeenCalledTimes(1);
                 });
 
                 it('when disconnected listener receives no further updates', function() {

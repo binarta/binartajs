@@ -5,6 +5,7 @@ function BinartaApplicationjs(deps) {
 
     var profileCache = {};
     var cachedLocale, cachedLocaleForPresentation;
+    var localeSelector = new LocaleSelector(app);
 
     app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new ReadOnceAdhesiveReading(app, new AdhesiveReading(app));
@@ -12,7 +13,6 @@ function BinartaApplicationjs(deps) {
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
-        installLocaleDeterminationModule();
     };
 
     app.refresh = function (onSuccess) {
@@ -29,12 +29,14 @@ function BinartaApplicationjs(deps) {
     };
 
     app.setLocale = function (locale) {
+        var changed = cachedLocale != locale;
         app.localStorage.locale = locale;
         app.sessionStorage.locale = locale;
         cachedLocale = locale;
-        app.eventRegistry.forEach(function (l) {
-            l.notify('setLocale', locale);
-        });
+        if(changed)
+            app.eventRegistry.forEach(function (l) {
+                l.notify('setLocale', locale);
+            });
     };
 
     app.localeForPresentation = function () {
@@ -42,15 +44,18 @@ function BinartaApplicationjs(deps) {
     };
 
     app.setLocaleForPresentation = function (locale) {
+        var changed = cachedLocaleForPresentation != locale;
         cachedLocaleForPresentation = locale;
-        app.eventRegistry.forEach(function(l) {
-            l.notify('setLocaleForPresentation', cachedLocaleForPresentation);
-        });
+        localeSelector.setLocaleForPresentation(locale);
+        if (changed)
+            app.eventRegistry.forEach(function (l) {
+                l.notify('setLocaleForPresentation', cachedLocaleForPresentation);
+            });
     };
 
     app.observeLocaleForPresentation = function (cb) {
         var observer = app.eventRegistry.observe({setLocaleForPresentation: cb});
-        app.setLocaleForPresentation(app.localeForPresentation());
+        cb(app.localeForPresentation());
         return observer;
     };
 
@@ -68,10 +73,6 @@ function BinartaApplicationjs(deps) {
         app.binarta.schedule = app.binarta.$scheduler.execute;
     }
 
-    function installLocaleDeterminationModule() {
-        app.eventRegistry.add(new DetermineLocaleBasedOnPrimaryLanguageAndLocaleForPresentation(app));
-    }
-
     function refreshApplicationProfile(onSuccess) {
         app.gateway.fetchApplicationProfile({}, {
             success: function (profile) {
@@ -84,6 +85,7 @@ function BinartaApplicationjs(deps) {
     }
 
     app.refreshEvents = function () {
+        localeSelector.setPrimaryLanguage(app.primaryLanguage());
         app.eventRegistry.forEach(function (l) {
             l.notify('setPrimaryLanguage', app.primaryLanguage());
         });
@@ -94,7 +96,7 @@ function BinartaApplicationjs(deps) {
         app.sessionStorage.locale = cachedLocale;
     }
 
-    function DetermineLocaleBasedOnPrimaryLanguageAndLocaleForPresentation(app) {
+    function LocaleSelector(app) {
         var primaryLanguage, localeForPresentation, isPrimaryLanguageUnlocked, isLocaleForPresentationUnlocked;
 
         this.setPrimaryLanguage = function (locale) {
