@@ -176,6 +176,129 @@
             });
         });
 
+        describe('locale for presentation', function() {
+            var spy;
+
+            beforeEach(function() {
+                spy = jasmine.createSpy('spy');
+            });
+
+            it('starts out undefined', function() {
+                expect(binarta.application.localeForPresentation()).toBeUndefined();
+            });
+
+            it('can be set', function() {
+                binarta.application.setLocaleForPresentation('en');
+                expect(binarta.application.localeForPresentation()).toEqual('en');
+            });
+
+            describe('observe locale for presentation', function() {
+                var observer;
+
+                beforeEach(function() {
+                    binarta.application.setLocaleForPresentation('en');
+                    observer = binarta.application.observeLocaleForPresentation(spy)
+                });
+
+                it('immediately triggers listener with current locale for presentation', function() {
+                    expect(spy).toHaveBeenCalledWith('en');
+                });
+
+                it('triggers listener with updates to the locale for presentation', function() {
+                    binarta.application.setLocaleForPresentation('fr');
+                    expect(spy).toHaveBeenCalledWith('fr');
+                });
+
+                it('when disconnected listener receives no further updates', function() {
+                    observer.disconnect();
+                    binarta.application.setLocaleForPresentation('fr');
+                    expect(spy).not.toHaveBeenCalledWith('fr');
+                });
+            });
+        });
+
+        describe('locale is determined based on primary language and locale for presentation', function () {
+            beforeEach(function () {
+                binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
+            });
+
+            it('given neither the primary language and the locale for presentation have been set yet then the locale is still undefined', function () {
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the primary language is set to undefined but the locale for presentation has not been set yet then the locale is still undefined', function () {
+                setPrimaryLanguage(undefined);
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the primary language is set but the locale for presentation has not been set yet then the locale is still undefined', function () {
+                setPrimaryLanguage('en');
+                setLocaleForPresentation(undefined);
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the locale for presentation is set to undefined but the primary language has not been set yet then the locale is still undefined', function () {
+                setLocaleForPresentation(undefined);
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the locale for presentation is set but the primary language has not been set yet then the locale is still undefined', function () {
+                setLocaleForPresentation('en');
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the locale for presentation is set but the primary language has been set to undefined then the locale is still undefined', function () {
+                setPrimaryLanguage(undefined);
+                setLocaleForPresentation('en');
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given the locale for presentation is not supported then the locale remains undefined', function () {
+                setSupportedLanguages(['en', 'fr']);
+                setLocaleForPresentation('de');
+                expect(binarta.application.locale()).toBeUndefined();
+            });
+
+            it('given both the primary language and the locale for presentation are undefined then set the application locale to default', function () {
+                setPrimaryLanguage(undefined);
+                setLocaleForPresentation(undefined);
+                expect(binarta.application.locale()).toEqual('default');
+            });
+
+            it('given the primary language and the external locale match then the locale is set to default', function () {
+                setPrimaryLanguage('en');
+                setLocaleForPresentation('en');
+                expect(binarta.application.locale()).toEqual('default');
+            });
+
+            it('given the primary language and the external locale do not match then the locale is set to match the external locale', function () {
+                setSupportedLanguages(['en', 'fr']);
+                setLocaleForPresentation('fr');
+                expect(binarta.application.locale()).toEqual('fr');
+            });
+
+            it('changing the locale for presentation updates the locale as well', function () {
+                setSupportedLanguages(['en', 'fr']);
+                setLocaleForPresentation('en');
+                setLocaleForPresentation('fr');
+                expect(binarta.application.locale()).toEqual('fr');
+            });
+
+            function setPrimaryLanguage(locale) {
+                setSupportedLanguages(locale ? [locale] : [])
+            }
+
+            function setSupportedLanguages(languages) {
+                if (languages.length > 0)
+                    binarta.application.gateway.updateApplicationProfile({supportedLanguages: languages});
+                binarta.application.refresh();
+            }
+
+            function setLocaleForPresentation(locale) {
+                binarta.application.setLocaleForPresentation(locale);
+            }
+        });
+
         describe('adhesive reading', function () {
             beforeEach(function () {
                 binarta.application.setLocale('l');
