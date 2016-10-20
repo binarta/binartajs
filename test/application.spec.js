@@ -231,7 +231,11 @@
         });
 
         describe('locale is determined based on primary language and locale for presentation', function () {
+            var spy;
+
             beforeEach(function () {
+                spy = jasmine.createSpyObj('spy', ['applyLocale', 'unlocalized']);
+                binarta.application.eventRegistry.add(spy);
                 binarta.application.gateway = new BinartaInMemoryGatewaysjs().application;
             });
 
@@ -244,10 +248,19 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            it('given the primary language is set but the locale for presentation has not been set yet then the locale is still undefined', function () {
-                setPrimaryLanguage('en');
-                setLocaleForPresentation(undefined);
-                expect(binarta.application.locale()).toBeUndefined();
+            describe('given the primary language is set but the locale for presentation has not been set yet', function() {
+                beforeEach(function() {
+                    setPrimaryLanguage('en');
+                    setLocaleForPresentation(undefined);
+                });
+
+                it('then the locale is still undefined', function () {
+                    expect(binarta.application.locale()).toBeUndefined();
+                });
+
+                it('then an apply locale event is raised systems can hook into to try again and update the application state', function() {
+                    expect(spy.applyLocale).toHaveBeenCalledWith('en');
+                });
             });
 
             it('given the locale for presentation is set to undefined but the primary language has not been set yet then the locale is still undefined', function () {
@@ -260,16 +273,34 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            it('given the locale for presentation is set but the primary language has been set to undefined then the locale is still undefined', function () {
-                setPrimaryLanguage(undefined);
-                setLocaleForPresentation('en');
-                expect(binarta.application.locale()).toBeUndefined();
+            describe('given the locale for presentation is set but the primary language has been set to undefined', function() {
+                beforeEach(function() {
+                    setPrimaryLanguage(undefined);
+                    setLocaleForPresentation('en');
+                });
+
+                it('then the locale is still undefined', function () {
+                    expect(binarta.application.locale()).toBeUndefined();
+                });
+
+                it('then an unlocalized event is raised systems can hook into to try again and update the application state', function() {
+                    expect(spy.unlocalized).toHaveBeenCalled();
+                });
             });
 
-            it('given the locale for presentation is not supported then the locale remains undefined', function () {
-                setSupportedLanguages(['en', 'fr']);
-                setLocaleForPresentation('de');
-                expect(binarta.application.locale()).toBeUndefined();
+            describe('given the locale for presentation is not supported', function() {
+                beforeEach(function() {
+                    setSupportedLanguages(['en', 'fr']);
+                    setLocaleForPresentation('de');
+                });
+
+                it('then the locale remains undefined', function () {
+                    expect(binarta.application.locale()).toBeUndefined();
+                });
+
+                it('then an apply locale event is raised systems can hook into to try again and update the application state', function() {
+                    expect(spy.applyLocale).toHaveBeenCalledWith('en');
+                });
             });
 
             it('given both the primary language and the locale for presentation are undefined then set the application locale to default', function () {

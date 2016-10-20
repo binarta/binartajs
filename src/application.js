@@ -33,7 +33,7 @@ function BinartaApplicationjs(deps) {
         app.localStorage.locale = locale;
         app.sessionStorage.locale = locale;
         cachedLocale = locale;
-        if(changed)
+        if (changed)
             app.eventRegistry.forEach(function (l) {
                 l.notify('setLocale', locale);
             });
@@ -113,10 +113,20 @@ function BinartaApplicationjs(deps) {
 
         function execute() {
             if (isPrimaryLanguageUnlocked && isLocaleForPresentationUnlocked) {
-                if ((primaryLanguage && localeForPresentation && app.supportedLanguages().indexOf(localeForPresentation) != -1) || (!primaryLanguage && !localeForPresentation)) {
-                    var locale = primaryLanguage != localeForPresentation ? localeForPresentation : 'default';
-                    app.setLocale(locale);
-                }
+                if (primaryLanguage && !localeForPresentation)
+                    app.eventRegistry.forEach(function (l) {
+                        l.notify('applyLocale', primaryLanguage)
+                    });
+                else if (!primaryLanguage && localeForPresentation)
+                    app.eventRegistry.forEach(function (l) {
+                        l.notify('unlocalized')
+                    });
+                else if (localeForPresentation && app.supportedLanguages().indexOf(localeForPresentation) == -1)
+                    app.eventRegistry.forEach(function (l) {
+                        l.notify('applyLocale', primaryLanguage)
+                    });
+                else
+                    app.setLocale(primaryLanguage != localeForPresentation ? localeForPresentation : 'default');
             }
         }
     }
