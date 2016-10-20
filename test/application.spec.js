@@ -92,61 +92,6 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            describe('when locale is specified in local storage', function () {
-                beforeEach(function () {
-                    localStorage.locale = 'from-local-storage';
-                    binarta.application.refresh();
-                });
-
-                it('then resolve language from local storage', function () {
-                    expect(binarta.application.locale()).toEqual('from-local-storage');
-                });
-
-                describe('and locale is specified in session storage', function () {
-                    beforeEach(function () {
-                        sessionStorage.locale = 'from-session-storage';
-                        binarta.application.refresh();
-                    });
-
-                    it('then resolves from session storage', function () {
-                        expect(binarta.application.locale()).toEqual('from-session-storage');
-                    });
-
-                    describe('and session storage is cleared', function () {
-                        beforeEach(function () {
-                            sessionStorage.removeItem('locale');
-                            binarta.application.refresh();
-                        });
-
-                        it('then resolves from local storage', function () {
-                            expect(binarta.application.locale()).toEqual('from-local-storage');
-                        });
-                    });
-
-                    describe('and has previously been resolved', function () {
-                        beforeEach(function () {
-                            sessionStorage.locale = 'from-memory';
-                            binarta.application.refresh();
-                        });
-
-                        describe('and session storage and local storage are cleared', function () {
-                            beforeEach(function () {
-                                delete sessionStorage.locale;
-                                delete localStorage.locale;
-                            });
-
-                            it('then resolves to remembered locale', function () {
-                                expect(binarta.application.locale()).toEqual('from-memory');
-                            });
-                        });
-                    });
-                });
-
-                it('then local storage locale is promoted to session storage locale', function () {
-                    expect(sessionStorage.locale).toEqual(localStorage.locale);
-                });
-            });
-
             describe('when swapped locale', function () {
                 var spy;
 
@@ -161,10 +106,6 @@
 
                 it('then locale is saved in local storage', function () {
                     expect(localStorage.locale).toEqual('swapped-locale');
-                });
-
-                it('then locale is saved in session storage', function () {
-                    expect(sessionStorage.locale).toEqual('swapped-locale');
                 });
 
                 it('then locale resolves without refresh', function () {
@@ -261,6 +202,20 @@
                 it('then an apply locale event is raised systems can hook into to try again and update the application state', function() {
                     expect(spy.applyLocale).toHaveBeenCalledWith('en');
                 });
+            });
+
+            it('test', function() {
+                setSupportedLanguages(['en', 'fr']);
+                localStorage.locale = 'default';
+                setLocaleForPresentation(undefined);
+                expect(spy.applyLocale).toHaveBeenCalledWith('en');
+            });
+
+            it('test2', function() {
+                setSupportedLanguages(['en', 'fr']);
+                localStorage.locale = 'fr';
+                setLocaleForPresentation(undefined);
+                expect(spy.applyLocale).toHaveBeenCalledWith('fr');
             });
 
             it('given the locale for presentation is set to undefined but the primary language has not been set yet then the locale is still undefined', function () {

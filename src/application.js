@@ -16,7 +16,6 @@ function BinartaApplicationjs(deps) {
     };
 
     app.refresh = function (onSuccess) {
-        refreshLocale();
         refreshApplicationProfile(onSuccess);
     };
 
@@ -31,7 +30,6 @@ function BinartaApplicationjs(deps) {
     app.setLocale = function (locale) {
         var changed = cachedLocale != locale;
         app.localStorage.locale = locale;
-        app.sessionStorage.locale = locale;
         cachedLocale = locale;
         if (changed)
             app.eventRegistry.forEach(function (l) {
@@ -91,11 +89,6 @@ function BinartaApplicationjs(deps) {
         });
     };
 
-    function refreshLocale() {
-        cachedLocale = app.sessionStorage.locale || app.localStorage.locale || undefined;
-        app.sessionStorage.locale = cachedLocale;
-    }
-
     function LocaleSelector(app) {
         var primaryLanguage, localeForPresentation, isPrimaryLanguageUnlocked, isLocaleForPresentationUnlocked;
 
@@ -113,21 +106,26 @@ function BinartaApplicationjs(deps) {
 
         function execute() {
             if (isPrimaryLanguageUnlocked && isLocaleForPresentationUnlocked) {
-                if (primaryLanguage && !localeForPresentation)
+                if (primaryLanguage && !localeForPresentation) {
+                    var rememberedLocale = app.localStorage.locale || primaryLanguage;
                     app.eventRegistry.forEach(function (l) {
-                        l.notify('applyLocale', primaryLanguage)
+                        l.notify('applyLocale', isSupported(rememberedLocale) ? primaryLanguage : rememberedLocale)
                     });
-                else if (!primaryLanguage && localeForPresentation)
+                } else if (!primaryLanguage && localeForPresentation)
                     app.eventRegistry.forEach(function (l) {
                         l.notify('unlocalized')
                     });
-                else if (localeForPresentation && app.supportedLanguages().indexOf(localeForPresentation) == -1)
+                else if (localeForPresentation && isSupported(localeForPresentation))
                     app.eventRegistry.forEach(function (l) {
                         l.notify('applyLocale', primaryLanguage)
                     });
                 else
                     app.setLocale(primaryLanguage != localeForPresentation ? localeForPresentation : 'default');
             }
+        }
+
+        function isSupported(locale) {
+            return app.supportedLanguages().indexOf(locale) == -1
         }
     }
 
