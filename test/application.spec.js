@@ -312,6 +312,16 @@
                 });
             });
 
+            it('read section uses locale for presentation if one is specified', function () {
+                binarta.application.setLocaleForPresentation('p');
+                binarta.application.gateway = new GatewaySpy();
+                binarta.application.adhesiveReading.read('s');
+                expect(binarta.application.gateway.fetchSectionDataRequest).toEqual({
+                    id: 's',
+                    locale: 'p'
+                });
+            });
+
             it('read section without data handler has no effect', function () {
                 binarta.application.gateway = new ValidApplicationGateway();
                 binarta.application.adhesiveReading.read('-');
