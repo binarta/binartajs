@@ -626,11 +626,11 @@
                 expect(spy).toHaveBeenCalledWith('v2');
             });
 
-            it('when disconnecting public config observer and cache is updated then on success handler is no longer are invoked', function () {
-                binarta.application.config.observePublic('k', spy);
-                expect(spy).toHaveBeenCalledWith('v');
+            it('when disconnecting public config observer and cache is updated then on success handler is no longer invoked', function () {
+                var observer = binarta.application.config.observePublic('k', spy);
+                observer.disconnect();
                 binarta.application.config.cache('k', 'v2');
-                expect(spy).toHaveBeenCalledWith('v2');
+                expect(spy).not.toHaveBeenCalledWith('v2');
             });
         });
     });
