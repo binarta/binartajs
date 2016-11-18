@@ -223,8 +223,7 @@ function BinartaApplicationjs(deps) {
             var listener = {};
             listener[key] = success;
             var observer = eventHandlers.observe(listener);
-            config.findPublic(key, function () {
-            });
+            config.findPublic(key, success);
             return observer;
         };
 

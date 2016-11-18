@@ -632,6 +632,12 @@
                 binarta.application.config.cache('k', 'v2');
                 expect(spy).not.toHaveBeenCalledWith('v2');
             });
+
+            it('when observing public config and is previously cached then observers are invoked', function () {
+                binarta.application.config.cache('k', 'v');
+                binarta.application.config.observePublic('k', spy);
+                expect(spy).toHaveBeenCalledWith('v');
+            });
         });
     });
 
