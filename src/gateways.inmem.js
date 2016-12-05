@@ -209,9 +209,9 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.findCouponById = function(request, response) {
-            var coupon = coupons.find(function(it) {
-                return it.id == request.id;
-            });
+            var coupon = coupons.reduce(function (p, c) {
+                return p || (c.id == request.id ? c : p);
+            }, null);
             coupon ? response.ok(coupon) : response.notFound();
         }
     }
