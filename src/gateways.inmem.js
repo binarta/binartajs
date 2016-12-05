@@ -201,6 +201,18 @@ function BinartaInMemoryGatewaysjs() {
 
         this.confirmBillingAgreement = function (ctx, ui) {
             ui.confirmedBillingAgreement();
+        };
+
+        var coupons = [];
+        this.addCoupon = function(coupon) {
+            coupons.push(coupon);
+        };
+
+        this.findCouponById = function(request, response) {
+            var coupon = coupons.find(function(it) {
+                return it.id == request.id;
+            });
+            coupon ? response.ok(coupon) : response.notFound();
         }
     }
 }

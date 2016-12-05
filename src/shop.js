@@ -7,6 +7,7 @@ function BinartaShopjs(checkpoint, deps) {
     checkpoint.profile.refresh = checkpoint.profile.billing.refresh(checkpoint.profile.refresh);
     this.basket = new Basket();
     this.checkout = new Checkout();
+    this.couponDictionary = new CouponDictionary();
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -37,14 +38,14 @@ function BinartaShopjs(checkpoint, deps) {
         function flush() {
             try {
                 shop.localStorage.setItem('basket', JSON.stringify(order));
-            } catch(ignored) {
+            } catch (ignored) {
             }
         }
 
         function rehydrate() {
             try {
                 order = JSON.parse(shop.localStorage.basket);
-            } catch(ignored) {
+            } catch (ignored) {
             }
         }
 
@@ -440,15 +441,15 @@ function BinartaShopjs(checkpoint, deps) {
                 else
                     fsm.setPaymentProvider('wire-transfer');
 
-            fsm.setCouponCode = function(code) {
+            fsm.setCouponCode = function (code) {
                 self.couponCode = code;
             };
 
             fsm.confirm = function (onSuccessListener) {
                 var request = fsm.context().order;
 
-                if(self.couponCode)
-                    request.items.forEach(function(item) {
+                if (self.couponCode)
+                    request.items.forEach(function (item) {
                         item.couponCode = self.couponCode;
                     });
 
@@ -900,6 +901,12 @@ function BinartaShopjs(checkpoint, deps) {
             }
 
             new IdleState(this);
+        }
+    }
+
+    function CouponDictionary() {
+        this.findById = function (id, presenter) {
+            shop.gateway.findCouponById({id: id}, presenter);
         }
     }
 }

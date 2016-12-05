@@ -15,6 +15,7 @@ function GatewaySpy() {
     this.cancelOrder = spy('cancelOrderRequest');
     this.fetchSectionData = spy('fetchSectionDataRequest');
     this.findPublicConfig = spy('findPublicConfigRequest');
+    this.findCouponById = spy('findCouponByIdRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -46,13 +47,13 @@ function ValidApplicationGateway() {
         ]);
     };
 
-    this.findPublicConfig = function(request, response){
+    this.findPublicConfig = function (request, response) {
         response.success('v');
     }
 }
 
 function ConfigNotFoundApplicationGateway() {
-    this.findPublicConfig = function(request, response) {
+    this.findPublicConfig = function (request, response) {
         response.notFound();
     }
 }
@@ -202,6 +203,10 @@ function InvalidOrderGateway() {
 
     this.cancelOrder = function (request, response) {
         response.rejected('violation-report');
+    };
+
+    this.findCouponById = function (request, response) {
+        response.notFound();
     }
 }
 
@@ -261,6 +266,10 @@ function ValidOrderGateway() {
 
     this.cancelOrder = function (request, response) {
         response.success();
+    };
+
+    this.findCouponById = function (request, response) {
+        response.ok('coupon');
     }
 }
 

@@ -18,7 +18,7 @@
                 localStorage.removeItem('binartaJSPaymentProvider');
             });
 
-            afterEach(function() {
+            afterEach(function () {
                 sessionStorage.removeItem('binartaJSCheckout');
             });
 
@@ -32,10 +32,12 @@
                     binarta.shop.basket.eventRegistry.add(eventListener);
                 });
 
-                it('initializing when local storage exceeds quota silently succeeds', function() {
-                    binarta.shop.localStorage = {setItem:function() {
-                        throw new Error('QuotaExceeded');
-                    }};
+                it('initializing when local storage exceeds quota silently succeeds', function () {
+                    binarta.shop.localStorage = {
+                        setItem: function () {
+                            throw new Error('QuotaExceeded');
+                        }
+                    };
                     binarta.shop.basket.initialize();
                 });
 
@@ -47,7 +49,7 @@
                     expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
                 });
 
-                it('restore when local storage is disabled silently succeeds', function() {
+                it('restore when local storage is disabled silently succeeds', function () {
                     binarta.shop.localStorage = undefined;
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.basket.restore();
@@ -1207,8 +1209,8 @@
                     this.name = 'custom-step';
                 }
 
-                describe('jumping to a specific step', function() {
-                    beforeEach(function() {
+                describe('jumping to a specific step', function () {
+                    beforeEach(function () {
                         binarta.shop.checkout.start(order, [
                             'payment',
                             'completed'
@@ -1697,7 +1699,33 @@
                         code: 'VE'
                     }, {country: 'Vietnam', code: 'VN'}, {country: 'Yemen', code: 'YE'}]);
                 });
-            })
+            });
+
+            describe('coupon dictionary', function () {
+                var spy;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['notFound', 'ok']);
+                });
+
+                it('find by id performs lookup', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.couponDictionary.findById('x');
+                    expect(binarta.shop.gateway.findCouponByIdRequest).toEqual({id: 'x'});
+                });
+
+                it('find by unknown id presents not found', function () {
+                    binarta.shop.gateway = new InvalidOrderGateway();
+                    binarta.shop.couponDictionary.findById('-', spy);
+                    expect(spy.notFound).toHaveBeenCalled();
+                });
+
+                it('find by known id presents coupon details', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.couponDictionary.findById('-', spy);
+                    expect(spy.ok).toHaveBeenCalledWith('coupon');
+                });
+            });
         });
 
         function UI() {
