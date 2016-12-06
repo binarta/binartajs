@@ -212,7 +212,7 @@ function BinartaInMemoryGatewaysjs() {
             var coupon = coupons.reduce(function (p, c) {
                 return p || (c.id == request.id ? c : p);
             }, null);
-            coupon ? response.ok(coupon) : response.notFound();
+            coupon ? response.success(coupon) : response.notFound();
         }
     }
 }
