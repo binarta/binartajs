@@ -938,6 +938,7 @@
                         binarta.shop.gateway = new GatewaySpy();
                         binarta.shop.checkout.setCouponCode('coupon-code');
                         binarta.shop.checkout.confirm();
+                        expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
                         expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
                     });
                 });

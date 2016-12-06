@@ -448,10 +448,12 @@ function BinartaShopjs(checkpoint, deps) {
             fsm.confirm = function (onSuccessListener) {
                 var request = fsm.context().order;
 
-                if (self.couponCode)
+                if (self.couponCode) {
+                    request.coupon = self.couponCode;
                     request.items.forEach(function (item) {
                         item.couponCode = self.couponCode;
                     });
+                }
 
                 shop.gateway.submitOrder(request, {
                     success: onSuccess(onSuccessListener),
