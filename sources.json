@@ -6,5 +6,8 @@
   },
   "shop":{
     "binarta-shopjs": "bower_components/binartajs/src/shop.js"
+  },
+  "e2e": {
+    "binarta-inmem-gateways": "bower_components/binartajs/src/gateways.inmem.js"
   }
 }
