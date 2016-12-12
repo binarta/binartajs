@@ -42,6 +42,10 @@ function BinartaInMemoryGatewaysjs() {
             config[request.id] ? response.success(config[request.id]) : response.notFound()
         };
 
+        this.submitContactForm = function(request, response){
+            response.success();
+        };
+
         this.clear = function () {
             applicationProfile = {name: 'myapp'};
             config = {};
