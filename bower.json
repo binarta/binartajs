@@ -1,6 +1,9 @@
 {
     "name": "binartajs",
-    "main": "./src/binarta.js",
+    "main": [
+        "./src/binarta.js",
+        "./sources.json"
+    ],
     "dependencies": {},
     "devDependencies": {},
     "ignore": [

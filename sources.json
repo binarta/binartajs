@@ -1,0 +1,10 @@
+{
+  "default": {
+    "binartajs": "bower_components/binartajs/src/binarta.js",
+    "binarta-applicationjs": "bower_components/binartajs/src/application.js",
+    "binarta-checkpointjs": "bower_components/binartajs/src/checkpoint.js"
+  },
+  "shop":{
+    "binarta-shopjs": "bower_components/binartajs/src/shop.js"
+  }
+}
