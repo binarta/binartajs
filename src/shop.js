@@ -1,5 +1,6 @@
 function BinartaShopjs(checkpoint, deps) {
     var shop = this;
+    // Application fallback can be removed after update of angular modules.
     var application = deps.application || {profile: function () {}};
     shop.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
     shop.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
@@ -440,8 +441,9 @@ function BinartaShopjs(checkpoint, deps) {
                 if (shop.localStorage.getItem('binartaJSPaymentProvider'))
                     fsm.setPaymentProvider(shop.localStorage.getItem('binartaJSPaymentProvider'));
                 else {
+                    // Can be simplified after update of angular modules because profile will never be undefined.
                     var profile = application.profile();
-                    if (profile.availablePaymentMethods && profile.availablePaymentMethods.length == 1)
+                    if (profile && profile.availablePaymentMethods && profile.availablePaymentMethods.length == 1)
                         fsm.setPaymentProvider(profile.availablePaymentMethods[0]);
                 }
 
