@@ -1,5 +1,6 @@
 function BinartaShopjs(checkpoint, deps) {
     var shop = this;
+    var application = deps.application || {profile: function () {}};
     shop.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
     shop.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
 
@@ -438,8 +439,11 @@ function BinartaShopjs(checkpoint, deps) {
             if (!fsm.getPaymentProvider())
                 if (shop.localStorage.getItem('binartaJSPaymentProvider'))
                     fsm.setPaymentProvider(shop.localStorage.getItem('binartaJSPaymentProvider'));
-                else
-                    fsm.setPaymentProvider('wire-transfer');
+                else {
+                    var profile = application.profile();
+                    if (profile.availablePaymentMethods && profile.availablePaymentMethods.length == 1)
+                        fsm.setPaymentProvider(profile.availablePaymentMethods[0]);
+                }
 
             fsm.setCouponCode = function (code) {
                 self.couponCode = code;

@@ -8,9 +8,11 @@
                 var factory = new BinartajsFactory();
                 factory.addUI(ui);
                 var checkpoint = new BinartaCheckpointjs();
-                var shop = new BinartaShopjs(checkpoint);
+                var application = new BinartaApplicationjs();
+                var shop = new BinartaShopjs(checkpoint, {application: application});
                 factory.addSubSystems({
                     checkpoint: checkpoint,
+                    application: application,
                     shop: shop
                 });
                 binarta = factory.create();
@@ -861,85 +863,118 @@
                 });
 
                 describe('on the checkout summary step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'summary',
-                            'completed'
-                        ]);
-                    });
-
-                    it('then status exposes the current step', function () {
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                    });
-
-                    it('then restarting checkout has no effect', function () {
-                        binarta.shop.checkout.start(order);
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                    });
-
-                    it('then you can cancel checkout', function () {
-                        binarta.shop.checkout.cancel();
-                        expect(binarta.shop.checkout.status()).toEqual('idle');
-                    });
-
-                    it('then the selected payment provider defaults to wire-transfer', function () {
-                        expect(binarta.shop.checkout.getPaymentProvider()).toEqual('wire-transfer');
-                    });
-
-                    describe('and setting the payment provider', function () {
+                    describe('and there is one available payment method', function () {
                         beforeEach(function () {
-                            binarta.shop.checkout.setPaymentProvider('payment-provider');
+                           function GatewaySpy() {
+                               this.fetchApplicationProfile = function (request, response) {
+                                   response.success({
+                                       availablePaymentMethods: ['payment-provider']
+                                   });
+                               };
+                           }
+                           binarta.application.gateway = new GatewaySpy();
+                           binarta.application.refresh();
+                           binarta.shop.checkout.start(order, [
+                               'summary',
+                               'completed'
+                           ]);
                         });
 
-                        it('then the order exposes the selected payment provider', function () {
-                            expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
-                        });
-
-                        it('then new checkouts default to the selected payment provider', function () {
-                            binarta.shop.checkout.cancel();
-                            binarta.shop.checkout.start(order, ['summary']);
+                        it('the payment method is selected by default', function () {
                             expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
                         });
                     });
 
-                    it('on confirmation the order can be rejected', function () {
-                        binarta.shop.gateway = new InvalidOrderGateway();
+                    describe('and there are more than one available payment methods', function () {
+                       beforeEach(function () {
+                           function GatewaySpy() {
+                               this.fetchApplicationProfile = function (request, response) {
+                                   response.success({
+                                       availablePaymentMethods: ['payment-provider-1', 'payment-provider-2']
+                                   });
+                               };
+                           }
+                           binarta.application.gateway = new GatewaySpy();
+                           binarta.application.refresh();
+                           binarta.shop.checkout.start(order, [
+                               'summary',
+                               'completed'
+                           ]);
+                       });
 
-                        binarta.shop.checkout.confirm();
+                        it('then status exposes the current step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
 
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
-                    });
+                        it('then restarting checkout has no effect', function () {
+                            binarta.shop.checkout.start(order);
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
 
-                    it('when payment provider setup the only rejection reason proceed to next step', function () {
-                        binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
-                        binarta.shop.checkout.confirm();
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                    });
+                        it('then you can cancel checkout', function () {
+                            binarta.shop.checkout.cancel();
+                            expect(binarta.shop.checkout.status()).toEqual('idle');
+                        });
 
-                    it('on confirmation the order can be accepted', function () {
-                        binarta.shop.gateway = new ValidOrderGateway();
-                        var spy = jasmine.createSpy('spy');
+                        it('no payment method is selected by default', function () {
+                            expect(binarta.shop.checkout.getPaymentProvider()).toBeUndefined();
+                        });
 
-                        binarta.shop.checkout.confirm(spy);
+                        describe('and setting the payment provider', function () {
+                            beforeEach(function () {
+                                binarta.shop.checkout.setPaymentProvider('payment-provider');
+                            });
 
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
-                        expect(spy).toHaveBeenCalled();
-                    });
+                            it('then the order exposes the selected payment provider', function () {
+                                expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
+                            });
 
-                    it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
-                        binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
-                        binarta.shop.checkout.confirm();
-                        expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
-                        expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
-                    });
+                            it('then new checkouts default to the selected payment provider', function () {
+                                binarta.shop.checkout.cancel();
+                                binarta.shop.checkout.start(order, ['summary']);
+                                expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+                            });
+                        });
 
-                    it('on confirmation with coupon code', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.setCouponCode('coupon-code');
-                        binarta.shop.checkout.confirm();
-                        expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
-                        expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
+                        it('on confirmation the order can be rejected', function () {
+                            binarta.shop.gateway = new InvalidOrderGateway();
+
+                            binarta.shop.checkout.confirm();
+
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                            expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                        });
+
+                        it('when payment provider setup the only rejection reason proceed to next step', function () {
+                            binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                            binarta.shop.checkout.confirm();
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
+
+                        it('on confirmation the order can be accepted', function () {
+                            binarta.shop.gateway = new ValidOrderGateway();
+                            var spy = jasmine.createSpy('spy');
+
+                            binarta.shop.checkout.confirm(spy);
+
+                            expect(binarta.shop.checkout.status()).toEqual('completed');
+                            expect(spy).toHaveBeenCalled();
+                        });
+
+                        it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
+                            binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
+                            binarta.shop.checkout.confirm();
+                            expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
+                            expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                        });
+
+                        it('on confirmation with coupon code', function () {
+                            binarta.shop.gateway = new GatewaySpy();
+                            binarta.shop.checkout.setCouponCode('coupon-code');
+                            binarta.shop.checkout.confirm();
+                            expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
+                            expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
+                        });
                     });
                 });
 
