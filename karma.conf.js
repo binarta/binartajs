@@ -3,6 +3,7 @@ module.exports = function (config) {
         basePath: '.',
         frameworks: ['jasmine'],
         files: [
+            {pattern:'bower_components/binarta.web.storage/src/web.storage.js'},
             {pattern: 'src/**/*.js'},
             {pattern: 'test/**/*.js'}
         ],

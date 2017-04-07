@@ -1,7 +1,7 @@
 function BinartaApplicationjs(deps) {
     var app = this;
-    app.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
-    app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
+    app.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
+    app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
     var profileCache = {};
     var cachedLocale, cachedLocaleForPresentation;

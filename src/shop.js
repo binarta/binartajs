@@ -1,8 +1,8 @@
 function BinartaShopjs(checkpoint, deps) {
     var shop = this;
     var application = deps.application;
-    shop.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
-    shop.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
+    shop.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
+    shop.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
     checkpoint.profile.billing = new Billing(checkpoint.profile);
     checkpoint.profile.refresh = checkpoint.profile.billing.refresh(checkpoint.profile.refresh);

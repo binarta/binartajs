@@ -1,10 +1,9 @@
 {
     "name": "binartajs",
-    "main": [
-        "./src/binarta.js",
-        "./sources.json"
-    ],
-    "dependencies": {},
+    "main": "./src/binarta.js",
+    "dependencies": {
+        "binarta.web.storage": "0.*.*"
+    },
     "devDependencies": {},
     "ignore": [
         "**/.*",

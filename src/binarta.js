@@ -1,7 +1,7 @@
 function BinartajsFactory(deps) {
     var binartajs = new Binartajs();
-    binartajs.localStorage = deps && deps.localStorage ? deps.localStorage : localStorage;
-    binartajs.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : sessionStorage;
+    binartajs.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
+    binartajs.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
     var ui;
 
