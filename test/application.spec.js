@@ -28,6 +28,10 @@
             expect(binarta.application.primaryLanguage()).toBeUndefined();
         });
 
+        it('expose application is not yet refreshed state', function() {
+            expect(binarta.application.isRefreshed()).toBeFalsy();
+        });
+
         it('on refresh request profile data', function () {
             binarta.application.gateway = new GatewaySpy();
             binarta.application.refresh();
@@ -42,6 +46,10 @@
                 binarta.application.gateway = new ValidApplicationGateway();
                 binarta.application.eventRegistry.add(spy);
                 binarta.application.refresh();
+            });
+
+            it('then expose application is refreshed state', function() {
+                expect(binarta.application.isRefreshed()).toBeTruthy();
             });
 
             it('then profile cache is updated', function () {
@@ -60,7 +68,7 @@
                 expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('en');
             });
 
-            it('and refresh events then listeners receive a set primary language event', function() {
+            it('and refresh events then listeners receive a set primary language event', function () {
                 binarta.application.profile().supportedLanguages = ['fr'];
                 binarta.application.refreshEvents();
                 expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('fr');
@@ -84,6 +92,44 @@
                 binarta.application.gateway = new ValidApplicationGateway();
                 binarta.application.refresh(spy);
                 expect(spy).toHaveBeenCalled();
+            });
+        });
+
+        describe('when manually setting profile data', function () {
+            var spy;
+
+            beforeEach(function () {
+                spy = jasmine.createSpyObj('spy', ['setPrimaryLanguage']);
+                binarta.application.eventRegistry.add(spy);
+                new ValidApplicationGateway().fetchApplicationProfile(undefined, {
+                    success: binarta.application.setProfile
+                });
+            });
+
+            it('then expose application is refreshed state', function() {
+                expect(binarta.application.isRefreshed()).toBeTruthy();
+            });
+
+            it('then profile cache is updated', function () {
+                expect(binarta.application.profile().name).toEqual('test-application');
+            });
+
+            it('then expose supported languages', function () {
+                expect(binarta.application.supportedLanguages()).toEqual(['en', 'nl']);
+            });
+
+            it('then the primary language is english', function () {
+                expect(binarta.application.primaryLanguage()).toEqual('en');
+            });
+
+            it('then app event listeners receive a set primary language event', function () {
+                expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('en');
+            });
+
+            it('and refresh events then listeners receive a set primary language event', function () {
+                binarta.application.profile().supportedLanguages = ['fr'];
+                binarta.application.refreshEvents();
+                expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('fr');
             });
         });
 
@@ -125,45 +171,45 @@
             expect(spy.setLocale).not.toHaveBeenCalled();
         });
 
-        describe('locale for presentation', function() {
+        describe('locale for presentation', function () {
             var spy;
 
-            beforeEach(function() {
+            beforeEach(function () {
                 spy = jasmine.createSpy('spy');
             });
 
-            it('starts out undefined', function() {
+            it('starts out undefined', function () {
                 expect(binarta.application.localeForPresentation()).toBeUndefined();
             });
 
-            it('can be set', function() {
+            it('can be set', function () {
                 binarta.application.setLocaleForPresentation('en');
                 expect(binarta.application.localeForPresentation()).toEqual('en');
             });
 
-            describe('observe locale for presentation', function() {
+            describe('observe locale for presentation', function () {
                 var observer;
 
-                beforeEach(function() {
+                beforeEach(function () {
                     binarta.application.setLocaleForPresentation('en');
                     observer = binarta.application.observeLocaleForPresentation(spy)
                 });
 
-                it('immediately triggers listener with current locale for presentation', function() {
+                it('immediately triggers listener with current locale for presentation', function () {
                     expect(spy).toHaveBeenCalledWith('en');
                 });
 
-                it('triggers listener with updates to the locale for presentation', function() {
+                it('triggers listener with updates to the locale for presentation', function () {
                     binarta.application.setLocaleForPresentation('fr');
                     expect(spy).toHaveBeenCalledWith('fr');
                 });
 
-                it('listeners are not triggered when the locale for presentation is set to the existing value', function() {
+                it('listeners are not triggered when the locale for presentation is set to the existing value', function () {
                     binarta.application.setLocaleForPresentation('en');
                     expect(spy).toHaveBeenCalledTimes(1);
                 });
 
-                it('when disconnected listener receives no further updates', function() {
+                it('when disconnected listener receives no further updates', function () {
                     observer.disconnect();
                     binarta.application.setLocaleForPresentation('fr');
                     expect(spy).not.toHaveBeenCalledWith('fr');
@@ -189,8 +235,8 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            describe('given the primary language is set but the locale for presentation has not been set yet', function() {
-                beforeEach(function() {
+            describe('given the primary language is set but the locale for presentation has not been set yet', function () {
+                beforeEach(function () {
                     setPrimaryLanguage('en');
                     setLocaleForPresentation(undefined);
                 });
@@ -199,19 +245,19 @@
                     expect(binarta.application.locale()).toBeUndefined();
                 });
 
-                it('then an apply locale event is raised systems can hook into to try again and update the application state', function() {
+                it('then an apply locale event is raised systems can hook into to try again and update the application state', function () {
                     expect(spy.applyLocale).toHaveBeenCalledWith('en');
                 });
             });
 
-            it('test', function() {
+            it('test', function () {
                 setSupportedLanguages(['en', 'fr']);
                 localStorage.locale = 'default';
                 setLocaleForPresentation(undefined);
                 expect(spy.applyLocale).toHaveBeenCalledWith('en');
             });
 
-            it('test2', function() {
+            it('test2', function () {
                 setSupportedLanguages(['en', 'fr']);
                 localStorage.locale = 'fr';
                 setLocaleForPresentation(undefined);
@@ -228,8 +274,8 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            describe('given the locale for presentation is set but the primary language has been set to undefined', function() {
-                beforeEach(function() {
+            describe('given the locale for presentation is set but the primary language has been set to undefined', function () {
+                beforeEach(function () {
                     setPrimaryLanguage(undefined);
                     setLocaleForPresentation('en');
                 });
@@ -238,13 +284,13 @@
                     expect(binarta.application.locale()).toBeUndefined();
                 });
 
-                it('then an unlocalized event is raised systems can hook into to try again and update the application state', function() {
+                it('then an unlocalized event is raised systems can hook into to try again and update the application state', function () {
                     expect(spy.unlocalized).toHaveBeenCalled();
                 });
             });
 
-            describe('given the locale for presentation is not supported', function() {
-                beforeEach(function() {
+            describe('given the locale for presentation is not supported', function () {
+                beforeEach(function () {
                     setSupportedLanguages(['en', 'fr']);
                     setLocaleForPresentation('de');
                 });
@@ -253,7 +299,7 @@
                     expect(binarta.application.locale()).toBeUndefined();
                 });
 
-                it('then an apply locale event is raised systems can hook into to try again and update the application state', function() {
+                it('then an apply locale event is raised systems can hook into to try again and update the application state', function () {
                     expect(spy.applyLocale).toHaveBeenCalledWith('en');
                 });
             });

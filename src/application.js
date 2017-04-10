@@ -3,7 +3,7 @@ function BinartaApplicationjs(deps) {
     app.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
     app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
-    var profileCache = {};
+    var profileCache;
     var cachedLocale, cachedLocaleForPresentation;
     var localeSelector = new LocaleSelector(app);
 
@@ -15,12 +15,16 @@ function BinartaApplicationjs(deps) {
         extendBinartaWithJobScheduler();
     };
 
+    app.isRefreshed = function () {
+        return profileCache != undefined;
+    };
+
     app.refresh = function (onSuccess) {
         refreshApplicationProfile(onSuccess);
     };
 
     app.profile = function () {
-        return profileCache;
+        return profileCache || {};
     };
 
     app.locale = function () {
@@ -74,13 +78,17 @@ function BinartaApplicationjs(deps) {
     function refreshApplicationProfile(onSuccess) {
         app.gateway.fetchApplicationProfile({}, {
             success: function (profile) {
-                profileCache = profile;
+                app.setProfile(profile);
                 if (onSuccess)
                     onSuccess();
-                app.refreshEvents();
             }
         });
     }
+
+    app.setProfile = function (profile) {
+        profileCache = profile;
+        app.refreshEvents();
+    };
 
     app.refreshEvents = function () {
         localeSelector.setPrimaryLanguage(app.primaryLanguage());
