@@ -219,7 +219,7 @@ function BinartaInMemoryGatewaysjs() {
             coupon ? response.success(coupon) : response.notFound();
         };
 
-        this.couponExists = function (request, response) {
+        this.containsCoupon = function (request, response) {
             this.findCouponById(request, {
                 success: function () {
                     response.success();
