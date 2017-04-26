@@ -224,7 +224,7 @@ function BinartaInMemoryGatewaysjs() {
                 success: function () {
                     response.success();
                 },
-                notFound: resonse.notFound
+                notFound: response.notFound
             })
         }
     }
