@@ -446,20 +446,19 @@ function BinartaShopjs(checkpoint, deps) {
                 }
 
             fsm.setCouponCode = function (code) {
-                self.couponCode = code;
+                var ctx = fsm.context();
+                ctx.order.coupon = code;
+                ctx.order.items.forEach(function (item) {
+                    item.couponCode = code;
+                });
+                fsm.persist(ctx);
+                fsm.eventRegistry.forEach(function(l) {
+                    l.setCouponCode(code);
+                });
             };
 
             fsm.confirm = function (onSuccessListener) {
-                var request = fsm.context().order;
-
-                if (self.couponCode) {
-                    request.coupon = self.couponCode;
-                    request.items.forEach(function (item) {
-                        item.couponCode = self.couponCode;
-                    });
-                }
-
-                shop.gateway.submitOrder(request, {
+                shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
                     rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
                 });

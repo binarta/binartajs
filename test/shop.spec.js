@@ -586,7 +586,7 @@
 
                 beforeEach(function () {
                     order = {items: [{}]};
-                    eventListener = jasmine.createSpyObj('event-listener', ['goto']);
+                    eventListener = jasmine.createSpyObj('event-listener', ['goto', 'setCouponCode']);
                     binarta.shop.checkout.eventRegistry.add(eventListener);
                 });
 
@@ -970,12 +970,23 @@
                             expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
                         });
 
+                        it('you can set a coupon code', function () {
+                            binarta.shop.checkout.setCouponCode('coupon-code');
+                            expect(binarta.shop.checkout.context().order.coupon).toEqual('coupon-code');
+                            expect(binarta.shop.checkout.context().order.items[0].couponCode).toEqual('coupon-code');
+                        });
+
                         it('on confirmation with coupon code', function () {
                             binarta.shop.gateway = new GatewaySpy();
                             binarta.shop.checkout.setCouponCode('coupon-code');
                             binarta.shop.checkout.confirm();
                             expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
                             expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
+                        });
+
+                        it('setting a coupon code raises event', function () {
+                            binarta.shop.checkout.setCouponCode('coupon-code');
+                            expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
                         });
                     });
                 });
