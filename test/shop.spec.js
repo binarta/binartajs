@@ -865,19 +865,20 @@
                 describe('on the checkout summary step', function () {
                     describe('and there is one available payment method', function () {
                         beforeEach(function () {
-                           function GatewaySpy() {
-                               this.fetchApplicationProfile = function (request, response) {
-                                   response.success({
-                                       availablePaymentMethods: ['payment-provider']
-                                   });
-                               };
-                           }
-                           binarta.application.gateway = new GatewaySpy();
-                           binarta.application.refresh();
-                           binarta.shop.checkout.start(order, [
-                               'summary',
-                               'completed'
-                           ]);
+                            function GatewaySpy() {
+                                this.fetchApplicationProfile = function (request, response) {
+                                    response.success({
+                                        availablePaymentMethods: ['payment-provider']
+                                    });
+                                };
+                            }
+
+                            binarta.application.gateway = new GatewaySpy();
+                            binarta.application.refresh();
+                            binarta.shop.checkout.start(order, [
+                                'summary',
+                                'completed'
+                            ]);
                         });
 
                         it('the payment method is selected by default', function () {
@@ -886,21 +887,22 @@
                     });
 
                     describe('and there are more than one available payment methods', function () {
-                       beforeEach(function () {
-                           function GatewaySpy() {
-                               this.fetchApplicationProfile = function (request, response) {
-                                   response.success({
-                                       availablePaymentMethods: ['payment-provider-1', 'payment-provider-2']
-                                   });
-                               };
-                           }
-                           binarta.application.gateway = new GatewaySpy();
-                           binarta.application.refresh();
-                           binarta.shop.checkout.start(order, [
-                               'summary',
-                               'completed'
-                           ]);
-                       });
+                        beforeEach(function () {
+                            function GatewaySpy() {
+                                this.fetchApplicationProfile = function (request, response) {
+                                    response.success({
+                                        availablePaymentMethods: ['payment-provider-1', 'payment-provider-2']
+                                    });
+                                };
+                            }
+
+                            binarta.application.gateway = new GatewaySpy();
+                            binarta.application.refresh();
+                            binarta.shop.checkout.start(order, [
+                                'summary',
+                                'completed'
+                            ]);
+                        });
 
                         it('then status exposes the current step', function () {
                             expect(binarta.shop.checkout.status()).toEqual('summary');
@@ -1760,6 +1762,24 @@
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.couponDictionary.findById('-', spy);
                     expect(spy.ok).toHaveBeenCalledWith('coupon');
+                });
+
+                it('contains performs lookup', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.couponDictionary.contains('x');
+                    expect(binarta.shop.gateway.containsCouponRequest).toEqual({id: 'x'})
+                });
+
+                it('contains with unknown id presents not found', function () {
+                    binarta.shop.gateway = new InvalidOrderGateway();
+                    binarta.shop.couponDictionary.contains('-', spy);
+                    expect(spy.notFound).toHaveBeenCalled();
+                });
+
+                it('contains with known id presents result', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    binarta.shop.couponDictionary.contains('-', spy);
+                    expect(spy.ok).toHaveBeenCalledWith('contains-response');
                 });
             });
         });

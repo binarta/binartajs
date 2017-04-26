@@ -16,6 +16,7 @@ function GatewaySpy() {
     this.fetchSectionData = spy('fetchSectionDataRequest');
     this.findPublicConfig = spy('findPublicConfigRequest');
     this.findCouponById = spy('findCouponByIdRequest');
+    this.containsCoupon = spy('containsCouponRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -207,6 +208,10 @@ function InvalidOrderGateway() {
 
     this.findCouponById = function (request, response) {
         response.notFound();
+    };
+
+    this.containsCoupon = function(request, response) {
+        response.notFound();
     }
 }
 
@@ -270,6 +275,10 @@ function ValidOrderGateway() {
 
     this.findCouponById = function (request, response) {
         response.ok('coupon');
+    };
+
+    this.containsCoupon = function(request, response) {
+        response.ok('contains-response');
     }
 }
 

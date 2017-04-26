@@ -42,7 +42,7 @@ function BinartaInMemoryGatewaysjs() {
             config[request.id] ? response.success(config[request.id]) : response.notFound()
         };
 
-        this.submitContactForm = function(request, response){
+        this.submitContactForm = function (request, response) {
             response.success();
         };
 
@@ -208,15 +208,24 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         var coupons = [];
-        this.addCoupon = function(coupon) {
+        this.addCoupon = function (coupon) {
             coupons.push(coupon);
         };
 
-        this.findCouponById = function(request, response) {
+        this.findCouponById = function (request, response) {
             var coupon = coupons.reduce(function (p, c) {
                 return p || (c.id == request.id ? c : p);
             }, null);
             coupon ? response.success(coupon) : response.notFound();
+        };
+
+        this.couponExists = function (request, response) {
+            this.findCouponById(request, {
+                success: function () {
+                    response.success();
+                },
+                notFound: resonse.notFound
+            })
         }
     }
 }

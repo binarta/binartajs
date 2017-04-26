@@ -913,6 +913,10 @@ function BinartaShopjs(checkpoint, deps) {
     function CouponDictionary() {
         this.findById = function (id, presenter) {
             shop.gateway.findCouponById({id: id}, presenter);
+        };
+
+        this.contains = function(id, response) {
+            shop.gateway.containsCoupon({id:id}, response);
         }
     }
 }
