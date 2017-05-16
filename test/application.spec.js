@@ -235,33 +235,42 @@
                 expect(binarta.application.locale()).toBeUndefined();
             });
 
-            describe('given the primary language is set but the locale for presentation has not been set yet', function () {
+            describe('given the primary language is set but the locale for presentation is set to unknown', function () {
                 beforeEach(function () {
                     setPrimaryLanguage('en');
                     setLocaleForPresentation(undefined);
                 });
 
-                it('then the locale is still undefined', function () {
-                    expect(binarta.application.locale()).toBeUndefined();
+                it('then default locale is used', function () {
+                    expect(binarta.application.locale()).toEqual('default');
                 });
 
-                it('then an apply locale event is raised systems can hook into to try again and update the application state', function () {
-                    expect(spy.applyLocale).toHaveBeenCalledWith('en');
+                it('then use the primary language as locale for presentation', function () {
+                    expect(binarta.application.localeForPresentation()).toEqual('en');
                 });
             });
 
-            it('test', function () {
+            it('given remembered locale is default then use primary language', function () {
                 setSupportedLanguages(['en', 'fr']);
                 localStorage.locale = 'default';
                 setLocaleForPresentation(undefined);
-                expect(spy.applyLocale).toHaveBeenCalledWith('en');
+                expect(binarta.application.locale()).toEqual('default');
+                expect(binarta.application.localeForPresentation()).toEqual('en');
             });
 
-            it('test2', function () {
+            it('given remembered locale is not primary language then apply locale', function () {
                 setSupportedLanguages(['en', 'fr']);
                 localStorage.locale = 'fr';
                 setLocaleForPresentation(undefined);
                 expect(spy.applyLocale).toHaveBeenCalledWith('fr');
+            });
+
+            it('given remembered locale is not supported', function () {
+                setSupportedLanguages(['en', 'fr']);
+                localStorage.locale = '-';
+                setLocaleForPresentation(undefined);
+                expect(binarta.application.locale()).toEqual('default');
+                expect(binarta.application.localeForPresentation()).toEqual('en');
             });
 
             it('given the locale for presentation is set to undefined but the primary language has not been set yet then the locale is still undefined', function () {

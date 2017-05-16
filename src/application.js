@@ -116,14 +116,18 @@ function BinartaApplicationjs(deps) {
             if (isPrimaryLanguageUnlocked && isLocaleForPresentationUnlocked) {
                 if (primaryLanguage && !localeForPresentation) {
                     var rememberedLocale = app.localStorage.locale || primaryLanguage;
-                    app.eventRegistry.forEach(function (l) {
-                        l.notify('applyLocale', isSupported(rememberedLocale) ? primaryLanguage : rememberedLocale)
-                    });
+                    if(rememberedLocale == primaryLanguage || rememberedLocale == 'default' || notSupported(rememberedLocale))
+                        app.setLocaleForPresentation(primaryLanguage);
+                    else {
+                        app.eventRegistry.forEach(function (l) {
+                            l.notify('applyLocale', rememberedLocale);
+                        });
+                    }
                 } else if (!primaryLanguage && localeForPresentation)
                     app.eventRegistry.forEach(function (l) {
                         l.notify('unlocalized')
                     });
-                else if (localeForPresentation && isSupported(localeForPresentation))
+                else if (localeForPresentation && notSupported(localeForPresentation))
                     app.eventRegistry.forEach(function (l) {
                         l.notify('applyLocale', primaryLanguage)
                     });
@@ -132,7 +136,7 @@ function BinartaApplicationjs(deps) {
             }
         }
 
-        function isSupported(locale) {
+        function notSupported(locale) {
             return app.supportedLanguages().indexOf(locale) == -1
         }
     }
