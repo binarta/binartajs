@@ -115,14 +115,7 @@ function BinartaApplicationjs(deps) {
         function execute() {
             if (isPrimaryLanguageUnlocked && isLocaleForPresentationUnlocked) {
                 if (primaryLanguage && !localeForPresentation) {
-                    var rememberedLocale = app.localStorage.locale || primaryLanguage;
-                    if(rememberedLocale == primaryLanguage || rememberedLocale == 'default' || notSupported(rememberedLocale))
-                        app.setLocaleForPresentation(primaryLanguage);
-                    else {
-                        app.eventRegistry.forEach(function (l) {
-                            l.notify('applyLocale', rememberedLocale);
-                        });
-                    }
+                    app.setLocaleForPresentation(primaryLanguage);
                 } else if (!primaryLanguage && localeForPresentation)
                     app.eventRegistry.forEach(function (l) {
                         l.notify('unlocalized')
