@@ -172,6 +172,13 @@ function BinartaApplicationjs(deps) {
             });
         };
 
+        self.cache = function(stream) {
+            self.executor.execute(function() {
+                cache(stream);
+                self.executor.countdown();
+            });
+        };
+
         function cache(stream) {
             stream.forEach(function (it) {
                 self.handlers.forEach(function (h) {
@@ -186,16 +193,30 @@ function BinartaApplicationjs(deps) {
         var self = this;
         var alreadyRead = {};
 
+        function isAlreadyRead(id) {
+            if (alreadyRead[app.locale()] == undefined)
+                alreadyRead[app.locale()] = [];
+            return alreadyRead[app.locale()].indexOf(id) == -1
+        }
+
+        function remember(id) {
+            alreadyRead[app.locale()].push(id);
+        }
+
         self.handlers = delegate.handlers;
         self.eventRegistry = delegate.eventRegistry;
         self.read = function (id) {
-            if (alreadyRead[app.locale()] == undefined)
-                alreadyRead[app.locale()] = [];
-            if (alreadyRead[app.locale()].indexOf(id) == -1) {
-                alreadyRead[app.locale()].push(id);
+            if (isAlreadyRead(id)) {
+                remember(id);
                 delegate.read(id);
             }
         };
+        self.cache = function(id, stream) {
+            if(isAlreadyRead(id)) {
+                remember(id);
+                delegate.cache(stream);
+            }
+        }
     }
 
     function Config(adhesiveReading) {
