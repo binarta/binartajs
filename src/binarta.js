@@ -98,3 +98,8 @@ function BinartaRX() {
     }
 }
 
+function BinartaTL() {
+    this.shift = function () {
+        return new Date();
+    };
+}

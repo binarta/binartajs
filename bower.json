@@ -1,14 +1,14 @@
 {
-    "name": "binartajs",
-    "main": "./src/binarta.js",
-    "dependencies": {
-        "binarta.web.storage": "0.*.*"
-    },
-    "devDependencies": {},
-    "ignore": [
-        "**/.*",
-        "node_modules",
-        "bower_components",
-        "test"
-    ]
+  "name": "binartajs",
+  "main": "./src/binarta.js",
+  "dependencies": {
+    "binarta.web.storage": "0.*.*"
+  },
+  "devDependencies": {},
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test"
+  ]
 }

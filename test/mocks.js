@@ -185,6 +185,34 @@ function ValidCredentialsGateway() {
     }
 }
 
+function WithPermissionsGateway(permissions) {
+    var delegate = new ValidCredentialsGateway();
+
+    this.register = function (request, response) {
+    };
+
+    this.signin = function (request, response) {
+        response.success();
+    };
+
+    this.signout = function () {
+    };
+
+    this.fetchAccountMetadata = delegate.fetchAccountMetadata;
+
+    this.fetchPermissions = function (request, response) {
+        response.success(permissions.map(function (it) {
+            return {name: it};
+        }));
+    };
+
+    this.fetchBillingProfile = function () {
+    };
+
+    this.fetchAddresses = function () {
+    }
+}
+
 function InvalidOrderGateway() {
     this.submitOrder = function (request, response) {
         response.rejected('violation-report');
@@ -210,7 +238,7 @@ function InvalidOrderGateway() {
         response.notFound();
     };
 
-    this.containsCoupon = function(request, response) {
+    this.containsCoupon = function (request, response) {
         response.notFound();
     }
 }
@@ -277,7 +305,7 @@ function ValidOrderGateway() {
         response.ok('coupon');
     };
 
-    this.containsCoupon = function(request, response) {
+    this.containsCoupon = function (request, response) {
         response.ok('contains-response');
     }
 }
