@@ -323,7 +323,7 @@ function BinartaCheckpointjs() {
                                 else {
                                     new IdleState(fsm);
                                     fsm.eventRegistry.forEach(function (l) {
-                                        l.updated();
+                                        l.notify('updated');
                                     });
                                 }
                         },
