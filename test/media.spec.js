@@ -76,14 +76,22 @@
                     });
 
                     it('a timestamp is appended', function () {
+                        timeline.push(now);
                         expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + now.getTime());
                     });
 
                     it('a timestamp reset can be requested', function() {
-                        var later = new Date();
+                        var later = new Date(now.getTime() + 3000000);
+                        timeline.push(later);
                         timeline.push(later);
                         images.resetTimestamp();
                         expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + later.getTime());
+                    });
+
+                    it('the timestamp is removed after 5 minutes as then caches should have refreshed', function() {
+                        var later = new Date(now.getTime() + 300000);
+                        timeline.push(later);
+                        expect(images.toURL({path: 'x.img'})).toEqual('x.img');
                     });
 
                     describe('and after signout', function() {
@@ -92,6 +100,7 @@
                         });
 
                         it('then the timestamp is still appended', function () {
+                            timeline.push(now);
                             expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + now.getTime());
                         });
 

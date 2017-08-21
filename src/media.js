@@ -32,7 +32,7 @@ function BinartaMediajs(args) {
         }
 
         function isCacheDisabled() {
-            return null != media.binarta.sessionStorage.getItem('binartaImageTimestamp');
+            return null != media.binarta.sessionStorage.getItem('binartaImageTimestamp') && (timeline.shift().getTime() < (parseInt(media.binarta.sessionStorage.getItem('binartaImageTimestamp')) + 300000));
         }
 
         function getTimestamp() {
