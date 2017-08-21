@@ -52,6 +52,11 @@
                     })).toEqual('x.img?width=200&height=100');
                 });
 
+                it('for a specific section', function () {
+                    expect(images.toURL({path: 'x.img', section: 'a'})).toEqual('x.img?section=a');
+                    expect(images.toURL({path: 'x.img', section: 'b'})).toEqual('x.img?section=b');
+                });
+
                 it('with an existing query string', function () {
                     expect(images.toURL({
                         path: 'x.img?x=y&a=b',

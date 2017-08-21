@@ -15,6 +15,8 @@ function BinartaMediajs(args) {
                 return it + '=' + Math.floor(args[it]);
             });
 
+            if (args.section)
+                params.push('section=' + args.section);
             if (isCacheDisabled())
                 params.push('timestamp=' + getTimestamp());
 
