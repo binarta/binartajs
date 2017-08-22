@@ -44,13 +44,14 @@ function ValidApplicationGateway() {
 
     this.fetchSectionData = function (request, response) {
         response.success([
-            {type: 't', msg: 'Hello World!'}
+            {type: 't', msg: 'Hello World!'},
+            {type: 'images', relativePath: 'bg.img', etag: 'e'}
         ]);
     };
 
     this.findPublicConfig = function (request, response) {
         response.success('v');
-    }
+    };
 }
 
 function ConfigNotFoundApplicationGateway() {

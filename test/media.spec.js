@@ -8,9 +8,15 @@
             timeline = [];
             var factory = new BinartajsFactory();
             factory.addUI(ui);
+            var applicationjs = new BinartaApplicationjs();
             var checkpointjs = new BinartaCheckpointjs();
-            var mediajs = new BinartaMediajs({checkpointjs: checkpointjs, timeline: timeline});
+            var mediajs = new BinartaMediajs({
+                applicationjs: applicationjs,
+                checkpointjs: checkpointjs,
+                timeline: timeline
+            });
             factory.addSubSystems({
+                application: applicationjs,
                 checkpoint: checkpointjs,
                 media: mediajs
             });
@@ -65,7 +71,7 @@
                     })).toEqual('x.img?x=y&a=b&width=200&height=100');
                 });
 
-                it('after signing but without image upload permission behavior remains the same', function() {
+                it('after signing but without image upload permission behavior remains the same', function () {
                     binarta.checkpoint.gateway = new WithPermissionsGateway([]);
                     binarta.checkpoint.signinForm.submit('-');
                     expect(images.toURL({path: 'x.img'})).toEqual('x.img');
@@ -85,7 +91,7 @@
                         expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + now.getTime());
                     });
 
-                    it('a timestamp reset can be requested', function() {
+                    it('a timestamp reset can be requested', function () {
                         var later = new Date(now.getTime() + 3000000);
                         timeline.push(later);
                         timeline.push(later);
@@ -93,14 +99,14 @@
                         expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + later.getTime());
                     });
 
-                    it('the timestamp is removed after 5 minutes as then caches should have refreshed', function() {
+                    it('the timestamp is removed after 5 minutes as then caches should have refreshed', function () {
                         var later = new Date(now.getTime() + 300000);
                         timeline.push(later);
                         expect(images.toURL({path: 'x.img'})).toEqual('x.img');
                     });
 
-                    describe('and after signout', function() {
-                        beforeEach(function() {
+                    describe('and after signout', function () {
+                        beforeEach(function () {
                             binarta.checkpoint.profile.signout();
                         });
 
@@ -109,17 +115,23 @@
                             expect(images.toURL({path: 'x.img'})).toEqual('x.img?timestamp=' + now.getTime());
                         });
 
-                        it('and session is closed then the timestamp is no longer appended', function() {
+                        it('and session is closed then the timestamp is no longer appended', function () {
                             binarta.sessionStorage.removeItem('binartaImageTimestamp');
                             expect(images.toURL({path: 'x.img'})).toEqual('x.img');
                         });
                     });
                 });
 
-                it('a timestamp reset can only be done with sufficient permissions', function() {
+                it('a timestamp reset can only be done with sufficient permissions', function () {
                     timeline.push(new Date());
                     images.resetTimestamp();
                     expect(images.toURL({path: 'x.img'})).toEqual('x.img');
+                });
+
+                it('append etag when known for the requested path', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.adhesiveReading.read('-');
+                    expect(images.toURL({path: 'bg.img', width: 200})).toEqual('bg.img?width=200&etag=e');
                 });
             });
         });

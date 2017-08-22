@@ -1,5 +1,6 @@
 function BinartaMediajs(args) {
     var media = this;
+    var application = args.applicationjs;
     var checkpoint = args.checkpointjs;
     var timeline = args.timeline || new BinartaTL();
 
@@ -7,6 +8,7 @@ function BinartaMediajs(args) {
 
     function ImageDictionary() {
         var images = this;
+        var cache = {};
 
         this.toURL = function (args) {
             var params = ['width', 'height'].filter(function (it) {
@@ -19,6 +21,8 @@ function BinartaMediajs(args) {
                 params.push('section=' + args.section);
             if (isCacheDisabled())
                 params.push('timestamp=' + getTimestamp());
+            if (cache[args.path])
+                params.push('etag=' + cache[args.path]);
 
             var queryString = params.join('&');
             return args.path + (queryString ? (args.path.indexOf('?') == -1 ? '?' : '&') + queryString : '');
@@ -44,6 +48,15 @@ function BinartaMediajs(args) {
         function setTimestamp(timestamp) {
             media.binarta.sessionStorage.setItem('binartaImageTimestamp', timestamp);
         }
+
+        function CacheImageTagHandler(cache) {
+            this.type = 'images';
+            this.cache = function (it) {
+                cache[it.relativePath] = it.etag;
+            }
+        }
+
+        application.adhesiveReading.handlers.add(new CacheImageTagHandler(cache));
 
         checkpoint.profile.eventRegistry.observe({
             signedin: images.resetTimestamp
