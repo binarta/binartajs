@@ -164,8 +164,8 @@ function BinartaApplicationjs(deps) {
         self.read = function (id) {
             self.executor.execute(function () {
                 app.gateway.fetchSectionData({id: id, locale: app.localeForPresentation() || app.locale()}, {
-                    success: function (stream) {
-                        cache(stream);
+                    success: function (snapshot) {
+                        cache(snapshot.stream);
                         self.executor.countdown();
                     }
                 });

@@ -30,7 +30,7 @@ function BinartaInMemoryGatewaysjs() {
             sectionData.forEach(function (it) {
                 result.push(it)
             });
-            response.success(result);
+            response.success({timestamp: '201709061542', stream: result});
         };
 
         var config;

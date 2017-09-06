@@ -43,10 +43,12 @@ function ValidApplicationGateway() {
     };
 
     this.fetchSectionData = function (request, response) {
-        response.success([
-            {type: 't', msg: 'Hello World!'},
-            {type: 'images', relativePath: 'bg.img', etag: 'e'}
-        ]);
+        response.success({
+            timestamp: '201709061551', stream: [
+                {type: 't', msg: 'Hello World!'},
+                {type: 'images', relativePath: 'bg.img', etag: 'e'}
+            ]
+        });
     };
 
     this.findPublicConfig = function (request, response) {
