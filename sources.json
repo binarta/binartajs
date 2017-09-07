@@ -3,9 +3,10 @@
     "binartajs": "bower_components/binartajs/src/binarta.js",
     "binarta-applicationjs": "bower_components/binartajs/src/application.js",
     "binarta-checkpointjs": "bower_components/binartajs/src/checkpoint.js",
-    "binarta-mediajs": "bower_components/binartajs/src/media.js"
+    "binarta-mediajs": "bower_components/binartajs/src/media.js",
+    "moment": "bower_components/moment/moment.js"
   },
-  "shop":{
+  "shop": {
     "binarta-shopjs": "bower_components/binartajs/src/shop.js"
   },
   "e2e": {

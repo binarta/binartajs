@@ -375,7 +375,7 @@
             });
 
             describe('with data handler', function () {
-                var cachedMsg;
+                var cachedMsg, cachedTimestamp;
 
                 beforeEach(function () {
                     cachedMsg = undefined;
@@ -384,6 +384,7 @@
                         type: 't',
                         cache: function (it) {
                             cachedMsg = it.msg;
+                            cachedTimestamp = it.timestamp;
                         }
                     });
                 });
@@ -391,6 +392,7 @@
                 it('read section', function () {
                     binarta.application.adhesiveReading.read('-');
                     expect(cachedMsg).toEqual('Hello World!');
+                    expect(cachedTimestamp).toEqual(moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').toDate());
                 });
 
                 it('cache section', function () {

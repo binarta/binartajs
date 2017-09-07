@@ -4,6 +4,10 @@ function BinartaInMemoryGatewaysjs() {
     this.shop = new ShopGateway();
 
     function ApplicationGateway() {
+        var self = this;
+
+        this.now = moment();
+
         var applicationProfile;
         this.updateApplicationProfile = function (request) {
             Object.keys(request).forEach(function (k) {
@@ -30,7 +34,7 @@ function BinartaInMemoryGatewaysjs() {
             sectionData.forEach(function (it) {
                 result.push(it)
             });
-            response.success({timestamp: '201709061542', stream: result});
+            response.success({timestamp: self.now, stream: result});
         };
 
         var config;

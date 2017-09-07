@@ -44,7 +44,8 @@ function ValidApplicationGateway() {
 
     this.fetchSectionData = function (request, response) {
         response.success({
-            timestamp: '201709061551', stream: [
+            timestamp: moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').toDate(),
+            stream: [
                 {type: 't', msg: 'Hello World!'},
                 {type: 'images', relativePath: 'bg.img', etag: 'e'}
             ]

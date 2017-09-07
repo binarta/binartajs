@@ -165,22 +165,24 @@ function BinartaApplicationjs(deps) {
             self.executor.execute(function () {
                 app.gateway.fetchSectionData({id: id, locale: app.localeForPresentation() || app.locale()}, {
                     success: function (snapshot) {
-                        cache(snapshot.stream);
+                        cache(snapshot);
                         self.executor.countdown();
                     }
                 });
             });
         };
 
-        self.cache = function(stream) {
-            self.executor.execute(function() {
-                cache(stream);
+        self.cache = function (stream) {
+            self.executor.execute(function () {
+                cache({stream: stream});
                 self.executor.countdown();
             });
         };
 
-        function cache(stream) {
+        function cache(snapshot) {
+            var stream = (snapshot.stream == undefined ? snapshot : snapshot.stream); // testing for backwards compatibility
             stream.forEach(function (it) {
+                it.timestamp = snapshot.timestamp;
                 self.handlers.forEach(function (h) {
                     if (h.type == it.type)
                         h.notify('cache', it);
@@ -211,8 +213,8 @@ function BinartaApplicationjs(deps) {
                 delegate.read(id);
             }
         };
-        self.cache = function(id, stream) {
-            if(isAlreadyRead(id)) {
+        self.cache = function (id, stream) {
+            if (isAlreadyRead(id)) {
                 remember(id);
                 delegate.cache(stream);
             }
