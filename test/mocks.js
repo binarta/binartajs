@@ -13,7 +13,7 @@ function GatewaySpy() {
     this.submitOrder = spy('submitOrderRequest');
     this.confirmPayment = spy('confirmPaymentRequest');
     this.cancelOrder = spy('cancelOrderRequest');
-    this.fetchSectionData = spy('fetchSectionDataRequest');
+    this.fetchAdhesiveSnapshot = spy('fetchAdhesiveSnapshotRequest');
     this.findPublicConfig = spy('findPublicConfigRequest');
     this.findCouponById = spy('findCouponByIdRequest');
     this.containsCoupon = spy('containsCouponRequest');
@@ -42,7 +42,7 @@ function ValidApplicationGateway() {
         });
     };
 
-    this.fetchSectionData = function (request, response) {
+    this.fetchAdhesiveSnapshot = function(request, response) {
         response.success({
             timestamp: moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').toDate(),
             stream: [
@@ -67,10 +67,10 @@ function DeferredApplicationGateway() {
     var delegate = new ValidApplicationGateway();
     var eventRegistry = new BinartaRX();
 
-    this.fetchSectionData = function (request, response) {
+    this.fetchAdhesiveSnapshot = function (request, response) {
         eventRegistry.add({
             continue: function () {
-                delegate.fetchSectionData(request, response);
+                delegate.fetchAdhesiveSnapshot(request, response);
             }
         });
     };

@@ -24,7 +24,7 @@ function BinartaInMemoryGatewaysjs() {
             sectionData.push(request);
         };
 
-        this.fetchSectionData = function (request, response) {
+        this.fetchAdhesiveSnapshot = function (request, response) {
             var result = [
                 {
                     type: 'requested.section',

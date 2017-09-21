@@ -8,7 +8,7 @@ function BinartaApplicationjs(deps) {
     var localeSelector = new LocaleSelector(app);
 
     app.eventRegistry = new BinartaRX();
-    app.adhesiveReading = new ReadOnceAdhesiveReading(app, new AdhesiveReading(app));
+    app.adhesiveReading = new AdhesiveReading(app);
     app.config = new Config(app.adhesiveReading);
 
     app.installed = function () {
@@ -161,21 +161,14 @@ function BinartaApplicationjs(deps) {
             }
         }
 
-        self.read = function (id) {
+        self.read = function () {
             self.executor.execute(function () {
-                app.gateway.fetchSectionData({id: id, locale: app.localeForPresentation() || app.locale()}, {
+                app.gateway.fetchAdhesiveSnapshot({locale: app.localeForPresentation() || app.locale()}, {
                     success: function (snapshot) {
                         cache(snapshot);
                         self.executor.countdown();
                     }
                 });
-            });
-        };
-
-        self.cache = function (stream) {
-            self.executor.execute(function () {
-                cache({stream: stream});
-                self.executor.countdown();
             });
         };
 
@@ -189,36 +182,10 @@ function BinartaApplicationjs(deps) {
                 });
             });
         }
-    }
 
-    function ReadOnceAdhesiveReading(app, delegate) {
-        var self = this;
-        var alreadyRead = {};
-
-        function isAlreadyRead(id) {
-            if (alreadyRead[app.locale()] == undefined)
-                alreadyRead[app.locale()] = [];
-            return alreadyRead[app.locale()].indexOf(id) == -1
-        }
-
-        function remember(id) {
-            alreadyRead[app.locale()].push(id);
-        }
-
-        self.handlers = delegate.handlers;
-        self.eventRegistry = delegate.eventRegistry;
-        self.read = function (id) {
-            if (isAlreadyRead(id)) {
-                remember(id);
-                delegate.read(id);
-            }
-        };
-        self.cache = function (id, stream) {
-            if (isAlreadyRead(id)) {
-                remember(id);
-                delegate.cache(stream);
-            }
-        }
+        app.eventRegistry.add({
+            setLocale: self.read
+        });
     }
 
     function Config(adhesiveReading) {

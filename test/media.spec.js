@@ -130,7 +130,7 @@
 
                 it('append etag when known for the requested path', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
-                    binarta.application.adhesiveReading.read('-');
+                    binarta.application.adhesiveReading.read();
                     expect(images.toURL({path: 'bg.img', width: 200})).toEqual('bg.img?width=200&etag=e');
                 });
             });
