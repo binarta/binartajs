@@ -331,7 +331,7 @@
         });
 
         describe('adhesive reading', function () {
-            describe('with locale', function() {
+            describe('with locale', function () {
                 beforeEach(function () {
                     binarta.application.setLocale('l');
                 });
@@ -538,22 +538,109 @@
             });
 
             describe('given empty cache', function () {
+                var response;
+
+                beforeEach(function () {
+                    response = jasmine.createSpyObj('response', ['unauthenticated', 'forbidden', 'success']);
+                });
+
+                it('add public config invokes gateway', function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.addPublic({key: 'k', value: 'v'});
+                    expect(binarta.application.gateway.addConfigRequest).toEqual({
+                        scope: 'public',
+                        key: 'k',
+                        value: 'v'
+                    });
+                });
+
+                it('add system config invokes gateway', function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.addSystem({key: 'k', value: 'v'});
+                    expect(binarta.application.gateway.addConfigRequest).toEqual({
+                        scope: 'system',
+                        key: 'k',
+                        value: 'v'
+                    });
+                });
+
+                it('add public config requires authentication', function () {
+                    binarta.application.gateway = new UnauthenticatedGateway();
+                    binarta.application.config.addPublic({}, response);
+                    expect(response.unauthenticated).toHaveBeenCalled();
+                });
+
+                it('add system config requires authentication', function () {
+                    binarta.application.gateway = new UnauthenticatedGateway();
+                    binarta.application.config.addSystem({}, response);
+                    expect(response.unauthenticated).toHaveBeenCalled();
+                });
+
+                it('add public config requires permission', function () {
+                    binarta.application.gateway = new MissingPermissionsGateway();
+                    binarta.application.config.addPublic({}, response);
+                    expect(response.forbidden).toHaveBeenCalled();
+                });
+
+                it('add system config requires permission', function () {
+                    binarta.application.gateway = new MissingPermissionsGateway();
+                    binarta.application.config.addSystem({}, response);
+                    expect(response.forbidden).toHaveBeenCalled();
+                });
+
+                it('add public config calls success handler with the saved value', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.addPublic({key: 'k', value: 'v'}, response);
+                    expect(response.success).toHaveBeenCalledWith('v');
+                });
+
+                it('add system config calls success handler with the saved value', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.addSystem({id: 'k', value: 'v'}, response);
+                    expect(response.success).toHaveBeenCalledWith('v');
+                });
+
+                it('add public config updates local cache', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.addPublic({id: 'k', value: '-'});
+                    binarta.application.config.findPublic('k', response.success);
+                    expect(response.success).toHaveBeenCalledWith('-');
+                });
+
                 it('find public config invokes gateway for lookup', function () {
                     binarta.application.gateway = new GatewaySpy();
                     binarta.application.config.findPublic('k', spy);
                     expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
                 });
 
-                it('find unknown config', function () {
+                it('find system config invokes gateway for lookup', function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.findSystem('k', spy);
+                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope:'system', id: 'k'});
+                });
+
+                it('find unknown public config', function () {
                     binarta.application.gateway = new ConfigNotFoundApplicationGateway();
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('');
                 });
 
-                it('find known config', function () {
+                it('find unknown system config', function () {
+                    binarta.application.gateway = new ConfigNotFoundApplicationGateway();
+                    binarta.application.config.findSystem('k', response);
+                    expect(response.success).toHaveBeenCalledWith('');
+                });
+
+                it('find known public config', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.findPublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
+                });
+
+                it('find known system config', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.findSystem('k', response);
+                    expect(response.success).toHaveBeenCalledWith('v');
                 });
 
                 it('observing public config invokes gateway for lookup', function () {
@@ -562,10 +649,34 @@
                     expect(binarta.application.gateway.findPublicConfigRequest).toEqual({id: 'k'});
                 });
 
+                it('observing system config invokes gateway for lookup', function () {
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.config.observeSystem('k', spy);
+                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope:'system', id: 'k'});
+                });
+
                 it('observing known public config triggers on success handler', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.observePublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
+                });
+
+                it('observing known system config triggers on success handler', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.observeSystem('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                });
+
+                it('observing system config when unauthenticated triggers on success handler', function () {
+                    binarta.application.gateway = new UnauthenticatedGateway();
+                    binarta.application.config.observeSystem('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
+                });
+
+                it('observing system config with insufficient permissions triggers on success handler', function () {
+                    binarta.application.gateway = new MissingPermissionsGateway();
+                    binarta.application.config.observeSystem('k', spy);
+                    expect(spy).toHaveBeenCalledWith('');
                 });
             });
 

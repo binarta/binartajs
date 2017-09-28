@@ -39,11 +39,26 @@ function BinartaInMemoryGatewaysjs() {
 
         var config;
         this.addPublicConfig = function (request) {
-            config[request.id] = request.value;
+            request.scope = 'public';
+            self.addConfig(request);
+        };
+        this.addConfig = function (request, response) {
+            if (!config[request.scope])
+                config[request.scope] = {};
+            config[request.scope][request.id] = request.value;
+            self.findConfig(request, response || {
+                success: function () {
+                }
+            });
         };
 
         this.findPublicConfig = function (request, response) {
-            config[request.id] ? response.success(config[request.id]) : response.notFound()
+            request.scope = 'public';
+            self.findConfig(request, response);
+        };
+
+        this.findConfig = function (request, response) {
+            config[request.scope] && config[request.scope][request.id] != undefined ? response.success(config[request.scope][request.id]) : response.notFound()
         };
 
         this.submitContactForm = function (request, response) {
@@ -124,10 +139,11 @@ function BinartaInMemoryGatewaysjs() {
         this.permissions = ['p1', 'p2', 'p3'];
         this.addPermission = function (permission) {
             this.permissions.push(permission);
-        }
+        };
+
         this.removePermission = function (permission) {
             this.permissions.splice(this.permissions.indexOf(permission), 1);
-        }
+        };
 
         this.fetchPermissions = function (request, response) {
             response.success(this.permissions.map(function (it) {

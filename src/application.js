@@ -199,6 +199,31 @@ function BinartaApplicationjs(deps) {
             }
         });
 
+        function addConfig(request, response) {
+            var adapter = app.binarta.toResponseAdapter(response);
+            adapter.success = function () {
+                if (response && response.success)
+                    response.success(request.value);
+            };
+            app.gateway.addConfig(request, adapter);
+        }
+
+        this.addPublic = function (request, response) {
+            request.scope = 'public';
+            var adapter = app.binarta.toResponseAdapter(response);
+            adapter.success = function () {
+                config.cache(request.id, request.value);
+                if (response && response.success)
+                    response.success(request.value);
+            };
+            addConfig(request, adapter);
+        };
+
+        this.addSystem = function (request, response) {
+            request.scope = 'system';
+            addConfig(request, response);
+        };
+
         this.findPublic = function (key, success) {
             if (configCache[key] == undefined)
                 app.gateway.findPublicConfig({id: key}, {
@@ -214,12 +239,45 @@ function BinartaApplicationjs(deps) {
                 success(configCache[key]);
         };
 
-        this.observePublic = function (key, success) {
+        this.findSystem = function (key, response) {
+            app.gateway.findConfig({scope: 'system', id: key}, {
+                success: function (value) {
+                    response.success(value);
+                },
+                notFound: function () {
+                    response.success('');
+                },
+                unauthenticated: response.unauthenticated,
+                forbidden: response.forbidden
+            });
+        };
+
+        function observeConfig(key, success, cb) {
             var listener = {};
             listener[key] = success;
             var observer = eventHandlers.observe(listener);
-            config.findPublic(key, success);
+            cb();
             return observer;
+        }
+
+        this.observePublic = function (key, success) {
+            return observeConfig(key, success, function () {
+                config.findPublic(key, success);
+            });
+        };
+
+        this.observeSystem = function (key, success) {
+            return observeConfig(key, success, function () {
+                config.findSystem(key, {
+                    success: success,
+                    unauthenticated: function () {
+                        success('');
+                    },
+                    forbidden: function () {
+                        success('');
+                    }
+                });
+            });
         };
 
         this.cache = function (key, value) {

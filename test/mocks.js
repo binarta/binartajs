@@ -14,7 +14,9 @@ function GatewaySpy() {
     this.confirmPayment = spy('confirmPaymentRequest');
     this.cancelOrder = spy('cancelOrderRequest');
     this.fetchAdhesiveSnapshot = spy('fetchAdhesiveSnapshotRequest');
+    this.addConfig = spy('addConfigRequest');
     this.findPublicConfig = spy('findPublicConfigRequest');
+    this.findConfig = spy('findConfigRequest');
     this.findCouponById = spy('findCouponByIdRequest');
     this.containsCoupon = spy('containsCouponRequest');
 
@@ -55,10 +57,22 @@ function ValidApplicationGateway() {
     this.findPublicConfig = function (request, response) {
         response.success('v');
     };
+
+    this.findConfig = function (request, response) {
+        response.success('v');
+    };
+
+    this.addConfig = function(request, response) {
+        response.success();
+    }
 }
 
 function ConfigNotFoundApplicationGateway() {
     this.findPublicConfig = function (request, response) {
+        response.notFound();
+    };
+
+    this.findConfig = function (request, response) {
         response.notFound();
     }
 }
@@ -93,6 +107,24 @@ function UnauthenticatedGateway() {
 
     this.fetchAddresses = function (response) {
         response.unauthenticated();
+    };
+
+    this.addConfig = function(request, response) {
+        response.unauthenticated();
+    };
+
+    this.findConfig = function(request, response) {
+        response.unauthenticated();
+    }
+}
+
+function MissingPermissionsGateway() {
+    this.addConfig = function(request, response) {
+        response.forbidden();
+    };
+
+    this.findConfig = function(request, response) {
+        response.forbidden();
     }
 }
 

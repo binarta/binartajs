@@ -18,6 +18,13 @@ function BinartajsFactory(deps) {
     };
 
     function Binartajs() {
+        this.toResponseAdapter = function (response) {
+            var adapter = {};
+            Object.keys(response || {}).forEach(function (it) {
+                adapter[it] = response[it];
+            });
+            return adapter;
+        }
     }
 
     function transferAttributes(from, to) {
