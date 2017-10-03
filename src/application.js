@@ -1,5 +1,6 @@
 function BinartaApplicationjs(deps) {
     var app = this;
+    var timeline = deps && deps.timeline || new BinartaTL();
     app.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
     app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
@@ -195,7 +196,7 @@ function BinartaApplicationjs(deps) {
 
         adhesiveReading.handlers.add({
             type: 'config', cache: function (it) {
-                config.cache(it.key, it.value);
+                config.cache(it.key, it.value, it.timestamp);
             }
         });
 
@@ -212,7 +213,10 @@ function BinartaApplicationjs(deps) {
             request.scope = 'public';
             var adapter = app.binarta.toResponseAdapter(response);
             adapter.success = function () {
-                config.cache(request.id, request.value);
+                app.sessionStorage.setItem('binarta:config:' + request.id, JSON.stringify({
+                    timestamp: moment(timeline.shift()).format('YYYYMMDDHHmmssSSSZ'),
+                    value: request.value
+                }));
                 if (response && response.success)
                     response.success(request.value);
             };
@@ -225,7 +229,8 @@ function BinartaApplicationjs(deps) {
         };
 
         this.findPublic = function (key, success) {
-            if (configCache[key] == undefined)
+            var cachedConfig = fromSessionCache(key, configCache[key]);
+            if (cachedConfig == undefined)
                 app.gateway.findPublicConfig({id: key}, {
                     success: function (value) {
                         config.cache(key, value);
@@ -236,8 +241,20 @@ function BinartaApplicationjs(deps) {
                     }
                 });
             else
-                success(configCache[key]);
+                success(cachedConfig);
         };
+
+        function fromSessionCache(key, fallback) {
+            var sessionKey = 'binarta:config:' + key;
+            var it = app.sessionStorage.getItem(sessionKey);
+            if (!it) return fallback ? fallback.value : undefined;
+            it = JSON.parse(it);
+            if (fallback && moment(it.timestamp, 'YYYYMMDDHHmmssSSSZ') < fallback.timestamp) {
+                app.sessionStorage.removeItem(sessionKey);
+                return fallback.value;
+            }
+            return it.value;
+        }
 
         this.findSystem = function (key, response) {
             app.gateway.findConfig({scope: 'system', id: key}, {
@@ -280,8 +297,8 @@ function BinartaApplicationjs(deps) {
             });
         };
 
-        this.cache = function (key, value) {
-            configCache[key] = value;
+        this.cache = function (key, value, timestamp) {
+            configCache[key] = {value: value, timestamp: timestamp};
             eventHandlers.forEach(function (l) {
                 l.notify(key, value);
             });

@@ -1,19 +1,30 @@
 (function () {
     describe('binarta-applicationjs', function () {
-        var binarta, ui;
+        var binarta, ui, now;
 
         beforeEach(function () {
             localStorage.removeItem('locale');
             sessionStorage.removeItem('locale');
         });
         beforeEach(function () {
+            now = new Date();
+
             ui = new UI();
             var factory = new BinartajsFactory();
             factory.addUI(ui);
-            factory.addSubSystems({application: new BinartaApplicationjs()});
+            factory.addSubSystems({
+                application: new BinartaApplicationjs({
+                    timeline: [now]
+                })
+            });
             binarta = factory.create();
 
             binarta.application.gateway = new ValidApplicationGateway();
+        });
+
+        afterEach(function () {
+            sessionStorage.removeItem('binarta:config:k');
+            sessionStorage.removeItem('binarta:config:adhesive.config');
         });
 
         it('exposes an empty profile', function () {
@@ -600,6 +611,15 @@
                     expect(response.success).toHaveBeenCalledWith('v');
                 });
 
+                it('add public config updates session cache', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.addPublic({id: 'k', value: '-'});
+                    expect(JSON.parse(sessionStorage.getItem('binarta:config:k'))).toEqual({
+                        timestamp: moment(now).format('YYYYMMDDHHmmssSSSZ'),
+                        value: '-'
+                    });
+                });
+
                 it('add public config updates local cache', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.addPublic({id: 'k', value: '-'});
@@ -616,7 +636,7 @@
                 it('find system config invokes gateway for lookup', function () {
                     binarta.application.gateway = new GatewaySpy();
                     binarta.application.config.findSystem('k', spy);
-                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope:'system', id: 'k'});
+                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope: 'system', id: 'k'});
                 });
 
                 it('find unknown public config', function () {
@@ -643,6 +663,46 @@
                     expect(response.success).toHaveBeenCalledWith('v');
                 });
 
+                it('find known public config prefers session storage', function () {
+                    sessionStorage.setItem('binarta:config:k', JSON.stringify({
+                        timestamp: moment(now).format('YYYYMMDDHHmmssSSSZ'),
+                        value: 'from-session-storage'
+                    }));
+                    binarta.application.config.findPublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('from-session-storage');
+                });
+
+                it('find known public config prefers cached values when session storage is outdated', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.adhesiveReading.read();
+                    sessionStorage.setItem('binarta:config:adhesive.config', JSON.stringify({
+                        timestamp: moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').subtract(1, 's'),
+                        value: 'from-session-storage'
+                    }));
+                    binarta.application.config.findPublic('adhesive.config', spy);
+                    expect(spy).toHaveBeenCalledWith('from-adhesive-reading');
+                });
+
+                it('find known public config clears keys in session storage when they are outdated', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.adhesiveReading.read();
+                    sessionStorage.setItem('binarta:config:adhesive.config', JSON.stringify({
+                        timestamp: moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').subtract(1, 's'),
+                        value: 'from-session-storage'
+                    }));
+                    binarta.application.config.findPublic('adhesive.config', spy);
+                    expect(sessionStorage.getItem('binarta:config:adhesive.config')).toEqual(null);
+                });
+
+                it('find known system config ignores session storage', function () {
+                    sessionStorage.setItem('binarta:config:k', JSON.stringify({
+                        timestamp: moment(now).format('YYYYMMDDHHmmssSSSZ'),
+                        value: 'from-session-storage'
+                    }));
+                    binarta.application.config.findSystem('k', response);
+                    expect(response.success).toHaveBeenCalledWith('v');
+                });
+
                 it('observing public config invokes gateway for lookup', function () {
                     binarta.application.gateway = new GatewaySpy();
                     binarta.application.config.observePublic('k', spy);
@@ -652,7 +712,7 @@
                 it('observing system config invokes gateway for lookup', function () {
                     binarta.application.gateway = new GatewaySpy();
                     binarta.application.config.observeSystem('k', spy);
-                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope:'system', id: 'k'});
+                    expect(binarta.application.gateway.findConfigRequest).toEqual({scope: 'system', id: 'k'});
                 });
 
                 it('observing known public config triggers on success handler', function () {

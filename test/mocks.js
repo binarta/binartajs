@@ -44,12 +44,13 @@ function ValidApplicationGateway() {
         });
     };
 
-    this.fetchAdhesiveSnapshot = function(request, response) {
+    this.fetchAdhesiveSnapshot = function (request, response) {
         response.success({
             timestamp: moment('20170906155112645+02:00', 'YYYYMMDDHHmmssSSSZ').toDate(),
             stream: [
                 {type: 't', msg: 'Hello World!'},
-                {type: 'images', relativePath: 'bg.img', etag: 'e'}
+                {type: 'images', relativePath: 'bg.img', etag: 'e'},
+                {type: 'config', key: 'adhesive.config', value: 'from-adhesive-reading'}
             ]
         });
     };
@@ -62,7 +63,7 @@ function ValidApplicationGateway() {
         response.success('v');
     };
 
-    this.addConfig = function(request, response) {
+    this.addConfig = function (request, response) {
         response.success();
     }
 }
@@ -109,21 +110,21 @@ function UnauthenticatedGateway() {
         response.unauthenticated();
     };
 
-    this.addConfig = function(request, response) {
+    this.addConfig = function (request, response) {
         response.unauthenticated();
     };
 
-    this.findConfig = function(request, response) {
+    this.findConfig = function (request, response) {
         response.unauthenticated();
     }
 }
 
 function MissingPermissionsGateway() {
-    this.addConfig = function(request, response) {
+    this.addConfig = function (request, response) {
         response.forbidden();
     };
 
-    this.findConfig = function(request, response) {
+    this.findConfig = function (request, response) {
         response.forbidden();
     }
 }
