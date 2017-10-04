@@ -213,6 +213,7 @@ function BinartaApplicationjs(deps) {
             request.scope = 'public';
             var adapter = app.binarta.toResponseAdapter(response);
             adapter.success = function () {
+                config.cache(request.id, request.value, moment());
                 app.sessionStorage.setItem('binarta:config:' + request.id, JSON.stringify({
                     timestamp: moment(timeline.shift()).format('YYYYMMDDHHmmssSSSZ'),
                     value: request.value

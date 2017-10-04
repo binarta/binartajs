@@ -738,6 +738,14 @@
                     binarta.application.config.observeSystem('k', spy);
                     expect(spy).toHaveBeenCalledWith('');
                 });
+
+                it('observing when public config is modified', function () {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.observePublic('k', spy);
+                    expect(spy).toHaveBeenCalledWith('v');
+                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    expect(spy).toHaveBeenCalledWith('v2');
+                });
             });
 
             describe('given populated cache through public config lookups', function () {
