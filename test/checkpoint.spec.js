@@ -81,7 +81,7 @@
             var spy;
 
             beforeEach(function () {
-                spy = jasmine.createSpyObj('spy', ['signedin', 'signedout']);
+                spy = jasmine.createSpyObj('spy', ['signedin', 'signedout', 'unauthenticated']);
                 binarta.checkpoint.profile.eventRegistry.add(spy);
             });
 
@@ -100,12 +100,24 @@
                     binarta.checkpoint.profile.refresh();
                     expect(spy.signedout).toHaveBeenCalled();
                 });
+
+                it('on signout, unauthenticated event is raised', function () {
+                    binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                    binarta.checkpoint.profile.refresh();
+                    expect(spy.unauthenticated).toHaveBeenCalled();
+                });
             });
 
             it('signedout event not raised when already signed out', function () {
                 binarta.checkpoint.gateway = new UnauthenticatedGateway();
                 binarta.checkpoint.profile.refresh();
                 expect(spy.signedout).not.toHaveBeenCalled();
+            });
+
+            it('unauthenticated event is raised when already signed out', function () {
+                binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(spy.unauthenticated).toHaveBeenCalled();
             });
         });
 

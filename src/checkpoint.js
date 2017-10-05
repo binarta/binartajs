@@ -215,6 +215,9 @@ function BinartaCheckpointjs() {
                     self.eventRegistry.forEach(function (l) {
                         l.notify('signedout');
                     });
+                self.eventRegistry.forEach(function (l) {
+                    l.notify('unauthenticated');
+                });
             }
         }
 
