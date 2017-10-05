@@ -299,9 +299,10 @@ function BinartaApplicationjs(deps) {
         };
 
         this.cache = function (key, value, timestamp) {
-            configCache[key] = {value: value, timestamp: timestamp};
+            var entry = {value: value, timestamp: timestamp};
+            configCache[key] = entry;
             eventHandlers.forEach(function (l) {
-                l.notify(key, value);
+                l.notify(key, fromSessionCache(key, entry));
             });
         };
 

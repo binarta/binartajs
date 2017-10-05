@@ -746,6 +746,16 @@
                     binarta.application.config.addPublic({id:'k', value:'v2'});
                     expect(spy).toHaveBeenCalledWith('v2');
                 });
+
+                it('public observers receives value from session storage when an older version is being cached', function() {
+                    binarta.application.gateway = new ValidApplicationGateway();
+                    binarta.application.config.observePublic('k', spy);
+                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    binarta.application.config.cache('k', 'v3', moment(now).subtract(1, 's'));
+                    expect(spy).toHaveBeenCalledWith('v');
+                    expect(spy).toHaveBeenCalledWith('v2');
+                    expect(spy).not.toHaveBeenCalledWith('v3');
+                });
             });
 
             describe('given populated cache through public config lookups', function () {
