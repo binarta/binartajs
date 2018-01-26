@@ -137,6 +137,16 @@
             registry.remove(spy1);
             expect(registry.isEmpty()).toBeTruthy();
         });
+
+        it('should do stuff', function() {
+            registry.add(spy1);
+            registry.add(spy2);
+
+            registry.notify('on', 'ctx');
+
+            expect(spy1.on).toHaveBeenCalledWith('ctx');
+            expect(spy2.on).toHaveBeenCalledWith('ctx');
+        })
     });
 
     function UI() {

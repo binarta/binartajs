@@ -84,6 +84,12 @@ function BinartaRX() {
         listeners.slice().forEach(cb);
     };
 
+    this.notify = function(evt, ctx) {
+        this.forEach(function(l) {
+            l.notify(evt, ctx);
+        })
+    };
+
     this.remove = function (l) {
         var idx = listeners.indexOf(l);
         if (idx > -1)
