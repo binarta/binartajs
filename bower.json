@@ -3,7 +3,7 @@
   "main": "./src/binarta.js",
   "dependencies": {
     "binarta.web.storage": "0.*.*",
-    "moment": ">=2.8.0 <2.11.0"
+    "moment": ">=2.8.0 <2.23.0"
   },
   "devDependencies": {},
   "ignore": [
