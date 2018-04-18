@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "test": "karma start karma.conf.js --single-run --browsers ChromeHeadless",
+    "test:phantomjs": "karma start karma.conf.js --single-run --browsers PhantomJS",
+    "test:watch": "karma start karma.conf.js --browsers ChromeHeadless"
+  },
   "devDependencies": {
     "gulp": "^3.8.10",
     "jasmine-core": "^2.4.1",

@@ -146,6 +146,16 @@
 
             expect(spy1.on).toHaveBeenCalledWith('ctx');
             expect(spy2.on).toHaveBeenCalledWith('ctx');
+        });
+
+        it('should be possible to register conditional observers', function() {
+            registry.observeIf(function(ctx) { return ctx === 'ctx'}, spy1);
+            registry.observeIf(function(ctx) { return ctx !== 'ctx'}, spy2);
+
+            registry.notify('on', 'ctx');
+
+            expect(spy1.on).toHaveBeenCalledWith('ctx');
+            expect(spy2.on).not.toHaveBeenCalled();
         })
     });
 

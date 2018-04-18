@@ -69,8 +69,9 @@ function BinartaRX() {
     var listeners = [];
 
     this.add = function (l) {
+        if (l.predicate === undefined) l.predicate = function() { return true; };
         l.notify = function (evt, ctx) {
-            if (l[evt])
+            if (l[evt] && l.predicate(ctx))
                 l[evt](ctx);
         };
         listeners.push(l);
@@ -78,6 +79,11 @@ function BinartaRX() {
 
     this.observe = function (l) {
         return new Observer(rx, l);
+    };
+
+    this.observeIf = function (predicate, l) {
+        l.predicate = predicate;
+        return this.observe(l);
     };
 
     this.forEach = function (cb) {
