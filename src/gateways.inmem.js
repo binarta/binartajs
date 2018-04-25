@@ -2,6 +2,7 @@ function BinartaInMemoryGatewaysjs() {
     this.application = new ApplicationGateway();
     this.checkpoint = new CheckpointGateway();
     this.shop = new ShopGateway();
+    this.hr = new HumanResourcesDB();
 
     function ApplicationGateway() {
         var self = this;
@@ -250,6 +251,48 @@ function BinartaInMemoryGatewaysjs() {
                 },
                 notFound: response.notFound
             })
+        }
+    }
+
+    function HumanResourcesDB() {
+        var records = [
+            {
+                "id": "1",
+                "name": "Financial Advisor",
+                "sectorName": "Finance",
+                "contractType": "permanent",
+                "status": "vacant",
+                "locationName": "Leuven",
+                "duration": "PT0S"
+            },
+            {
+                "id": "2",
+                "name": "Technical Writer",
+                "sectorName": "Customer Support",
+                "contractType": "contractor",
+                "status": "vacant",
+                "locationName": "Leuven",
+                "duration": "P12W"
+            },
+            {
+                "id": "3",
+                "name": "Project Manager",
+                "sectorName": "Operations",
+                "contractType": "part-time",
+                "status": "vacant",
+                "locationName": "Brussels",
+                "duration": "PT0S"
+            }
+        ];
+
+        this.search = function (request, response) {
+            response.success(records);
+        };
+
+        this.get = function (request, response) {
+            response.success(records.reduce(function (p, c) {
+                return c.id == request.id ? c : p;
+            }, null));
         }
     }
 }

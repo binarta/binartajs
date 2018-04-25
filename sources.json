@@ -10,7 +10,8 @@
     "binarta-publisherjs": "bower_components/binartajs/src/publisher.js"
   },
   "shop": {
-    "binarta-shopjs": "bower_components/binartajs/src/shop.js"
+    "binarta-shopjs": "bower_components/binartajs/src/shop.js",
+    "binarta-humanresourcesjs": "bower_components/binartajs/src/humanresources.js"
   },
   "e2e": {
     "binarta-inmem-gateways": "bower_components/binartajs/src/gateways.inmem.js"
