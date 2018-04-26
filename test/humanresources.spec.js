@@ -52,6 +52,68 @@
                     };
                     vacancies.search();
                 });
+
+                it('collects the first subset', function() {
+                    hr.db = {
+                        search:function(request) {
+                            expect(request.from).toEqual(0);
+                            expect(request.to).toEqual(100);
+                        }
+                    };
+                    vacancies.search();
+                });
+            });
+
+            describe('next', function() {
+                beforeEach(function() {
+                    vacancies.search();
+                });
+
+                it('appends to vacant positions', function() {
+                    vacancies.positions = [{id:'0'}];
+                    vacancies.next();
+                    expect(vacancies.list().map(function(it) {return it.id;}).join('')).toEqual('0123');
+                });
+
+                it('is done for the current locale', function() {
+                    hr.db = {
+                        search:function(request) {
+                            expect(request.locale).toEqual('en');
+                        }
+                    };
+                    vacancies.next();
+                });
+
+                it('collects the second subset', function() {
+                    hr.db = {
+                        search:function(request) {
+                            expect(request.from).toEqual(100);
+                            expect(request.to).toEqual(200);
+                        }
+                    };
+                    vacancies.next();
+                });
+
+                it('collects the third subset', function() {
+                    vacancies.next();
+                    hr.db = {
+                        search:function(request) {
+                            expect(request.from).toEqual(200);
+                            expect(request.to).toEqual(300);
+                        }
+                    };
+                    vacancies.next();
+                });
+
+                it('search resets the results', function() {
+                    hr.db = {
+                        search:function(request) {
+                            expect(request.from).toEqual(0);
+                            expect(request.to).toEqual(100);
+                        }
+                    };
+                    vacancies.search();
+                });
             });
 
             describe('select position by id', function() {

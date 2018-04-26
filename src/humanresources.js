@@ -5,11 +5,14 @@ function BinartaHumanResourcesjs(args) {
     this.vacancies = new VacantPositionDictionary();
 
     function VacantPositionDictionary() {
-        var positions = [];
-        var selected;
+        var self = this;
+        var subsetSize = 100;
+        var from, selected;
+
+        this.positions = [];
 
         this.list = function () {
-            return positions;
+            return self.positions;
         };
 
         this.selected = function () {
@@ -17,9 +20,20 @@ function BinartaHumanResourcesjs(args) {
         };
 
         this.search = function () {
-            hr.db.search({locale: application.localeForPresentation()}, {
+            from = 0;
+            hr.db.search({locale: application.localeForPresentation(), from: from, to: subsetSize}, {
                 success: function (it) {
-                    positions = it;
+                    self.positions = it;
+                    from += subsetSize;
+                }
+            });
+        };
+
+        this.next = function () {
+            hr.db.search({locale: application.localeForPresentation(), from: from, to: from + subsetSize}, {
+                success: function (it) {
+                    self.positions = self.positions.concat(it);
+                    from += subsetSize;
                 }
             });
         };
