@@ -38,6 +38,14 @@
                 expect(vacancies.selected()).toBeUndefined();
             });
 
+            it('is initially not searching', function() {
+                expect(vacancies.searching()).toEqual(false);
+            });
+
+            it('is initially not selecting', function() {
+                expect(vacancies.selecting()).toEqual(false);
+            });
+
             describe('search', function() {
                 it('populates vacant positions', function() {
                     vacancies.search();
@@ -61,6 +69,21 @@
                         }
                     };
                     vacancies.search();
+                });
+
+                it('indicates search is ongoing', function() {
+                    hr.db = {
+                        search:function(request) {
+                            // blocking search completion so searching status remains unchanged
+                        }
+                    };
+                    vacancies.search();
+                    expect(vacancies.searching()).toEqual(true);
+                });
+
+                it('indicates search stopped once completed', function() {
+                    vacancies.search();
+                    expect(vacancies.searching()).toEqual(false);
                 });
             });
 
@@ -114,6 +137,21 @@
                     };
                     vacancies.search();
                 });
+
+                it('indicates search is ongoing', function() {
+                    hr.db = {
+                        search:function(request) {
+                            // blocking search completion so searching status remains unchanged
+                        }
+                    };
+                    vacancies.next();
+                    expect(vacancies.searching()).toEqual(true);
+                });
+
+                it('indicates search stopped once completed', function() {
+                    vacancies.next();
+                    expect(vacancies.searching()).toEqual(false);
+                });
             });
 
             describe('select position by id', function() {
@@ -133,6 +171,21 @@
                         }
                     };
                     vacancies.select();
+                });
+
+                it('indicates selection is ongoing', function() {
+                    hr.db = {
+                        get:function(request) {
+                            // blocking search completion so searching status remains unchanged
+                        }
+                    };
+                    vacancies.select();
+                    expect(vacancies.selecting()).toEqual(true);
+                });
+
+                it('indicates selecting stopped once completed', function() {
+                    vacancies.select();
+                    expect(vacancies.selecting()).toEqual(false);
                 });
             });
         });
