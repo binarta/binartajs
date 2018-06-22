@@ -85,8 +85,8 @@
                 binarta.checkpoint.profile.eventRegistry.add(spy);
             });
 
-            describe('on signin success', function() {
-                beforeEach(function() {
+            describe('on signin success', function () {
+                beforeEach(function () {
                     binarta.checkpoint.gateway = new AuthenticatedGateway();
                     binarta.checkpoint.profile.refresh();
                 });
@@ -138,6 +138,28 @@
             binarta.checkpoint.gateway = new AuthenticatedGateway();
 
             binarta.checkpoint.profile.signout({unauthenticated: spy});
+
+            expect(spy).toHaveBeenCalled();
+        });
+
+        it('profile delete delegates to gateway', function () {
+            binarta.checkpoint.gateway = new GatewaySpy();
+            binarta.checkpoint.profile.delete();
+            expect(binarta.checkpoint.gateway.deleteRequest).toBeTruthy();
+        });
+
+        it('on profile deletion success then the profile is unauthenticated', function () {
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+            binarta.checkpoint.profile.authenticated = true;
+            binarta.checkpoint.profile.delete();
+            expect(binarta.checkpoint.profile.isAuthenticated()).toBeFalsy();
+        });
+
+        it('on profile deletion success then an optional success listener is triggered', function () {
+            var spy = jasmine.createSpy('on-success');
+            binarta.checkpoint.gateway = new AuthenticatedGateway();
+
+            binarta.checkpoint.profile.delete({success: spy});
 
             expect(spy).toHaveBeenCalled();
         });

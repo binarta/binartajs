@@ -129,6 +129,10 @@ function BinartaInMemoryGatewaysjs() {
                 response.unauthenticated();
         };
 
+        this.delete = function () {
+            response.success();
+        };
+
         this.fetchAccountMetadata = function (response) {
             if (activeProfile)
                 response.activeAccountMetadata(activeProfile);

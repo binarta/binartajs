@@ -2,6 +2,7 @@ function GatewaySpy() {
     this.fetchApplicationProfile = spy('fetchApplicationProfileRequest');
     this.signin = spy('signinRequest');
     this.signout = spy('signoutRequest');
+    this.delete = spy('deleteRequest');
     this.register = spy('registrationRequest');
     this.updateBillingProfile = spy('updateBillingProfileRequest');
     this.addAddress = spy('addAddressRequest');
@@ -132,6 +133,10 @@ function MissingPermissionsGateway() {
 function AuthenticatedGateway() {
     this.signout = function (response) {
         response.unauthenticated();
+    };
+
+    this.delete = function (response) {
+        response.success();
     };
 
     this.fetchAccountMetadata = function (response) {
