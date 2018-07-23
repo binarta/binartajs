@@ -310,6 +310,11 @@ function BinartaShopjs(checkpoint, deps) {
 
         this.roadmap = function () {
             var ctx = self.context();
+
+            if (!ctx.roadmap) {
+              return;
+            }
+
             return ctx.roadmap.filter(function (it) {
                 return gatewaySteps.every(function (gatewayStep) {
                     return it != gatewayStep;
