@@ -607,14 +607,16 @@
                 it('the exposed roadmap hides gateway steps', function () {
                     binarta.shop.checkout.start(order, [
                         'authentication-required',
-                        'summary',
+                        'address-selection',
                         'setup-payment-provider',
                         'payment',
+                        'summary',
                         'completed'
                     ]);
                     expect(binarta.shop.checkout.roadmap()).toEqual([
-                        {name: 'summary', locked: true, unlocked: false},
-                        {name: 'completed', locked: true, unlocked: false}
+                        {name: 'address-selection', locked: true, unlocked: false},
+                        {name: 'payment', locked: true, unlocked: false},
+                        {name: 'summary', locked: true, unlocked: false}
                     ]);
                 });
 
@@ -628,7 +630,6 @@
                     binarta.shop.checkout.next();
                     expect(binarta.shop.checkout.roadmap()).toEqual([
                         {name: 'summary', locked: false, unlocked: true},
-                        {name: 'completed', locked: true, unlocked: false}
                     ]);
                 });
 

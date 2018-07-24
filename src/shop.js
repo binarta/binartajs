@@ -267,15 +267,15 @@ function BinartaShopjs(checkpoint, deps) {
         var stepDefinitions = {
             'authentication-required': AuthRequiredStep,
             'address-selection': AddressSelectionStep,
-            'summary': SummaryStep,
             'setup-payment-provider': SetupPaymentProviderStep,
             'payment': PaymentStep,
+            'summary': SummaryStep,
             'completed': CompletedStep
         };
         var gatewaySteps = [
             'authentication-required',
             'setup-payment-provider',
-            'payment'
+            'completed',
         ];
 
         this.eventRegistry = new BinartaRX();
