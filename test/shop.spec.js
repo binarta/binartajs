@@ -590,6 +590,10 @@
                     binarta.shop.checkout.eventRegistry.add(eventListener);
                 });
 
+                it('should return undefined when no context is available', function () {
+                  expect(binarta.shop.checkout.roadmap()).toBe(undefined);
+                });
+
                 it('checkout starts out idle', function () {
                     expect(binarta.shop.checkout.status()).toEqual('idle');
                 });
@@ -627,6 +631,12 @@
                         {name: 'completed', locked: true, unlocked: false}
                     ]);
                 });
+
+                
+                it('should test', function () {
+                  
+                });
+                
 
                 describe('back navigation support', function () {
                     beforeEach(function () {
