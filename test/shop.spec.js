@@ -1000,6 +1000,30 @@
                             expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
                         });
                     });
+
+                    describe('and there are two payment methods - "wire-transfer" and "paypal-classic"', function() {
+                      beforeEach(function () {
+                          function GatewaySpy() {
+                              this.fetchApplicationProfile = function (request, response) {
+                                  response.success({
+                                      availablePaymentMethods: ['wire-transfer', 'paypal-classic']
+                                  });
+                              };
+                          }
+
+                          binarta.application.gateway = new GatewaySpy();
+                          binarta.application.refresh();
+                          binarta.shop.checkout.start(order, [
+                              'summary',
+                              'completed'
+                          ]);
+                      });
+
+                      it('paypal is selected by default', function () {
+                        expect(binarta.shop.checkout.getPaymentProvider()).toBe('paypal-classic');
+                      });
+
+                    });
                 });
 
                 it('on the checkout summary step then the payment provider can be specified at checkout start', function () {
