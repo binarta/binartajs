@@ -436,14 +436,20 @@ function BinartaShopjs(checkpoint, deps) {
                 fsm.persist(ctx);
                 shop.localStorage.setItem('binartaJSPaymentProvider', provider)
             };
-            if (!fsm.getPaymentProvider())
-                if (shop.localStorage.getItem('binartaJSPaymentProvider'))
+            
+            if (!fsm.getPaymentProvider()) {
+                if (shop.localStorage.getItem('binartaJSPaymentProvider')){
                     fsm.setPaymentProvider(shop.localStorage.getItem('binartaJSPaymentProvider'));
-                else {
+                } else {
                     var profile = application.profile();
-                    if (profile.availablePaymentMethods && profile.availablePaymentMethods.length == 1)
-                        fsm.setPaymentProvider(profile.availablePaymentMethods[0]);
+                    if (profile.availablePaymentMethods && profile.availablePaymentMethods.length == 1) {
+                      fsm.setPaymentProvider(profile.availablePaymentMethods[0]);
+                    } else if (profile.availablePaymentMethods && profile.availablePaymentMethods.length === 2 
+                      && profile.availablePaymentMethods.indexOf('paypal-classic') > -1) {
+                        fsm.setPaymentProvider('paypal-classic');
+                    }
                 }
+            }
 
             fsm.setCouponCode = function (code) {
                 var ctx = fsm.context();
