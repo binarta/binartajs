@@ -590,6 +590,10 @@
                     binarta.shop.checkout.eventRegistry.add(eventListener);
                 });
 
+                it('should return undefined when no context is available', function () {
+                  expect(binarta.shop.checkout.roadmap()).toBe(undefined);
+                });
+
                 it('checkout starts out idle', function () {
                     expect(binarta.shop.checkout.status()).toEqual('idle');
                 });
@@ -603,14 +607,16 @@
                 it('the exposed roadmap hides gateway steps', function () {
                     binarta.shop.checkout.start(order, [
                         'authentication-required',
-                        'summary',
+                        'address-selection',
                         'setup-payment-provider',
                         'payment',
+                        'summary',
                         'completed'
                     ]);
                     expect(binarta.shop.checkout.roadmap()).toEqual([
-                        {name: 'summary', locked: true, unlocked: false},
-                        {name: 'completed', locked: true, unlocked: false}
+                        {name: 'address-selection', locked: true, unlocked: false},
+                        {name: 'payment', locked: true, unlocked: false},
+                        {name: 'summary', locked: true, unlocked: false}
                     ]);
                 });
 
@@ -624,9 +630,14 @@
                     binarta.shop.checkout.next();
                     expect(binarta.shop.checkout.roadmap()).toEqual([
                         {name: 'summary', locked: false, unlocked: true},
-                        {name: 'completed', locked: true, unlocked: false}
                     ]);
                 });
+
+                
+                it('should test', function () {
+                  
+                });
+                
 
                 describe('back navigation support', function () {
                     beforeEach(function () {
@@ -988,6 +999,30 @@
                             binarta.shop.checkout.setCouponCode('coupon-code');
                             expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
                         });
+                    });
+
+                    describe('and there are two payment methods - "wire-transfer" and "paypal-classic"', function() {
+                      beforeEach(function () {
+                          function GatewaySpy() {
+                              this.fetchApplicationProfile = function (request, response) {
+                                  response.success({
+                                      availablePaymentMethods: ['wire-transfer', 'paypal-classic']
+                                  });
+                              };
+                          }
+
+                          binarta.application.gateway = new GatewaySpy();
+                          binarta.application.refresh();
+                          binarta.shop.checkout.start(order, [
+                              'summary',
+                              'completed'
+                          ]);
+                      });
+
+                      it('paypal is selected by default', function () {
+                        expect(binarta.shop.checkout.getPaymentProvider()).toBe('paypal-classic');
+                      });
+
                     });
                 });
 
