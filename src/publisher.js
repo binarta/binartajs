@@ -22,6 +22,11 @@ function BinartaPublisherjs() {
                 return posts.cache.slice(0, args.max);
             };
 
+            posts.init = function () {
+                if (posts.cache.length == 0)
+                    posts.more();
+            };
+
             posts.more = function () {
                 if (posts.status == 'loading')
                     return;
@@ -31,7 +36,7 @@ function BinartaPublisherjs() {
                     subset: {offset: posts.cache.length, max: 10}
                 };
                 publisher.db.findAllPublishedBlogsForLocale(request, {
-                    ok: function (it) {
+                    success: function (it) {
                         posts.cache = posts.cache.concat(it);
                         posts.status = 'idle';
                     }

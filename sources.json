@@ -6,6 +6,9 @@
     "binarta-mediajs": "bower_components/binartajs/src/media.js",
     "moment": "bower_components/moment/moment.js"
   },
+  "blog": {
+    "binarta-publisherjs": "bower_components/binartajs/src/publisher.js"
+  },
   "shop": {
     "binarta-shopjs": "bower_components/binartajs/src/shop.js"
   },

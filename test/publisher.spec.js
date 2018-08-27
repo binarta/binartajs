@@ -26,10 +26,30 @@
                 expect(publisher.blog.published.posts()).toEqual([]);
             });
 
+            it('loading initial blog posts', function () {
+                publisher.db = {
+                    findAllPublishedBlogsForLocale: function (request, response) {
+                        response.success(['a', 'b', 'c']);
+                    }
+                };
+                publisher.blog.published.init();
+                expect(publisher.blog.published.posts()).toEqual(['a', 'b', 'c']);
+            });
+
+            it('loading of initial published blog posts is throttled once some posts have been found', function() {
+                publisher.db = {
+                    findAllPublishedBlogsForLocale: function (request, response) {
+                        throw new Error();
+                    }
+                };
+                publisher.blog.published.cache = ['-'];
+                publisher.blog.published.init();
+            });
+
             it('loading more blog posts', function () {
                 publisher.db = {
                     findAllPublishedBlogsForLocale: function (request, response) {
-                        response.ok(['a', 'b', 'c']);
+                        response.success(['a', 'b', 'c']);
                     }
                 };
                 publisher.blog.published.more();
@@ -49,7 +69,7 @@
             it('loading more blog posts appends to already loaded blog posts', function () {
                 publisher.db = {
                     findAllPublishedBlogsForLocale: function (request, response) {
-                        response.ok(['d', 'e', 'f']);
+                        response.success(['d', 'e', 'f']);
                     }
                 };
                 publisher.blog.published.cache = ['a', 'b', 'c'];
@@ -69,7 +89,7 @@
             it('returns to idle status after loading more blog posts', function () {
                 publisher.db = {
                     findAllPublishedBlogsForLocale: function (request, response) {
-                        response.ok([]);
+                        response.success([]);
                     }
                 };
                 publisher.blog.published.more();
