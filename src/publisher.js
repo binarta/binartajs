@@ -37,11 +37,18 @@ function BinartaPublisherjs() {
                 };
                 publisher.db.findAllPublishedBlogsForLocale(request, {
                     success: function (it) {
-                        posts.cache = posts.cache.concat(it);
+                        posts.cache = posts.cache.concat(posts.decorate(it));
                         posts.status = 'idle';
                     }
                 })
             };
+
+            posts.decorate = function (it) {
+                return it.map(function (it) {
+                    it.uri = 'view/' + (it.id.substring(0, 1) == '/' ? it.id.substring(1) : it.id);
+                    return it;
+                })
+            }
         }
 
     }
