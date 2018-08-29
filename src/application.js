@@ -13,6 +13,7 @@ function BinartaApplicationjs(deps) {
     app.adhesiveReading = new AdhesiveReading(app);
     app.config = new Config(app.adhesiveReading);
     app.cookies = new Cookies();
+    app.lock = new Lock();
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
@@ -402,6 +403,26 @@ function BinartaApplicationjs(deps) {
                 job();
             else
                 self.$jobs.push(job);
+        }
+    }
+
+    function Lock() {
+        var self = this;
+
+        self.status = 'open';
+
+        self.reserve = function () {
+            self.status = 'closed';
+            app.eventRegistry.forEach(function (l) {
+                l.notify('editing');
+            });
+        };
+
+        self.release = function () {
+            self.status = 'open';
+            app.eventRegistry.forEach(function (l) {
+                l.notify('viewing');
+            });
         }
     }
 }

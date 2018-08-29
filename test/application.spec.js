@@ -953,6 +953,41 @@
                     });
                 });
             })
+
+        describe('application lock', function () {
+            var spy;
+
+            beforeEach(function () {
+                spy = jasmine.createSpyObj('listener', ['editing', 'viewing']);
+            });
+
+            it('application lock is initially open', function () {
+                expect(binarta.application.lock.status).toEqual('open');
+            });
+
+            it('reserving the application lock', function () {
+                binarta.application.lock.reserve();
+                expect(binarta.application.lock.status).toEqual('closed');
+            });
+
+            it('observe reserving the application lock', function () {
+                binarta.application.eventRegistry.observe(spy);
+                binarta.application.lock.reserve();
+                expect(spy.editing).toHaveBeenCalled();
+            });
+
+            it('releasing the application lock', function () {
+                binarta.application.lock.reserve();
+                binarta.application.lock.release();
+                expect(binarta.application.lock.status).toEqual('open');
+            });
+
+            it('observe releasing the application lock', function () {
+                binarta.application.eventRegistry.observe(spy);
+                binarta.application.lock.reserve();
+                binarta.application.lock.release();
+                expect(spy.viewing).toHaveBeenCalled();
+            });
         });
     });
 
