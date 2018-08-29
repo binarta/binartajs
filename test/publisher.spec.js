@@ -26,6 +26,44 @@
                 expect(publisher.blog.published.posts()).toEqual([]);
             });
 
+            it('adding draft delegates to db', function () {
+                binarta.application.setLocaleForPresentation('en');
+                publisher.db = jasmine.createSpyObj('db', ['add']);
+                publisher.blog.add();
+                expect(publisher.db.add).toHaveBeenCalled();
+            });
+
+            it('adding draft passes locale to db', function () {
+                binarta.application.setLocaleForPresentation('en');
+                publisher.db = {
+                    add: function (request) {
+                        expect(request.locale).toEqual('en');
+                    }
+                };
+                publisher.blog.add();
+            });
+
+            it('adding draft takes a success listener which receives the newly created blog post id', function () {
+                publisher.db = {
+                    add: function (request, response) {
+                        response.success('id');
+                    }
+                };
+                var spy = jasmine.createSpyObj('listener', ['success']);
+                publisher.blog.add(spy);
+                expect(spy.success).toHaveBeenCalledWith('id');
+            });
+
+            it('adding draft takes an optional success listener', function () {
+                publisher.db = {
+                    add: function (request, response) {
+                        response.success('-');
+                    }
+                };
+                publisher.blog.add();
+                publisher.blog.add({});
+            });
+
             describe('with noop decorator', function () {
                 beforeEach(function () {
                     publisher.blog.published.decorate = function (it) {

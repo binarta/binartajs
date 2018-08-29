@@ -8,6 +8,18 @@ function BinartaPublisherjs() {
 
         blog.published = new Posts();
 
+        blog.add = function (response) {
+            publisher.db.add(
+                {locale: publisher.binarta.application.localeForPresentation()},
+                {
+                    success: function (id) {
+                        if (response && response.success)
+                            response.success(id)
+                    }
+                }
+            );
+        };
+
         function Posts() {
             var posts = this;
 
