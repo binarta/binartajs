@@ -20,6 +20,10 @@ function BinartaPublisherjs() {
             );
         };
 
+        blog.get = function (id) {
+            return new BlogPostHandle(id);
+        };
+
         function Posts() {
             var posts = this;
 
@@ -57,11 +61,21 @@ function BinartaPublisherjs() {
 
             posts.decorate = function (it) {
                 return it.map(function (it) {
-                    it.uri = 'view/' + (it.id.substring(0, 1) == '/' ? it.id.substring(1) : it.id);
+                    it.uri = 'blog/post/' + (it.id.substring(0, 1) == '/' ? it.id.substring(1) : it.id);
                     return it;
                 })
             }
         }
 
+        function BlogPostHandle(id) {
+            var handle = this;
+
+            handle.render = function (display) {
+                publisher.db.get({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
+                    success: display.post,
+                    notFound: display.notFound
+                })
+            }
+        }
     }
 }

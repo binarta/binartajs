@@ -188,7 +188,7 @@
                     }
                 };
                 publisher.blog.published.init();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('view/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
             });
 
             it('loading more published blog posts decorates them with a uri based on the id', function () {
@@ -198,7 +198,7 @@
                     }
                 };
                 publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('view/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
             });
 
             it('decorating published blog posts with a uri strips leading slashes from the id', function () {
@@ -208,7 +208,49 @@
                     }
                 };
                 publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('view/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
+            });
+
+            describe('given a specific blog', function () {
+                var blog, display;
+
+                beforeEach(function () {
+                    binarta.application.setLocaleForPresentation('en');
+                    display = jasmine.createSpyObj('display', ['post', 'notFound']);
+                    blog = publisher.blog.get('b');
+                });
+
+                it('the display indicates not found for unknown blogs', function () {
+                    publisher.db = {
+                        get: function (request, response) {
+                            response.notFound();
+                        }
+                    };
+                    blog.render(display);
+                    expect(display.notFound).toHaveBeenCalled();
+                });
+
+                it('rendering passes params to db', function () {
+                    publisher.db = {
+                        get: function (request, response) {
+                            expect(request).toEqual({
+                                id: 'b',
+                                locale: 'en'
+                            });
+                        }
+                    };
+                    blog.render(display);
+                });
+
+                it('the display renders the blog post', function () {
+                    publisher.db = {
+                        get: function (request, response) {
+                            response.success('p');
+                        }
+                    };
+                    blog.render(display);
+                    expect(display.post).toHaveBeenCalledWith('p');
+                });
             });
         });
     });
