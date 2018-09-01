@@ -61,7 +61,8 @@ function BinartaPublisherjs() {
 
             posts.decorate = function (it) {
                 return it.map(function (it) {
-                    it.uri = 'blog/post/' + (it.id.substring(0, 1) == '/' ? it.id.substring(1) : it.id);
+                    var id = it.localId || it.id;
+                    it.uri = 'blog/post/' + (id.substring(0, 1) == '/' ? id.substring(1) : id);
                     return it;
                 })
             }

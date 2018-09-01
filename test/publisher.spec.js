@@ -211,6 +211,16 @@
                 expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
             });
 
+            it('decorating published blog posts with a uri prefers the local id', function () {
+                publisher.db = {
+                    findAllPublishedBlogsForLocale: function (request, response) {
+                        response.success([{id: 'b', localId: 'p'}]);
+                    }
+                };
+                publisher.blog.published.more();
+                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/p');
+            });
+
             describe('given a specific blog', function () {
                 var blog, display;
 
