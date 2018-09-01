@@ -261,6 +261,30 @@
                     blog.render(display);
                     expect(display.post).toHaveBeenCalledWith('p');
                 });
+
+                it('publishing executes callback on success', function () {
+                    publisher.db = {
+                        publish: function (request, response) {
+                            response.success();
+                        }
+                    };
+                    var spy = jasmine.createSpyObj('response', ['published']);
+                    blog.publish(undefined, spy);
+                    expect(spy.published).toHaveBeenCalled();
+                });
+
+                it('publishing passes params to db', function () {
+                    publisher.db = {
+                        publish: function (request, response) {
+                            expect(request).toEqual({
+                                timestamp: 't',
+                                id: 'b',
+                                locale: 'en'
+                            });
+                        }
+                    };
+                    blog.publish('t');
+                });
             });
         });
     });

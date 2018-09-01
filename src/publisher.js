@@ -76,6 +76,19 @@ function BinartaPublisherjs() {
                     success: display.post,
                     notFound: display.notFound
                 })
+            };
+
+            handle.publish = function (timestamp, response) {
+                publisher.db.publish({
+                    timestamp: timestamp,
+                    id: id,
+                    locale: publisher.binarta.application.localeForPresentation()
+                }, {
+                    success: function () {
+                        if (response && response.published)
+                            response.published();
+                    }
+                })
             }
         }
     }
