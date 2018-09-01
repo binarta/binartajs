@@ -285,6 +285,29 @@
                     };
                     blog.publish('t');
                 });
+
+                it('withdrawing executes callback on success', function () {
+                    publisher.db = {
+                        withdraw: function (request, response) {
+                            response.success();
+                        }
+                    };
+                    var spy = jasmine.createSpyObj('response', ['withdrawn']);
+                    blog.withdraw(spy);
+                    expect(spy.withdrawn).toHaveBeenCalled();
+                });
+
+                it('withdrawing passes params to db', function () {
+                    publisher.db = {
+                        withdraw: function (request, response) {
+                            expect(request).toEqual({
+                                id: 'b',
+                                locale: 'en'
+                            });
+                        }
+                    };
+                    blog.withdraw();
+                });
             });
         });
     });

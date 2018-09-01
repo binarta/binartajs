@@ -89,6 +89,15 @@ function BinartaPublisherjs() {
                             response.published();
                     }
                 })
+            };
+
+            handle.withdraw = function (response) {
+                publisher.db.withdraw({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
+                    success: function () {
+                        if (response && response.withdrawn)
+                            response.withdrawn();
+                    }
+                });
             }
         }
     }
