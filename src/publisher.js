@@ -20,8 +20,11 @@ function BinartaPublisherjs() {
             );
         };
 
+        var handleCache = {};
         blog.get = function (id) {
-            return new BlogPostHandle(id);
+            if (!handleCache[id])
+                handleCache[id] = new BlogPostHandle(id);
+            return handleCache[id];
         };
 
         function Posts() {
@@ -71,20 +74,31 @@ function BinartaPublisherjs() {
         function BlogPostHandle(id) {
             var handle = this;
 
+            handle.status = 'idle';
+
             handle.render = function (display) {
+                handle.status = 'loading';
                 publisher.db.get({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
-                    success: display.post,
-                    notFound: display.notFound
+                    success: function (it) {
+                        handle.status = 'idle';
+                        display.post(it)
+                    },
+                    notFound: function () {
+                        handle.status = 'idle';
+                        display.notFound();
+                    }
                 })
             };
 
             handle.publish = function (timestamp, response) {
+                handle.status = 'publishing';
                 publisher.db.publish({
                     timestamp: timestamp,
                     id: id,
                     locale: publisher.binarta.application.localeForPresentation()
                 }, {
                     success: function () {
+                        handle.status = 'idle';
                         if (response && response.published)
                             response.published();
                     }
@@ -92,8 +106,10 @@ function BinartaPublisherjs() {
             };
 
             handle.withdraw = function (response) {
+                handle.status = 'withdrawing';
                 publisher.db.withdraw({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
                     success: function () {
+                        handle.status = 'idle';
                         if (response && response.withdrawn)
                             response.withdrawn();
                     }

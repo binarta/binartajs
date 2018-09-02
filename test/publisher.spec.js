@@ -230,14 +230,36 @@
                     blog = publisher.blog.get('b');
                 });
 
-                it('the display indicates not found for unknown blogs', function () {
+                it('exposed status is idle', function () {
+                    expect(blog.status).toEqual('idle');
+                });
+
+                it('while fetching the blog post to render the exposes status is loading', function () {
                     publisher.db = {
                         get: function (request, response) {
-                            response.notFound();
                         }
                     };
                     blog.render(display);
-                    expect(display.notFound).toHaveBeenCalled();
+                    expect(blog.status).toEqual('loading');
+                });
+
+                describe('when the blog post could not be found', function() {
+                    beforeEach(function() {
+                        publisher.db = {
+                            get: function (request, response) {
+                                response.notFound();
+                            }
+                        };
+                        blog.render(display);
+                    });
+
+                    it('then the display indicates not found for unknown blogs', function () {
+                        expect(display.notFound).toHaveBeenCalled();
+                    });
+
+                    it('then the exposed status returns to idle', function () {
+                        expect(blog.status).toEqual('idle');
+                    });
                 });
 
                 it('rendering passes params to db', function () {
@@ -252,25 +274,53 @@
                     blog.render(display);
                 });
 
-                it('the display renders the blog post', function () {
-                    publisher.db = {
-                        get: function (request, response) {
-                            response.success('p');
-                        }
-                    };
-                    blog.render(display);
-                    expect(display.post).toHaveBeenCalledWith('p');
+                describe('when the blog post is found', function() {
+                    beforeEach(function() {
+                        publisher.db = {
+                            get: function (request, response) {
+                                response.success('p');
+                            }
+                        };
+                        blog.render(display);
+                    });
+
+                    it('then the display renders the blog post', function () {
+                        expect(display.post).toHaveBeenCalledWith('p');
+                    });
+
+                    it('then the exposed status returns to idle', function () {
+                        expect(blog.status).toEqual('idle');
+                    });
                 });
 
-                it('publishing executes callback on success', function () {
+                it('while publishing the exposed status is publishing', function () {
                     publisher.db = {
                         publish: function (request, response) {
-                            response.success();
                         }
                     };
+                    blog.publish();
+                    expect(blog.status).toEqual('publishing');
+                });
+
+                describe('when publishing succeeds', function() {
                     var spy = jasmine.createSpyObj('response', ['published']);
-                    blog.publish(undefined, spy);
-                    expect(spy.published).toHaveBeenCalled();
+
+                    beforeEach(function() {
+                        publisher.db = {
+                            publish: function (request, response) {
+                                response.success();
+                            }
+                        };
+                        blog.publish(undefined, spy);
+                    });
+
+                    it('then executes callback', function () {
+                        expect(spy.published).toHaveBeenCalled();
+                    });
+
+                    it('then the exposed status returns to idle', function () {
+                        expect(blog.status).toEqual('idle');
+                    });
                 });
 
                 it('publishing passes params to db', function () {
@@ -286,15 +336,34 @@
                     blog.publish('t');
                 });
 
-                it('withdrawing executes callback on success', function () {
+                it('while withdrawing the exposed status is withdrawing', function () {
                     publisher.db = {
                         withdraw: function (request, response) {
-                            response.success();
                         }
                     };
+                    blog.withdraw();
+                    expect(blog.status).toEqual('withdrawing');
+                });
+
+                describe('when withdrawing succeeds', function() {
                     var spy = jasmine.createSpyObj('response', ['withdrawn']);
-                    blog.withdraw(spy);
-                    expect(spy.withdrawn).toHaveBeenCalled();
+
+                    beforeEach(function() {
+                        publisher.db = {
+                            withdraw: function (request, response) {
+                                response.success();
+                            }
+                        };
+                        blog.withdraw(spy);
+                    });
+
+                    it('then executes callback', function () {
+                        expect(spy.withdrawn).toHaveBeenCalled();
+                    });
+
+                    it('then the exposed status returns to idle', function () {
+                        expect(blog.status).toEqual('idle');
+                    });
                 });
 
                 it('withdrawing passes params to db', function () {
