@@ -1,20 +1,23 @@
 (function () {
     describe('binarta-applicationjs', function () {
-        var binarta, ui, now;
+        var binarta, ui, now, window;
 
         beforeEach(function () {
             localStorage.removeItem('locale');
             sessionStorage.removeItem('locale');
+            localStorage.setItem('storageAvailable', 'true');
         });
         beforeEach(function () {
             now = new Date();
+            window = {navigator: {userAgent: 'test'}};
 
             ui = new UI();
             var factory = new BinartajsFactory();
             factory.addUI(ui);
             factory.addSubSystems({
                 application: new BinartaApplicationjs({
-                    timeline: [now]
+                    timeline: [now],
+                    window: window
                 })
             });
             binarta = factory.create();
@@ -25,6 +28,7 @@
         afterEach(function () {
             sessionStorage.removeItem('binarta:config:k');
             sessionStorage.removeItem('binarta:config:adhesive.config');
+            localStorage.removeItem('cookiesAccepted');
         });
 
         it('exposes an empty profile', function () {
@@ -743,14 +747,14 @@
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.observePublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
-                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    binarta.application.config.addPublic({id: 'k', value: 'v2'});
                     expect(spy).toHaveBeenCalledWith('v2');
                 });
 
-                it('public observers receives value from session storage when an older version is being cached', function() {
+                it('public observers receives value from session storage when an older version is being cached', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.observePublic('k', spy);
-                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    binarta.application.config.addPublic({id: 'k', value: 'v2'});
                     binarta.application.config.cache('k', 'v3', moment(now).subtract(1, 's'));
                     expect(spy).toHaveBeenCalledWith('v');
                     expect(spy).toHaveBeenCalledWith('v2');
@@ -883,6 +887,61 @@
                 binarta.application.config.observePublic('k', spy);
                 expect(spy).toHaveBeenCalledWith('v');
             });
+        });
+
+        describe('cookies', function () {
+            describe('permission', function () {
+                it('when local storage is disabled then expose permission storage disabled status', function () {
+                    localStorage.removeItem('storageAvailable');
+                    binarta.application.cookies.permission.evaluate();
+                    expect(binarta.application.cookies.permission.status).toEqual('permission-storage-disabled');
+                });
+
+                describe('when local storage is enabled', function () {
+                    it('then expose permission required status', function () {
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-required');
+                    });
+
+                    it('when granting cookie permission then expose permission granted status', function () {
+                        binarta.application.cookies.permission.grant();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                    });
+
+                    it('when local storage indicates permission was granted then expose permission granted status', function () {
+                        localStorage.cookiesAccepted = 'true';
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                    });
+
+                    it('when revoking cookie permission then expose permission revoked status', function () {
+                        binarta.application.cookies.permission.revoke();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-revoked');
+                    });
+
+                    it('when local storage indicates permission was revoked then expose permission revoked status', function () {
+                        localStorage.cookiesAccepted = 'false';
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-revoked');
+                    });
+
+                    it('when user agent is black listed', function () {
+                        binarta.application.cookies.permission.blacklist = ['a', 'b', 'rt'];
+
+                        ['a', 'b', 'partial'].forEach(function (it) {
+                            window.navigator = {userAgent: it};
+                            binarta.application.cookies.permission.evaluate();
+                            expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                        });
+
+                        ['x', 'FireFox', 'Chrome', 'Internet Explorer'].forEach(function (it) {
+                            window.navigator = {userAgent: it};
+                            binarta.application.cookies.permission.evaluate();
+                            expect(binarta.application.cookies.permission.status).toEqual('permission-required');
+                        });
+                    });
+                });
+            })
         });
     });
 

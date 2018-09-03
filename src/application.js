@@ -1,6 +1,7 @@
 function BinartaApplicationjs(deps) {
     var app = this;
     var timeline = deps && deps.timeline || new BinartaTL();
+    app.window = deps && deps.window ? deps.window : window;
     app.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
     app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
@@ -11,6 +12,7 @@ function BinartaApplicationjs(deps) {
     app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new AdhesiveReading(app);
     app.config = new Config(app.adhesiveReading);
+    app.cookies = new Cookies();
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
@@ -310,6 +312,72 @@ function BinartaApplicationjs(deps) {
             configCache = {};
         };
         this.clear();
+    }
+
+    function Cookies() {
+        var cookies = this;
+
+        cookies.permission = new Permission();
+
+        function Permission() {
+            var permission = this;
+
+            permission.status;
+
+            permission.blacklist = [
+                'phantomjs',
+                'googlebot',
+                'bingbot',
+                'yandex',
+                'baiduspider',
+                'twitterbot',
+                'facebookexternalhit',
+                'rogerbot',
+                'linkedinbot',
+                'embedly',
+                'quora link preview',
+                'showyoubot',
+                'outbrain',
+                'pinterest',
+                'slackbot',
+                'vkShare',
+                'W3C_Validator',
+                'developers.google.com/+/web/snippet',
+                'www.google.com/webmasters/tools/richsnippets',
+                'redditbot',
+                'Applebot',
+                'WhatsApp',
+                'flipboard',
+                'tumblr',
+                'bitlybot',
+                'SkypeUriPreview',
+                'nuzzel',
+                'Discordbot',
+                'Google Page Speed',
+                'Qwantify'
+            ];
+
+            permission.grant = function () {
+                localStorage.cookiesAccepted = true;
+                permission.evaluate();
+            };
+
+            permission.revoke = function () {
+                localStorage.cookiesAccepted = false;
+                permission.evaluate();
+            };
+
+            permission.evaluate = function () {
+                if (localStorage.cookiesAccepted == 'true' || permission.blacklist.some(function (it) {
+                        return app.window.navigator.userAgent.toLowerCase().indexOf(it) != -1;
+                    }))
+                    permission.status = 'permission-granted';
+                else if (localStorage.cookiesAccepted == 'false')
+                    permission.status = 'permission-revoked';
+                else
+                    permission.status = localStorage.storageAvailable == 'true' ? 'permission-required' : 'permission-storage-disabled';
+            }
+        }
     }
 
     function JobScheduler() {
