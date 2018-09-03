@@ -324,6 +324,7 @@ function BinartaApplicationjs(deps) {
 
             permission.status;
 
+            permission.eventRegistry = new BinartaRX();
             permission.blacklist = [
                 'phantomjs',
                 'googlebot',
@@ -360,6 +361,7 @@ function BinartaApplicationjs(deps) {
             permission.grant = function () {
                 localStorage.cookiesAccepted = true;
                 permission.evaluate();
+                permission.eventRegistry.notify('granted');
             };
 
             permission.revoke = function () {
@@ -376,7 +378,9 @@ function BinartaApplicationjs(deps) {
                     permission.status = 'permission-revoked';
                 else
                     permission.status = localStorage.storageAvailable == 'true' ? 'permission-required' : 'permission-storage-disabled';
-            }
+            };
+
+            permission.evaluate();
         }
     }
 

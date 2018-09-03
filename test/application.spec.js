@@ -891,6 +891,10 @@
 
         describe('cookies', function () {
             describe('permission', function () {
+                it('status is automatically evaluated', function () {
+                    expect(binarta.application.cookies.permission.status).toBeDefined();
+                });
+
                 it('when local storage is disabled then expose permission storage disabled status', function () {
                     localStorage.removeItem('storageAvailable');
                     binarta.application.cookies.permission.evaluate();
@@ -906,6 +910,13 @@
                     it('when granting cookie permission then expose permission granted status', function () {
                         binarta.application.cookies.permission.grant();
                         expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                    });
+
+                    it('when granting cookie permission then invoke grant listeners', function () {
+                        var spy = jasmine.createSpyObj('spy', ['granted']);
+                        binarta.application.cookies.permission.eventRegistry.observe(spy);
+                        binarta.application.cookies.permission.grant();
+                        expect(spy.granted).toHaveBeenCalled();
                     });
 
                     it('when local storage indicates permission was granted then expose permission granted status', function () {
