@@ -952,7 +952,8 @@
                         });
                     });
                 });
-            })
+            });
+        });
 
         describe('application lock', function () {
             var spy;
