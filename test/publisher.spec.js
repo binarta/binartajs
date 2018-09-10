@@ -243,8 +243,8 @@
                     expect(blog.status).toEqual('loading');
                 });
 
-                describe('when the blog post could not be found', function() {
-                    beforeEach(function() {
+                describe('when the blog post could not be found', function () {
+                    beforeEach(function () {
                         publisher.db = {
                             get: function (request, response) {
                                 response.notFound();
@@ -274,8 +274,8 @@
                     blog.render(display);
                 });
 
-                describe('when the blog post is found', function() {
-                    beforeEach(function() {
+                describe('when the blog post is found', function () {
+                    beforeEach(function () {
                         publisher.db = {
                             get: function (request, response) {
                                 response.success('p');
@@ -293,6 +293,32 @@
                     });
                 });
 
+                it('publishing prompts the UI for the publication time to use', function () {
+                    ui.promptForPublicationTime = jasmine.createSpy();
+                    blog.publish();
+                    expect(ui.promptForPublicationTime).toHaveBeenCalled();
+                });
+
+                describe('when canceling the prompt for publication time', function () {
+                    beforeEach(function () {
+                        ui.promptForPublicationTime = function (response) {
+                            response.cancel();
+                        };
+                        publisher.db = jasmine.createSpyObj('db', ['publish']);
+                    });
+
+                    it('then the publication request is not sent to the backend', function () {
+                        blog.publish();
+                        expect(publisher.db.publish).not.toHaveBeenCalled();
+                    });
+
+                    it('then the appropriate callback is executed', function () {
+                        var spy = jasmine.createSpyObj('spy', ['canceled']);
+                        blog.publish(spy);
+                        expect(spy.canceled).toHaveBeenCalled();
+                    });
+                });
+
                 it('while publishing the exposed status is publishing', function () {
                     publisher.db = {
                         publish: function (request, response) {
@@ -302,16 +328,16 @@
                     expect(blog.status).toEqual('publishing');
                 });
 
-                describe('when publishing succeeds', function() {
+                describe('when publishing succeeds', function () {
                     var spy = jasmine.createSpyObj('response', ['published']);
 
-                    beforeEach(function() {
+                    beforeEach(function () {
                         publisher.db = {
                             publish: function (request, response) {
                                 response.success();
                             }
                         };
-                        blog.publish(undefined, spy);
+                        blog.publish(spy);
                     });
 
                     it('then executes callback', function () {
@@ -333,7 +359,7 @@
                             });
                         }
                     };
-                    blog.publish('t');
+                    blog.publish();
                 });
 
                 it('while withdrawing the exposed status is withdrawing', function () {
@@ -345,10 +371,10 @@
                     expect(blog.status).toEqual('withdrawing');
                 });
 
-                describe('when withdrawing succeeds', function() {
+                describe('when withdrawing succeeds', function () {
                     var spy = jasmine.createSpyObj('response', ['withdrawn']);
 
-                    beforeEach(function() {
+                    beforeEach(function () {
                         publisher.db = {
                             withdraw: function (request, response) {
                                 response.success();
@@ -382,5 +408,8 @@
     });
 
     function UI() {
+        this.promptForPublicationTime = function (response) {
+            response.success('t');
+        }
     }
 })();

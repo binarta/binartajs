@@ -90,19 +90,27 @@ function BinartaPublisherjs() {
                 })
             };
 
-            handle.publish = function (timestamp, response) {
-                handle.status = 'publishing';
-                publisher.db.publish({
-                    timestamp: timestamp,
-                    id: id,
-                    locale: publisher.binarta.application.localeForPresentation()
-                }, {
-                    success: function () {
-                        handle.status = 'idle';
-                        if (response && response.published)
-                            response.published();
+            handle.publish = function (response) {
+                publisher.ui.promptForPublicationTime({
+                    success: function (timestamp) {
+                        handle.status = 'publishing';
+                        publisher.db.publish({
+                            timestamp: timestamp,
+                            id: id,
+                            locale: publisher.binarta.application.localeForPresentation()
+                        }, {
+                            success: function () {
+                                handle.status = 'idle';
+                                if (response && response.published)
+                                    response.published();
+                            }
+                        });
+                    },
+                    cancel: function () {
+                        if (response && response.canceled)
+                            response.canceled();
                     }
-                })
+                });
             };
 
             handle.withdraw = function (response) {
