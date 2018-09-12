@@ -3,6 +3,14 @@ function BinartaPublisherjs() {
 
     publisher.blog = new Blog();
 
+    publisher.newRoutingByApplicationLockDB = function (visitorDB, clerkDB) {
+        return new RoutingByApplicationLockDecorator(visitorDB, clerkDB)
+    };
+
+    publisher.newCachingDB = function (sourceDB) {
+        return new CachingDecorator(sourceDB)
+    };
+
     function Blog() {
         var blog = this;
 
@@ -20,11 +28,8 @@ function BinartaPublisherjs() {
             );
         };
 
-        var handleCache = {};
         blog.get = function (id) {
-            if (!handleCache[id])
-                handleCache[id] = new BlogPostHandle(id);
-            return handleCache[id];
+            return new BlogPostHandle(id);
         };
 
         function Posts() {
@@ -73,55 +78,182 @@ function BinartaPublisherjs() {
 
         function BlogPostHandle(id) {
             var handle = this;
+            var display, post;
 
-            handle.status = 'idle';
+            var closeables = [
+                publisher.binarta.checkpoint.profile.eventRegistry.observe({
+                    signedin: testForManipulationStatus,
+                    signedout: becomeIdle
+                }),
+                publisher.binarta.application.eventRegistry.observe({
+                    editing: testForManipulationStatus,
+                    viewing: becomeIdle
+                })
+            ];
 
-            handle.render = function (display) {
-                handle.status = 'loading';
+            function testForManipulationStatus() {
+                if (publisher.binarta.application.lock.status == 'closed') {
+                    if (post.status == 'draft' && publisher.binarta.checkpoint.profile.hasPermission('publish.blog.post'))
+                        display.status('publishable');
+                    if (post.status == 'published' && publisher.binarta.checkpoint.profile.hasPermission('withdraw.blog.post'))
+                        display.status('withdrawable');
+                }
+            }
+
+            function becomeIdle() {
+                display.status('idle');
+            }
+
+            handle.connect = function (it) {
+                display = it;
+                becomeIdle();
+                return handle;
+            };
+
+            handle.disconnect = function () {
+                closeables.forEach(function (it) {
+                    it.disconnect();
+                });
+            };
+
+            handle.render = function () {
+                display.status('loading');
                 publisher.db.get({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
                     success: function (it) {
-                        handle.status = 'idle';
+                        post = it;
+                        becomeIdle();
+                        testForManipulationStatus();
                         display.post(it)
                     },
                     notFound: function () {
-                        handle.status = 'idle';
+                        becomeIdle();
                         display.notFound();
                     }
                 })
             };
 
-            handle.publish = function (response) {
+            handle.publish = function () {
                 publisher.ui.promptForPublicationTime({
                     success: function (timestamp) {
-                        handle.status = 'publishing';
+                        display.status('publishing');
                         publisher.db.publish({
                             timestamp: timestamp,
-                            id: id,
+                            id: post.id,
                             locale: publisher.binarta.application.localeForPresentation()
                         }, {
                             success: function () {
-                                handle.status = 'idle';
-                                if (response && response.published)
-                                    response.published();
+                                handle.render();
+                                display.published();
                             }
                         });
                     },
-                    cancel: function () {
-                        if (response && response.canceled)
-                            response.canceled();
-                    }
+                    cancel: display.canceled
                 });
             };
 
-            handle.withdraw = function (response) {
-                handle.status = 'withdrawing';
-                publisher.db.withdraw({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
+            handle.withdraw = function () {
+                display.status('withdrawing');
+                publisher.db.withdraw({id: post.id, locale: publisher.binarta.application.localeForPresentation()}, {
                     success: function () {
-                        handle.status = 'idle';
-                        if (response && response.withdrawn)
-                            response.withdrawn();
+                        handle.render();
+                        display.withdrawn();
                     }
                 });
+            }
+        }
+    }
+
+    function RoutingByApplicationLockDecorator(visitorDB, clerkDB) {
+        var db = this;
+        var routedDB = visitorDB;
+
+        publisher.binarta.application.eventRegistry.add(db);
+
+        db.editing = function () {
+            routedDB = clerkDB;
+        };
+
+        db.add = function () {
+            routedDB.add.apply(undefined, arguments);
+        };
+
+        db.get = function () {
+            routedDB.get.apply(undefined, arguments);
+        };
+
+        db.findAllPublishedBlogsForLocale = function () {
+            routedDB.findAllPublishedBlogsForLocale.apply(undefined, arguments);
+        };
+
+        db.publish = function () {
+            routedDB.publish.apply(undefined, arguments);
+        };
+
+        db.withdraw = function () {
+            routedDB.withdraw.apply(undefined, arguments);
+        }
+    }
+
+    function CachingDecorator(db) {
+        var cache = this;
+        var posts = {};
+
+        cache.sourceDB = db;
+        cache.add = readOnly;
+        cache.publish = readOnly;
+        cache.withdraw = readOnly;
+
+        function readOnly() {
+            throw 'CachingDecorator is a read-only proxy!';
+        }
+
+        cache.get = function () {
+            var params = arguments;
+            var cacheKey = arguments[0].id + '-' + arguments[0].locale;
+            resolve(cache.sourceDB.get, arguments, cacheKey, function (it) {
+                if (it.id != params[0].id)
+                    cacheItem(it.id + '-' + params[0].locale)(it);
+            });
+        };
+
+        cache.findAllPublishedBlogsForLocale = function () {
+            resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
+        };
+
+        function resolve(query, params, cacheKey, onCache) {
+            var args = [].slice.call(params);
+            if (posts[cacheKey]) {
+                if (args[1])
+                    if (posts[cacheKey] == 'not-found') {
+                        if (args[1].notFound)
+                            args[1].notFound();
+                    } else if (args[1].success)
+                        args[1].success(posts[cacheKey]);
+            } else {
+                var doCache = function (it) {
+                    cacheItem(cacheKey)(it);
+                    if (onCache)
+                        onCache(it);
+                };
+                if (!args[1])
+                    args = args.concat([{success: doCache}]);
+                if (!args[1].success)
+                    args[1].success = cacheItem(cacheKey);
+                if (!args[1].notFound)
+                    args[1].notFound = cacheNotFound(cacheKey);
+                query.apply(undefined, args);
+            }
+        }
+
+        function cacheItem(id) {
+            return function (it) {
+                posts[id] = it;
+            }
+        }
+
+        function cacheNotFound(id) {
+            return function () {
+                cacheItem(id)('not-found');
             }
         }
     }

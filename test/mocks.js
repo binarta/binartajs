@@ -211,7 +211,8 @@ function ValidCredentialsGateway() {
         response.success();
     };
 
-    this.signout = function () {
+    this.signout = function (response) {
+        response.unauthenticated();
     };
 
     this.fetchAccountMetadata = function (response) {
