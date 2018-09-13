@@ -18,6 +18,12 @@
         });
 
         describe('blogs', function () {
+            beforeEach(function () {
+                binarta.application.gateway = new ValidApplicationGateway();
+                binarta.application.setProfile({supportedLanguages: ['en', 'nl']});
+                binarta.application.setLocaleForPresentation('en');
+            });
+
             it('sits in idle status', function () {
                 expect(publisher.blog.published.status).toEqual('idle');
             });
@@ -188,7 +194,7 @@
                     }
                 };
                 publisher.blog.published.init();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
             });
 
             it('loading more published blog posts decorates them with a uri based on the id', function () {
@@ -198,7 +204,7 @@
                     }
                 };
                 publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
             });
 
             it('decorating published blog posts with a uri strips leading slashes from the id', function () {
@@ -208,7 +214,7 @@
                     }
                 };
                 publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/x');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
             });
 
             it('decorating published blog posts with a uri prefers the local id', function () {
@@ -218,7 +224,7 @@
                     }
                 };
                 publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('blog/post/p');
+                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/p');
             });
 
             describe('given a specific blog handle', function () {
@@ -300,7 +306,10 @@
                         beforeEach(function () {
                             binarta.checkpoint.gateway = new ValidCredentialsGateway();
                             binarta.checkpoint.gateway.fetchPermissions = function (request, response) {
-                                response.success([{name: 'publish.blog.post'}]);
+                                response.success([
+                                    {name: 'publish.blog.post'},
+                                    {name: 'draft.blog.post.in.another.language'}
+                                ]);
                             };
                             binarta.checkpoint.signinForm.submit({});
                         });
@@ -317,6 +326,7 @@
 
                             it('then the exposed status becomes publishable', function () {
                                 expect(display.status).toHaveBeenCalledWith('publishable');
+                                expect(display.status).not.toHaveBeenCalledWith('translatable');
                             });
 
                             it('return to idle on signout', function () {
@@ -334,11 +344,15 @@
                     it('and user has permission to withdraw blog posts then the exposed status remains idle as we already have a draft', function () {
                         binarta.checkpoint.gateway = new ValidCredentialsGateway();
                         binarta.checkpoint.gateway.fetchPermissions = function (request, response) {
-                            response.success([{name: 'withdraw.blog.post'}]);
+                            response.success([
+                                {name: 'withdraw.blog.post'},
+                                {name: 'draft.blog.post.in.another.language'}
+                            ]);
                         };
                         binarta.checkpoint.signinForm.submit({});
                         binarta.application.lock.reserve();
                         expect(display.status).not.toHaveBeenCalledWith('withdrawable');
+                        expect(display.status).not.toHaveBeenCalledWith('translatable');
                     });
                 });
 
@@ -452,12 +466,13 @@
 
                 beforeEach(function () {
                     binarta.application.setLocaleForPresentation('en');
-                    display = jasmine.createSpyObj('display', ['status', 'post', 'notFound', 'canceled', 'published', 'withdrawn']);
+                    display = jasmine.createSpyObj('display', ['status', 'post', 'notFound', 'canceled', 'published', 'withdrawn', 'drafted']);
                     binarta.checkpoint.gateway = new ValidCredentialsGateway();
                     binarta.checkpoint.gateway.fetchPermissions = function (request, response) {
                         response.success([
                             {name: 'publish.blog.post'},
-                            {name: 'withdraw.blog.post'}
+                            {name: 'withdraw.blog.post'},
+                            {name: 'draft.blog.post.in.another.language'}
                         ]);
                     };
                     binarta.checkpoint.signinForm.submit({});
@@ -587,6 +602,123 @@
                         };
                         handle.publish();
                         expect(display.status).toHaveBeenCalledWith('publishing');
+                    });
+                });
+
+                it('and post is found for a secondary language it can not become translatable', function () {
+                    binarta.application.setLocaleForPresentation('nl');
+                    var post = {id: 'p', status: 'draft'};
+                    publisher.db = {
+                        get: function (request, response) {
+                            response.success(post);
+                        }
+                    };
+                    handle.render();
+                    expect(display.status).not.toHaveBeenCalledWith('translatable');
+                });
+
+                it('when no post could be found for the primary language then display receives not found notification', function () {
+                    publisher.db = {
+                        get: function (request, response) {
+                            response.notFound();
+                        }
+                    };
+                    handle.render();
+                    expect(display.notFound).toHaveBeenCalled();
+                });
+
+                describe('when no post could be found for a secondary language', function () {
+                    var post, onSuccessCallback;
+
+                    beforeEach(function () {
+                        post = {id: 'p'};
+                        binarta.application.setLocaleForPresentation('nl');
+                        publisher.db = {
+                            get: function (request, response) {
+                                if (request.locale == binarta.application.primaryLanguage())
+                                    onSuccessCallback = function () {
+                                        response.success(post);
+                                    };
+                                else
+                                    response.notFound();
+                            }
+                        };
+                        handle.render();
+                    });
+
+                    it('then display does not receive not found notification', function () {
+                        expect(display.status).not.toHaveBeenCalledWith('not-found');
+                    });
+
+                    it('then display does not yet received translatable status as primary language post is not yet loaded', function () {
+                        expect(display.status).not.toHaveBeenCalledWith('translatable');
+                    });
+
+                    describe('and post for primary language is received', function () {
+                        beforeEach(function() {
+                            onSuccessCallback();
+                        });
+
+                        it('then the post for the primary language is passed to the display', function () {
+                            expect(display.post).toHaveBeenCalledWith(post);
+                        });
+
+                        it('then display receives translatable status', function () {
+                            expect(display.status).toHaveBeenCalledWith('translatable');
+                            expect(display.status.calls.mostRecent().args[0]).toEqual('translatable');
+                        });
+
+                        it('when application lock is regained the display status is not reset from translatable', function() {
+                            display.status.calls.reset();
+                            binarta.application.lock.release();
+                            binarta.application.lock.reserve();
+                            expect(display.status).not.toHaveBeenCalledWith('publishable');
+                            expect(display.status).not.toHaveBeenCalledWith('withdrawable');
+                            expect(display.status).toHaveBeenCalledWith('translatable');
+                        });
+
+                        it('when creating a draft in another language status indicates the draft is being created', function () {
+                            binarta.publisher.db = {
+                                draftInAnotherLanguage: function (request, response) {
+                                }
+                            };
+                            handle.draft();
+                            expect(display.status).toHaveBeenCalledWith('drafting');
+                        });
+
+                        describe('when a draft in another language is created', function () {
+                            beforeEach(function () {
+                                post = {id: 'd'};
+                                binarta.publisher.db.draftInAnotherLanguage = function (request, response) {
+                                    display.status.calls.reset();
+                                    response.success();
+                                };
+                                handle.draft();
+                            });
+
+                            it('then display received idle status', function () {
+                                expect(display.status).toHaveBeenCalledWith('idle');
+                            });
+
+                            it('then display received drafted notification', function () {
+                                expect(display.drafted).toHaveBeenCalled();
+                            });
+
+                            it('then display received newly created draft', function () {
+                                onSuccessCallback();
+                                expect(display.post).toHaveBeenCalledWith(post);
+                            });
+                        });
+
+                        it('when creating a draft in another language pass params to db', function () {
+                            binarta.publisher.db = {
+                                draftInAnotherLanguage: function (request, response) {
+                                    expect(request.id).toEqual('p');
+                                    expect(request.locale).toEqual('nl');
+                                }
+                            };
+                            handle.draft();
+                        });
                     });
                 });
             });

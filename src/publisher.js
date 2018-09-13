@@ -70,7 +70,7 @@ function BinartaPublisherjs() {
             posts.decorate = function (it) {
                 return it.map(function (it) {
                     var id = it.localId || it.id;
-                    it.uri = 'blog/post/' + (id.substring(0, 1) == '/' ? id.substring(1) : id);
+                    it.uri = '/blog/post/' + (id.substring(0, 1) == '/' ? id.substring(1) : id);
                     return it;
                 })
             }
@@ -97,6 +97,8 @@ function BinartaPublisherjs() {
                         display.status('publishable');
                     if (post.status == 'published' && publisher.binarta.checkpoint.profile.hasPermission('withdraw.blog.post'))
                         display.status('withdrawable');
+                    if (post.status == 'translatable')
+                        display.status('translatable');
                 }
             }
 
@@ -117,20 +119,34 @@ function BinartaPublisherjs() {
             };
 
             handle.render = function () {
+                get(publisher.binarta.application.localeForPresentation());
+            };
+
+            function isTranslatable() {
+                return publisher.binarta.checkpoint.profile.hasPermission('draft.blog.post.in.another.language');
+            }
+
+            function get(locale, decorator) {
                 display.status('loading');
-                publisher.db.get({id: id, locale: publisher.binarta.application.localeForPresentation()}, {
+                publisher.db.get({id: id, locale: locale}, {
                     success: function (it) {
-                        post = it;
+                        post = decorator ? decorator(it) : it;
                         becomeIdle();
                         testForManipulationStatus();
-                        display.post(it)
+                        display.post(post)
                     },
                     notFound: function () {
                         becomeIdle();
-                        display.notFound();
+                        if (isTranslatable() && locale != publisher.binarta.application.primaryLanguage()) {
+                            get(publisher.binarta.application.primaryLanguage(), function (it) {
+                                it.status = 'translatable';
+                                return it;
+                            });
+                        } else
+                            display.notFound();
                     }
-                })
-            };
+                });
+            }
 
             handle.publish = function () {
                 publisher.ui.promptForPublicationTime({
@@ -159,6 +175,19 @@ function BinartaPublisherjs() {
                         display.withdrawn();
                     }
                 });
+            };
+
+            handle.draft = function () {
+                display.status('drafting');
+                publisher.db.draftInAnotherLanguage({
+                    id: post.id,
+                    locale: publisher.binarta.application.localeForPresentation()
+                }, {
+                    success: function () {
+                        handle.render();
+                        display.drafted();
+                    }
+                })
             }
         }
     }
