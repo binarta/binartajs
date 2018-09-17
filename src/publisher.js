@@ -14,7 +14,9 @@ function BinartaPublisherjs() {
     function Blog() {
         var blog = this;
 
-        blog.published = new Posts();
+        blog.published = function (display) {
+            return new Posts(display);
+        };
 
         blog.add = function (response) {
             publisher.db.add(
@@ -32,37 +34,28 @@ function BinartaPublisherjs() {
             return new BlogPostHandle(id);
         };
 
-        function Posts() {
+        function Posts(display) {
             var posts = this;
 
-            posts.cache = [];
-            posts.status = 'idle';
-
-            posts.posts = function (args) {
-                if (!args)
-                    args = {};
-                if (!args.max)
-                    args.max = posts.cache.length;
-                return posts.cache.slice(0, args.max);
-            };
-
-            posts.init = function () {
-                if (posts.cache.length == 0)
-                    posts.more();
-            };
+            posts.subset = {offset: 0, max: 10};
+            posts.status = 'has-more';
 
             posts.more = function () {
                 if (posts.status == 'loading')
                     return;
                 posts.status = 'loading';
+                display.status(posts.status);
                 var request = {
                     locale: publisher.binarta.application.localeForPresentation(),
-                    subset: {offset: posts.cache.length, max: 10}
+                    subset: posts.subset
                 };
                 publisher.db.findAllPublishedBlogsForLocale(request, {
                     success: function (it) {
-                        posts.cache = posts.cache.concat(posts.decorate(it));
-                        posts.status = 'idle';
+                        var decorated = posts.decorate(it);
+                        display.more(decorated);
+                        posts.status = decorated.length < request.subset.max ? 'no-more' : 'has-more';
+                        display.status(posts.status);
+                        posts.subset.offset += decorated.length;
                     }
                 })
             };

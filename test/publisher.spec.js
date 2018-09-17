@@ -24,14 +24,6 @@
                 binarta.application.setLocaleForPresentation('en');
             });
 
-            it('sits in idle status', function () {
-                expect(publisher.blog.published.status).toEqual('idle');
-            });
-
-            it('published posts start out empty', function () {
-                expect(publisher.blog.published.posts()).toEqual([]);
-            });
-
             it('adding draft delegates to db', function () {
                 binarta.application.setLocaleForPresentation('en');
                 publisher.db = jasmine.createSpyObj('db', ['add']);
@@ -70,161 +62,150 @@
                 publisher.blog.add({});
             });
 
-            describe('with noop decorator', function () {
+            describe('given published log posts handle', function () {
+                var handle, display;
+
                 beforeEach(function () {
-                    publisher.blog.published.decorate = function (it) {
-                        return it;
-                    }
+                    publisher.db = jasmine.createSpyObj('db', ['findAllPublishedBlogsForLocale']);
+                    display = jasmine.createSpyObj('display', ['status', 'more']);
+                    handle = publisher.blog.published(display);
                 });
 
-                it('loading initial blog posts', function () {
+                describe('with noop decorator', function () {
+                    beforeEach(function () {
+                        handle.decorate = function (it) {
+                            return it;
+                        }
+                    });
+
+                    describe('loading more', function () {
+                        beforeEach(function () {
+                            publisher.db = {
+                                findAllPublishedBlogsForLocale: function (request, response) {
+                                }
+                            };
+                            handle.more();
+                        });
+
+                        it('loading more notifies display status as loading', function () {
+                            expect(display.status).toHaveBeenCalledWith('loading');
+                        });
+
+                        it('is throttled when already loading', function () {
+                            publisher.db = {
+                                findAllPublishedBlogsForLocale: function (request, response) {
+                                    throw new Error();
+                                }
+                            };
+                            handle.more();
+                        });
+                    });
+
+                    describe('and some blog posts are found', function () {
+                        beforeEach(function () {
+                            publisher.db = {
+                                findAllPublishedBlogsForLocale: function (request, response) {
+                                    response.success(['a', 'b', 'c']);
+                                }
+                            };
+                            handle.more();
+                        });
+
+                        it('display received blog posts', function () {
+                            expect(display.more).toHaveBeenCalledWith(['a', 'b', 'c']);
+                        });
+
+                        it('additional loads offset the subset', function () {
+                            publisher.db = {
+                                findAllPublishedBlogsForLocale: function (request, response) {
+                                    expect(request.subset.offset).toEqual(3);
+                                }
+                            };
+                            handle.more();
+                        });
+                    });
+
+                    it('loads more blog posts using the currently active locale for presentation', function () {
+                        binarta.application.setLocaleForPresentation('en');
+                        publisher.db = {
+                            findAllPublishedBlogsForLocale: function (request, response) {
+                                expect(request.locale).toEqual('en');
+                            }
+                        };
+                        handle.more();
+                    });
+
+                    it('load the default subset', function () {
+                        publisher.db = {
+                            findAllPublishedBlogsForLocale: function (request, response) {
+                                expect(request.subset).toEqual({offset: 0, max: 10});
+                            }
+                        };
+                        handle.more();
+                    });
+
+                    it('load the requested subset', function () {
+                        publisher.db = {
+                            findAllPublishedBlogsForLocale: function (request, response) {
+                                expect(request.subset).toEqual({offset: 'o', max: 'm'});
+                            }
+                        };
+                        handle.subset = {offset: 'o', max: 'm'};
+                        handle.more();
+                    });
+
+                    it('when less blog posts are loaded than requested then notify display there are no more', function () {
+                        publisher.db = {
+                            findAllPublishedBlogsForLocale: function (request, response) {
+                                response.success(['a', 'b', 'c']);
+                            }
+                        };
+                        handle.subset = {offset: 0, max: 4};
+                        handle.more();
+                        expect(display.status).toHaveBeenCalledWith('no-more');
+                    });
+
+                    it('when the requested number of blog posts are found then notify display there are more', function () {
+                        publisher.db = {
+                            findAllPublishedBlogsForLocale: function (request, response) {
+                                response.success(['a', 'b', 'c']);
+                            }
+                        };
+                        handle.subset = {offset: 0, max: 3};
+                        handle.more();
+                        expect(display.status).toHaveBeenCalledWith('has-more');
+                    });
+                });
+
+                it('loading published blog posts decorates them with a uri based on the id', function () {
                     publisher.db = {
                         findAllPublishedBlogsForLocale: function (request, response) {
-                            response.success(['a', 'b', 'c']);
+                            response.success([{id: 'x'}]);
                         }
                     };
-                    publisher.blog.published.init();
-                    expect(publisher.blog.published.posts()).toEqual(['a', 'b', 'c']);
+                    handle.more();
+                    expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/x');
                 });
 
-                it('loading of initial published blog posts is throttled once some posts have been found', function () {
+                it('decorating published blog posts with a uri strips leading slashes from the id', function () {
                     publisher.db = {
                         findAllPublishedBlogsForLocale: function (request, response) {
-                            throw new Error();
+                            response.success([{id: '/x'}]);
                         }
                     };
-                    publisher.blog.published.cache = ['-'];
-                    publisher.blog.published.init();
+                    handle.more();
+                    expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/x');
                 });
 
-                it('loading more blog posts', function () {
+                it('decorating published blog posts with a uri prefers the local id', function () {
                     publisher.db = {
                         findAllPublishedBlogsForLocale: function (request, response) {
-                            response.success(['a', 'b', 'c']);
+                            response.success([{id: 'b', localId: 'p'}]);
                         }
                     };
-                    publisher.blog.published.more();
-                    expect(publisher.blog.published.posts()).toEqual(['a', 'b', 'c']);
+                    handle.more();
+                    expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/p');
                 });
-
-                it('take the first few published blog posts when more are available', function () {
-                    publisher.blog.published.cache = ['a', 'b', 'c'];
-                    expect(publisher.blog.published.posts({max: 2})).toEqual(['a', 'b']);
-                });
-
-                it('take the first few published blog posts when less are available', function () {
-                    publisher.blog.published.cache = ['a', 'b', 'c'];
-                    expect(publisher.blog.published.posts({max: 5})).toEqual(['a', 'b', 'c']);
-                });
-
-                it('loading more blog posts appends to already loaded blog posts', function () {
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            response.success(['d', 'e', 'f']);
-                        }
-                    };
-                    publisher.blog.published.cache = ['a', 'b', 'c'];
-                    publisher.blog.published.more();
-                    expect(publisher.blog.published.posts()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
-                });
-
-                it('updates status while loading more blog posts', function () {
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                        }
-                    };
-                    publisher.blog.published.more();
-                    expect(publisher.blog.published.status).toEqual('loading');
-                });
-
-                it('returns to idle status after loading more blog posts', function () {
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            response.success([]);
-                        }
-                    };
-                    publisher.blog.published.more();
-                    expect(publisher.blog.published.status).toEqual('idle');
-                });
-
-                it('loading more published blog posts is throttled when already loading', function () {
-                    publisher.blog.published.status = 'loading';
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            throw new Error();
-                        }
-                    };
-                    publisher.blog.published.more();
-                });
-
-                it('loads more blog posts using the currently active locale for presentation', function () {
-                    binarta.application.setLocaleForPresentation('en');
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            expect(request.locale).toEqual('en');
-                        }
-                    };
-                    publisher.blog.published.more();
-                });
-
-                it('load first set of published blog post', function () {
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            expect(request.subset).toEqual({offset: 0, max: 10});
-                        }
-                    };
-                    publisher.blog.published.more();
-                });
-
-                it('load next set of published blog post', function () {
-                    publisher.db = {
-                        findAllPublishedBlogsForLocale: function (request, response) {
-                            expect(request.subset).toEqual({offset: 3, max: 10});
-                        }
-                    };
-                    publisher.blog.published.cache = ['a', 'b', 'c'];
-                    publisher.blog.published.more();
-                });
-            });
-
-            it('initialising published blog posts decorates them with a uri based on the id', function () {
-                publisher.db = {
-                    findAllPublishedBlogsForLocale: function (request, response) {
-                        response.success([{id: 'x'}]);
-                    }
-                };
-                publisher.blog.published.init();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
-            });
-
-            it('loading more published blog posts decorates them with a uri based on the id', function () {
-                publisher.db = {
-                    findAllPublishedBlogsForLocale: function (request, response) {
-                        response.success([{id: 'x'}]);
-                    }
-                };
-                publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
-            });
-
-            it('decorating published blog posts with a uri strips leading slashes from the id', function () {
-                publisher.db = {
-                    findAllPublishedBlogsForLocale: function (request, response) {
-                        response.success([{id: '/x'}]);
-                    }
-                };
-                publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/x');
-            });
-
-            it('decorating published blog posts with a uri prefers the local id', function () {
-                publisher.db = {
-                    findAllPublishedBlogsForLocale: function (request, response) {
-                        response.success([{id: 'b', localId: 'p'}]);
-                    }
-                };
-                publisher.blog.published.more();
-                expect(publisher.blog.published.posts()[0].uri).toEqual('/blog/post/p');
             });
 
             describe('given a specific blog handle', function () {
@@ -655,7 +636,7 @@
                     });
 
                     describe('and post for primary language is received', function () {
-                        beforeEach(function() {
+                        beforeEach(function () {
                             onSuccessCallback();
                         });
 
@@ -668,7 +649,7 @@
                             expect(display.status.calls.mostRecent().args[0]).toEqual('translatable');
                         });
 
-                        it('when application lock is regained the display status is not reset from translatable', function() {
+                        it('when application lock is regained the display status is not reset from translatable', function () {
                             display.status.calls.reset();
                             binarta.application.lock.release();
                             binarta.application.lock.reserve();
