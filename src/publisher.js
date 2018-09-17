@@ -15,7 +15,11 @@ function BinartaPublisherjs() {
         var blog = this;
 
         blog.published = function (display) {
-            return new Posts(display);
+            return new Posts('findAllPublishedBlogsForLocale', display);
+        };
+
+        blog.drafts = function (display) {
+            return new Posts('findAllBlogsInDraftForLocale', display);
         };
 
         blog.add = function (response) {
@@ -34,7 +38,7 @@ function BinartaPublisherjs() {
             return new BlogPostHandle(id);
         };
 
-        function Posts(display) {
+        function Posts(query, display) {
             var posts = this;
 
             posts.subset = {offset: 0, max: 10};
@@ -49,7 +53,7 @@ function BinartaPublisherjs() {
                     locale: publisher.binarta.application.localeForPresentation(),
                     subset: posts.subset
                 };
-                publisher.db.findAllPublishedBlogsForLocale(request, {
+                publisher.db[query](request, {
                     success: function (it) {
                         var decorated = posts.decorate(it);
                         display.more(decorated);
