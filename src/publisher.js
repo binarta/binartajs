@@ -185,6 +185,16 @@ function BinartaPublisherjs() {
                         display.drafted();
                     }
                 })
+            };
+
+            handle.delete = function () {
+                display.status('deleting');
+                publisher.db.delete({id: post.id}, {
+                    success: function () {
+                        display.status('deleted');
+                        display.deleted();
+                    }
+                });
             }
         }
     }

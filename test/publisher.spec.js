@@ -359,7 +359,7 @@
 
                 beforeEach(function () {
                     binarta.application.setLocaleForPresentation('en');
-                    display = jasmine.createSpyObj('display', ['status', 'post', 'notFound', 'canceled', 'published', 'withdrawn']);
+                    display = jasmine.createSpyObj('display', ['status', 'post', 'notFound', 'canceled', 'published', 'withdrawn', 'deleted']);
                     handle = publisher.blog.get('b').connect(display);
                 });
 
@@ -411,7 +411,7 @@
                     var post;
 
                     beforeEach(function () {
-                        post = {status: 'draft'};
+                        post = {id: 'p', status: 'draft'};
                         publisher.db = {
                             get: function (request, response) {
                                 response.success(post);
@@ -480,6 +480,45 @@
                         binarta.application.lock.reserve();
                         expect(display.status).not.toHaveBeenCalledWith('withdrawable');
                         expect(display.status).not.toHaveBeenCalledWith('translatable');
+                    });
+
+                    describe('when deleting', function () {
+                        beforeEach(function () {
+                            publisher.db.delete = jasmine.createSpy('delete');
+                            handle.delete();
+                        });
+
+                        it('then expose deleting status', function () {
+                            expect(display.status).toHaveBeenCalledWith('deleting');
+                        });
+
+                        it('then db is called', function () {
+                            expect(publisher.db.delete).toHaveBeenCalled();
+                        });
+                    });
+
+                    it('when deleting then db receives params', function () {
+                        publisher.db.delete = function (request) {
+                            expect(request).toEqual({id: 'p'})
+                        };
+                        handle.delete();
+                    });
+
+                    describe('when deleting succeeds', function() {
+                        beforeEach(function() {
+                            publisher.db.delete = function (request, response) {
+                                response.success();
+                            };
+                            handle.delete();
+                        });
+
+                        it('then expose deleted status', function () {
+                            expect(display.status).toHaveBeenCalledWith('deleted');
+                        });
+
+                        it('then notify display the blog post has been deleted', function () {
+                            expect(display.deleted).toHaveBeenCalled();
+                        });
                     });
                 });
 
