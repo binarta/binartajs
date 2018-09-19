@@ -11,7 +11,7 @@
             factory.addSubSystems({
                 checkpoint: checkpoint,
                 application: application,
-                publisher: new BinartaPublisherjs()
+                publisher: new BinartaPublisherjs({application: application})
             });
             binarta = factory.create();
             publisher = binarta.publisher;
@@ -504,8 +504,8 @@
                         handle.delete();
                     });
 
-                    describe('when deleting succeeds', function() {
-                        beforeEach(function() {
+                    describe('when deleting succeeds', function () {
+                        beforeEach(function () {
                             publisher.db.delete = function (request, response) {
                                 response.success();
                             };
@@ -891,7 +891,7 @@
         });
 
         describe('database decorators', function () {
-            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'publish', 'withdraw'];
+            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'findAllBlogsInDraftForLocale', 'publish', 'withdraw'];
 
             describe('routing by application lock decorator', function () {
                 var db, visitorDB, clerkDB;
@@ -916,6 +916,11 @@
                     it('findAllPublishedBlogsForLocale', function () {
                         db.findAllPublishedBlogsForLocale('a', 'b', 'c');
                         expect(visitorDB.findAllPublishedBlogsForLocale).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
+
+                    it('findAllBlogsInDraftForLocale', function () {
+                        db.findAllBlogsInDraftForLocale('a', 'b', 'c');
+                        expect(visitorDB.findAllBlogsInDraftForLocale).toHaveBeenCalledWith('a', 'b', 'c');
                     });
 
                     it('publish', function () {
@@ -949,6 +954,11 @@
                         expect(clerkDB.findAllPublishedBlogsForLocale).toHaveBeenCalledWith('a', 'b', 'c');
                     });
 
+                    it('findAllBlogsInDraftForLocale', function () {
+                        db.findAllBlogsInDraftForLocale('a', 'b', 'c');
+                        expect(clerkDB.findAllBlogsInDraftForLocale).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
+
                     it('publish', function () {
                         db.publish('a', 'b', 'c');
                         expect(clerkDB.publish).toHaveBeenCalledWith('a', 'b', 'c');
@@ -977,13 +987,18 @@
                     });
 
                     it('get', function () {
-                        db.get('a', 'b', 'c');
-                        expect(sourceDB.get).toHaveBeenCalledWith('a', 'b', 'c');
+                        db.get('request', 'response');
+                        expect(sourceDB.get.calls.mostRecent().args[0]).toEqual('request');
                     });
 
                     it('findAllPublishedBlogsForLocale', function () {
-                        db.findAllPublishedBlogsForLocale({subset: {}}, 'b', 'c');
-                        expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalledWith({subset: {}}, 'b', 'c');
+                        db.findAllPublishedBlogsForLocale({subset: {}}, 'response');
+                        expect(sourceDB.findAllPublishedBlogsForLocale.calls.mostRecent().args[0]).toEqual({subset: {}});
+                    });
+
+                    it('findAllBlogsInDraftForLocale', function () {
+                        db.findAllBlogsInDraftForLocale({subset: {}}, 'response');
+                        expect(sourceDB.findAllBlogsInDraftForLocale.calls.mostRecent().args[0]).toEqual({subset: {}});
                     });
 
                     it('publish', function () {
@@ -1055,6 +1070,20 @@
                             db.get({id: 'x'}, {});
                         });
                     });
+
+                    it('and previously read with not found handler then get returns the previous result when given the same request parameter', function () {
+                        db.get({id: 'x'}, {
+                            notFound: function () {
+                            }
+                        });
+                        db.sourceDB = {
+                            get: function () {
+                                throw new Error();
+                            }
+                        };
+                        db.get({id: 'x'}, response);
+                        expect(response.notFound).toHaveBeenCalled();
+                    });
                 });
 
                 describe('given known blog post', function () {
@@ -1117,6 +1146,41 @@
                             db.get({id: 'x'}, {});
                         });
                     });
+
+                    it('and previously read with success handler then get returns the previously found blog post when given the same request parameter', function () {
+                        db.get({id: 'x'}, {
+                            success: function () {
+                            }
+                        });
+                        db.sourceDB = {
+                            get: function () {
+                                throw new Error();
+                            }
+                        };
+                        db.get({id: 'x'}, response);
+                        expect(response.success).toHaveBeenCalledWith('p');
+                    });
+                });
+
+                it('simultaneous get requests result in a single source db call', function () {
+                    var response;
+                    db.sourceDB = {
+                        get: function (request, it) {
+                            response = it;
+                        }
+                    };
+                    var display1 = jasmine.createSpyObj('display1', ['success']);
+                    var display2 = jasmine.createSpyObj('display2', ['success']);
+                    db.get({id: 'x'}, display1);
+                    db.sourceDB = {
+                        get: function (request, it) {
+                            throw new Error();
+                        }
+                    };
+                    db.get({id: 'x'}, display2);
+                    response.success('p');
+                    expect(display1.success).toHaveBeenCalledWith('p');
+                    expect(display2.success).toHaveBeenCalledWith('p');
                 });
 
                 it('get with local id creates a cache for the actual id', function () {
@@ -1198,6 +1262,151 @@
 
                         it('then a success handler is still optional', function () {
                             db.findAllPublishedBlogsForLocale({locale: 'en', subset: {offset: 0, max: 10}}, {});
+                        });
+
+                        it('then cached results are not shared with blogs in draft', function () {
+                            db.sourceDB = {
+                                findAllPublishedBlogsForLocale: function () {
+                                    throw new Error();
+                                },
+                                findAllBlogsInDraftForLocale: function () {
+                                }
+                            };
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, response);
+                            expect(response.success).not.toHaveBeenCalled();
+                        });
+                    });
+                });
+
+                describe('find all blogs in draft for locale', function () {
+                    var response;
+
+                    describe('on unauthenticated', function () {
+                        beforeEach(function () {
+                            response = jasmine.createSpyObj('response', ['unauthenticated']);
+                            db.sourceDB = {
+                                findAllBlogsInDraftForLocale: function (request, response) {
+                                    response.unauthenticated();
+                                }
+                            };
+                        });
+
+                        it('passes the notification to the given response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, response);
+                            expect(response.unauthenticated).toHaveBeenCalled();
+                        });
+
+                        it('does not require a response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}});
+                        });
+
+                        it('then does not require a handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, {});
+                        });
+                    });
+
+                    describe('on forbidden', function () {
+                        beforeEach(function () {
+                            response = jasmine.createSpyObj('response', ['forbidden']);
+                            db.sourceDB = {
+                                findAllBlogsInDraftForLocale: function (request, response) {
+                                    response.forbidden();
+                                }
+                            };
+                        });
+
+                        it('passes the notification to the given response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, response);
+                            expect(response.forbidden).toHaveBeenCalled();
+                        });
+
+                        it('does not require a response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}});
+                        });
+
+                        it('then does not require a handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, {});
+                        });
+                    });
+
+                    describe('on success', function () {
+                        beforeEach(function () {
+                            response = jasmine.createSpyObj('response', ['success']);
+                            db.sourceDB = {
+                                findAllBlogsInDraftForLocale: function (request, response) {
+                                    response.success('p');
+                                }
+                            };
+                        });
+
+                        it('passes the posts to the given response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, response);
+                            expect(response.success).toHaveBeenCalledWith('p');
+                        });
+
+                        it('does not require a response handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}});
+                        });
+
+                        it('then get does not require a success handler', function () {
+                            db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, {});
+                        });
+
+                        describe('and previously read', function () {
+                            beforeEach(function () {
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}});
+                            });
+
+                            it('then query returns the previously found blog posts when given the same request parameter', function () {
+                                db.sourceDB = {
+                                    findAllBlogsInDraftForLocale: function () {
+                                        throw new Error();
+                                    }
+                                };
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, response);
+                                expect(response.success).toHaveBeenCalledWith('p');
+                            });
+
+                            it('then calls the source db when given a request parameter with a different locale', function () {
+                                db.sourceDB = sourceDB;
+                                db.findAllBlogsInDraftForLocale({locale: '?', subset: {offset: 0, max: 10}});
+                                expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
+                            });
+
+                            it('then calls the source db when given a request parameter with a different offset', function () {
+                                db.sourceDB = sourceDB;
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 999, max: 10}});
+                                expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
+                            });
+
+                            it('then calls the source db when given a request parameter with a different max', function () {
+                                db.sourceDB = sourceDB;
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 999}});
+                                expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
+                            });
+
+                            it('then a response handler is still optional', function () {
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}});
+                            });
+
+                            it('then a success handler is still optional', function () {
+                                db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 10}}, {});
+                            });
+
+                            it('then cached results are not shared with published blog posts', function () {
+                                db.sourceDB = {
+                                    findAllPublishedBlogsForLocale: function () {
+                                    },
+                                    findAllBlogsInDraftForLocale: function () {
+                                        throw new Error();
+                                    }
+                                };
+                                db.findAllPublishedBlogsForLocale({
+                                    locale: 'en',
+                                    subset: {offset: 0, max: 10}
+                                }, response);
+                                expect(response.success).not.toHaveBeenCalled();
+                            });
                         });
                     });
                 });

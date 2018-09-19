@@ -1,5 +1,6 @@
-function BinartaPublisherjs() {
+function BinartaPublisherjs(args) {
     var publisher = this;
+    var app = args.application;
 
     publisher.blog = new Blog();
 
@@ -203,7 +204,7 @@ function BinartaPublisherjs() {
         var db = this;
         var routedDB = visitorDB;
 
-        publisher.binarta.application.eventRegistry.add(db);
+        app.eventRegistry.add(db);
 
         db.editing = function () {
             routedDB = clerkDB;
@@ -219,6 +220,10 @@ function BinartaPublisherjs() {
 
         db.findAllPublishedBlogsForLocale = function () {
             routedDB.findAllPublishedBlogsForLocale.apply(undefined, arguments);
+        };
+
+        db.findAllBlogsInDraftForLocale = function () {
+            routedDB.findAllBlogsInDraftForLocale.apply(undefined, arguments);
         };
 
         db.publish = function () {
@@ -245,16 +250,22 @@ function BinartaPublisherjs() {
 
         cache.get = function () {
             var params = arguments;
-            var cacheKey = arguments[0].id + '-' + arguments[0].locale;
+            var cacheKey = 'get:' + arguments[0].id + ':' + arguments[0].locale;
             resolve(cache.sourceDB.get, arguments, cacheKey, function (it) {
                 if (it.id != params[0].id)
-                    cacheItem(it.id + '-' + params[0].locale)(it);
+                    cacheItem('get:' + it.id + ':' + params[0].locale)(it);
             });
         };
 
         cache.findAllPublishedBlogsForLocale = function () {
-            resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
+            resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, 'findAllPublishedBlogsForLocale:' + arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
         };
+
+        cache.findAllBlogsInDraftForLocale = function () {
+            resolve(cache.sourceDB.findAllBlogsInDraftForLocale, arguments, 'findAllBlogsInDraftForLocale:' + arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
+        };
+
+        var responseQueue = {};
 
         function resolve(query, params, cacheKey, onCache) {
             var args = [].slice.call(params);
@@ -271,13 +282,31 @@ function BinartaPublisherjs() {
                     if (onCache)
                         onCache(it);
                 };
-                if (!args[1])
-                    args = args.concat([{success: doCache}]);
-                if (!args[1].success)
-                    args[1].success = cacheItem(cacheKey);
-                if (!args[1].notFound)
-                    args[1].notFound = cacheNotFound(cacheKey);
-                query.apply(undefined, args);
+                if (responseQueue[cacheKey] == undefined)
+                    responseQueue[cacheKey] = [];
+                responseQueue[cacheKey].push(args[1]);
+                if (responseQueue[cacheKey].length == 1) {
+                    function handler(name, before) {
+                        return function () {
+                            var it = arguments;
+                            if (before)
+                                before.apply(undefined, it);
+                            responseQueue[cacheKey].forEach(function (response) {
+                                if (response && response[name])
+                                    response[name].apply(undefined, it);
+                            });
+                            responseQueue[cacheKey] = [];
+                        }
+                    }
+
+                    args[1] = {
+                        unauthenticated: handler('unauthenticated'),
+                        forbidden: handler('forbidden'),
+                        success: handler('success', doCache),
+                        notFound: handler('notFound', cacheNotFound(cacheKey))
+                    };
+                    query.apply(undefined, args);
+                }
             }
         }
 
