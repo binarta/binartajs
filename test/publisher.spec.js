@@ -891,7 +891,7 @@
         });
 
         describe('database decorators', function () {
-            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'findAllBlogsInDraftForLocale', 'publish', 'withdraw', 'draftInAnotherLanguage'];
+            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'findAllBlogsInDraftForLocale', 'publish', 'withdraw', 'draftInAnotherLanguage', 'delete'];
 
             describe('routing by application lock decorator', function () {
                 var db, visitorDB, clerkDB;
@@ -937,6 +937,11 @@
                         db.draftInAnotherLanguage('a', 'b', 'c');
                         expect(visitorDB.draftInAnotherLanguage).toHaveBeenCalledWith('a', 'b', 'c');
                     });
+
+                    it('delete', function () {
+                        db.delete('a', 'b', 'c');
+                        expect(visitorDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
                 });
 
                 describe('in edit mode route to clerk db:', function () {
@@ -977,6 +982,11 @@
                     it('draftInAnotherLanguage', function () {
                         db.draftInAnotherLanguage('a', 'b', 'c');
                         expect(clerkDB.draftInAnotherLanguage).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
+
+                    it('delete', function () {
+                        db.delete('a', 'b', 'c');
+                        expect(clerkDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
                     });
                 });
             });
@@ -1021,6 +1031,10 @@
 
                     it('draftInAnotherLanguage', function () {
                         expect(db.draftInAnotherLanguage).toThrow(readOnlyErrorMessage);
+                    });
+
+                    it('delete', function () {
+                        expect(db.delete).toThrow(readOnlyErrorMessage);
                     });
                 });
 

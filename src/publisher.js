@@ -236,6 +236,10 @@ function BinartaPublisherjs(args) {
 
         db.draftInAnotherLanguage = function () {
             routedDB.draftInAnotherLanguage.apply(undefined, arguments);
+        };
+
+        db.delete = function() {
+            routedDB.delete.apply(undefined, arguments);
         }
     }
 
@@ -248,6 +252,7 @@ function BinartaPublisherjs(args) {
         cache.publish = readOnly;
         cache.withdraw = readOnly;
         cache.draftInAnotherLanguage = readOnly;
+        cache.delete = readOnly;
 
         function readOnly() {
             throw 'CachingDecorator is a read-only proxy!';
