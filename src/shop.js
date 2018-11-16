@@ -357,8 +357,8 @@ function BinartaShopjs(checkpoint, deps) {
                 if (p && !finished && ctx.roadmap.length == i + 1) return false;
                 if (c == ctx.currentStep) finished = true;
                 if (!finished && !gatewaySteps.some(function (gatewayStep) {
-                        return c == gatewayStep;
-                    }))
+                    return c == gatewayStep;
+                }))
                     return c;
                 return p;
             }, undefined);
@@ -452,7 +452,7 @@ function BinartaShopjs(checkpoint, deps) {
                     item.couponCode = code;
                 });
                 fsm.persist(ctx);
-                fsm.eventRegistry.forEach(function(l) {
+                fsm.eventRegistry.forEach(function (l) {
                     l.setCouponCode(code);
                 });
             };
@@ -504,9 +504,10 @@ function BinartaShopjs(checkpoint, deps) {
             return function (args) {
                 var ctx = self.context();
                 ctx.order.id = args.id;
-                if (args.approvalUrl) {
+                if (args.approvalUrl)
                     ctx.order.approvalUrl = args.approvalUrl;
-                }
+                if (args.signingContext)
+                    ctx.order.signingContext = args.signingContext;
                 self.persist(ctx);
                 listener(args);
             }
@@ -914,8 +915,8 @@ function BinartaShopjs(checkpoint, deps) {
             shop.gateway.findCouponById({id: id}, presenter);
         };
 
-        this.contains = function(id, response) {
-            shop.gateway.containsCoupon({id:id}, response);
+        this.contains = function (id, response) {
+            shop.gateway.containsCoupon({id: id}, response);
         }
     }
 }

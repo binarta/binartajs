@@ -968,6 +968,10 @@
                             binarta.shop.checkout.confirm();
                             expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
                             expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                            expect(binarta.shop.checkout.context().order.signingContext).toEqual({
+                                institution: 'test-bank',
+                                approvalUrl: 'approval-url'
+                            });
                         });
 
                         it('you can set a coupon code', function () {

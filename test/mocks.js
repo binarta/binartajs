@@ -372,6 +372,10 @@ function ValidOrderWithPaymentRequiredGateway() {
         var onSuccess = response.success;
         response.success = function (ctx) {
             ctx.approvalUrl = 'approval-url';
+            ctx.signingContext = {
+                institution: 'test-bank',
+                approvalUrl: ctx.approvalUrl
+            };
             onSuccess(ctx);
         };
         delegate.submitOrder(request, response);
