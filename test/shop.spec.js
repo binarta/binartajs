@@ -1126,6 +1126,24 @@
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
                     });
 
+                    describe('when payment confirmation is rejected because the payment has expired', function () {
+                        beforeEach(function () {
+                            var ctx = binarta.shop.checkout.context();
+                            ctx.order.id = 'o';
+                            binarta.shop.checkout.persist(ctx);
+                            binarta.shop.gateway = new ExpiredPaymentGateway();
+                            binarta.shop.checkout.confirm('-');
+                        });
+
+                        it('then return to summary step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
+
+                        it('then remove id from order so it can be resubmitted', function () {
+                            expect(binarta.shop.checkout.context().order.id).toBeUndefined();
+                        });
+                    });
+
                     it('when canceling the payment then cancel order request is sent', function () {
                         binarta.shop.gateway = new GatewaySpy();
                         binarta.shop.checkout.cancelPayment();
@@ -1152,7 +1170,7 @@
                             expect(binarta.shop.checkout.status()).toEqual('summary');
                         });
 
-                        it('then remove id from order so ti can be resubmitted', function () {
+                        it('then remove id from order so it can be resubmitted', function () {
                             expect(binarta.shop.checkout.context().order.id).toBeUndefined();
                         });
                     });

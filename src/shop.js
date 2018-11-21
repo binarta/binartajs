@@ -557,23 +557,33 @@ function BinartaShopjs(checkpoint, deps) {
                         if (onSuccess)
                             onSuccess();
                     },
-                    rejected: cacheViolationReport
+                    rejected: function (report) {
+                        cacheViolationReport(report);
+                        if (report.payment && report.payment.some(function (it) {
+                            return it.label == 'expired';
+                        }))
+                            returnToSummary()();
+                    }
                 });
             };
 
             fsm.cancelPayment = function (onSuccess) {
                 shop.gateway.cancelOrder(fsm.context().order, {
-                    success: function () {
-                        var ctx = fsm.context();
-                        delete ctx.order.id;
-                        fsm.persist(ctx);
-                        fsm.jumpTo('summary');
-                        if (onSuccess)
-                            onSuccess();
-                    },
+                    success: returnToSummary(onSuccess),
                     rejected: cacheViolationReport
                 });
             };
+
+            function returnToSummary(onSuccess) {
+                return function () {
+                    var ctx = fsm.context();
+                    delete ctx.order.id;
+                    fsm.persist(ctx);
+                    fsm.jumpTo('summary');
+                    if (onSuccess)
+                        onSuccess();
+                }
+            }
 
             function cacheViolationReport(report) {
                 violationReportCache = report;

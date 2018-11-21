@@ -365,6 +365,12 @@ function InvalidPaymentGateway() {
     }
 }
 
+function ExpiredPaymentGateway() {
+    this.confirmPayment = function (request, response) {
+        response.rejected({payment: [{label: 'expired'}]});
+    }
+}
+
 function ValidOrderWithPaymentRequiredGateway() {
     var delegate = new ValidOrderGateway();
 
