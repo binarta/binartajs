@@ -992,6 +992,15 @@
                             binarta.shop.checkout.setCouponCode('coupon-code');
                             expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
                         });
+
+                        it('on confirmation deletes the summary violation report from the persistent context', function () {
+                            var ctx = binarta.shop.checkout.context();
+                            ctx.summaryViolationReport = {};
+                            binarta.shop.checkout.persist(ctx);
+                            binarta.shop.gateway = new ValidOrderGateway();
+                            binarta.shop.checkout.confirm();
+                            expect(binarta.shop.checkout.context().summaryViolationReport).toBeUndefined();
+                        });
                     });
                 });
 
@@ -1117,13 +1126,20 @@
                         expect(spy).toHaveBeenCalled();
                     });
 
-                    it('when payment confirmation is rejected expose violation report', function () {
+                    it('when payment confirmation is rejected expose violation report on the summary step', function () {
                         binarta.shop.gateway = new InvalidPaymentGateway();
 
                         binarta.shop.checkout.confirm('-');
 
-                        expect(binarta.shop.checkout.status()).toEqual('payment');
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    });
+
+                    it('when payment confirmation is rejected then trigger an optional on success listener', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new InvalidPaymentGateway();
+                        binarta.shop.checkout.confirm('-', spy);
+                        expect(spy).toHaveBeenCalled();
                     });
 
                     describe('when payment confirmation is rejected because the payment has expired', function () {

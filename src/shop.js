@@ -424,7 +424,7 @@ function BinartaShopjs(checkpoint, deps) {
             var self = this;
             fsm.currentState = this;
             this.name = 'summary';
-            var violationReportCache = {};
+            var violationReportCache = fsm.context().summaryViolationReport || {};
 
             fsm.getPaymentProvider = function () {
                 return fsm.context().order.provider;
@@ -458,6 +458,9 @@ function BinartaShopjs(checkpoint, deps) {
             };
 
             fsm.confirm = function (onSuccessListener) {
+                var ctx = fsm.context();
+                delete ctx.summaryViolationReport;
+                fsm.persist(ctx);
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
                     rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
@@ -558,11 +561,10 @@ function BinartaShopjs(checkpoint, deps) {
                             onSuccess();
                     },
                     rejected: function (report) {
-                        cacheViolationReport(report);
-                        if (report.payment && report.payment.some(function (it) {
-                            return it.label == 'expired';
-                        }))
-                            returnToSummary()();
+                        var ctx = fsm.context();
+                        ctx.summaryViolationReport = report;
+                        fsm.persist(ctx);
+                        returnToSummary(onSuccess)();
                     }
                 });
             };
