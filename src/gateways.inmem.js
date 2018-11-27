@@ -254,7 +254,7 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.stripeConnect = function (request, response) {
-            response.succes('http://example.org/stripe');
+            response.success('http://example.org/stripe');
         }
     }
 
