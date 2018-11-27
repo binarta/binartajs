@@ -20,6 +20,7 @@ function GatewaySpy() {
     this.findConfig = spy('findConfigRequest');
     this.findCouponById = spy('findCouponByIdRequest');
     this.containsCoupon = spy('containsCouponRequest');
+    this.stripeConnect = spy('stripeConnectRequest');
 
     function spy(requestAttribute) {
         return function (request, response) {
@@ -356,6 +357,10 @@ function ValidOrderGateway() {
 function ValidPaymentGateway() {
     this.confirmPayment = function (request, response) {
         response.success();
+    };
+
+    this.stripeConnect = function (request, response) {
+        response.success({uri: 'stripe-connect-uri'});
     }
 }
 

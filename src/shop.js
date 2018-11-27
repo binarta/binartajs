@@ -9,6 +9,7 @@ function BinartaShopjs(checkpoint, deps) {
     this.basket = new Basket();
     this.checkout = new Checkout();
     this.couponDictionary = new CouponDictionary();
+    this.stripe = new StripeWidget();
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -929,6 +930,37 @@ function BinartaShopjs(checkpoint, deps) {
 
         this.contains = function (id, response) {
             shop.gateway.containsCoupon({id: id}, response);
+        }
+    }
+
+    function StripeWidget() {
+        var stripe = this;
+        var registry = new BinartaRX();
+        var status = 'idle';
+
+        stripe.observe = function (l) {
+            var it = registry.observe(l);
+            raiseStatus();
+            return it;
+        };
+
+        stripe.connect = function () {
+            setStatus('working');
+            shop.gateway.stripeConnect({locale: shop.binarta.application.localeForPresentation()}, {
+                success: function (it) {
+                    setStatus('idle');
+                    registry.notify('goto', it.uri);
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
         }
     }
 }

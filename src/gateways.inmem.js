@@ -251,6 +251,10 @@ function BinartaInMemoryGatewaysjs() {
                 },
                 notFound: response.notFound
             })
+        };
+
+        this.stripeConnect = function (request, response) {
+            response.succes('http://example.org/stripe');
         }
     }
 

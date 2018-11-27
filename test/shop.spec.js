@@ -1831,6 +1831,55 @@
                     expect(spy.ok).toHaveBeenCalledWith('contains-response');
                 });
             });
+
+            describe('stripe', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'goto']);
+                    observer = binarta.shop.stripe.observe(spy);
+                });
+
+                afterEach(function() {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current idle status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('idle');
+                });
+
+                describe('on connect', function () {
+                    beforeEach(function () {
+                        binarta.application.setLocaleForPresentation('en');
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.stripe.connect();
+                    });
+
+                    it('observers are notified of the new working status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('working');
+                    });
+
+                    it('perform a stripe connect request on the gateway', function () {
+                        expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
+                    });
+                });
+
+                describe('on connect with success response', function () {
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway = new ValidPaymentGateway();
+                        binarta.shop.stripe.connect();
+                    });
+
+                    it('observers are notified of the new idle status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('idle');
+                    });
+
+                    it('observers are asked to visit the connect uri', function () {
+                        expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
+                    });
+                });
+            });
         });
 
         function UI() {
