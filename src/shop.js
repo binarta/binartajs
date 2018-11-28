@@ -974,6 +974,8 @@ function BinartaShopjs(checkpoint, deps) {
         };
 
         stripe.disconnect = function () {
+            if (status != 'connected')
+                throw new Error('Already Disconnected!');
             setStatus('working');
             shop.gateway.stripeDisconnect({}, {
                 success: function () {

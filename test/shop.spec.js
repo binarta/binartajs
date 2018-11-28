@@ -1857,6 +1857,10 @@
                     expect(binarta.shop.stripe.connect).toThrowError();
                 });
 
+                it('disconnecting is not yet possible', function () {
+                    expect(binarta.shop.stripe.disconnect).toThrowError();
+                });
+
                 describe('installing additional observers', function () {
                     var secondObserver;
 
@@ -1937,6 +1941,10 @@
                         var spy = jasmine.createSpyObj('spy', ['status']);
                         binarta.shop.stripe.observe(spy).disconnect();
                         expect(spy.status).toHaveBeenCalledWith('disconnected');
+                    });
+
+                    it('disconnecting again is not possible', function () {
+                        expect(binarta.shop.stripe.disconnect).toThrowError();
                     });
 
                     describe('on connect', function () {
