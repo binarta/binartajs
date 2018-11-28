@@ -1836,47 +1836,114 @@
                 var spy, observer;
 
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'goto']);
+                    spy = jasmine.createSpyObj('spy', ['status', 'goto', 'connected']);
+                    binarta.shop.gateway = new GatewaySpy();
                     observer = binarta.shop.stripe.observe(spy);
                 });
 
-                afterEach(function() {
+                afterEach(function () {
                     observer.disconnect();
                 });
 
-                it('observers are immediately notified of the current idle status', function () {
-                    expect(spy.status).toHaveBeenCalledWith('idle');
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                describe('on connect', function () {
-                    beforeEach(function () {
-                        binarta.application.setLocaleForPresentation('en');
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.stripe.connect();
-                    });
-
-                    it('observers are notified of the new working status', function () {
-                        expect(spy.status).toHaveBeenCalledWith('working');
-                    });
-
-                    it('perform a stripe connect request on the gateway', function () {
-                        expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
-                    });
+                it('checks if stripe is connected', function () {
+                    expect(binarta.shop.gateway.stripeConnectedRequest).toEqual({});
                 });
 
-                describe('on connect with success response', function () {
+                it('connecting is not yet possible', function () {
+                    expect(binarta.shop.stripe.connect).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
                     beforeEach(function () {
                         spy.status.calls.reset();
-                        binarta.shop.gateway = new ValidPaymentGateway();
-                        binarta.shop.stripe.connect();
+                        binarta.shop.gateway.stripeConnectedRequest = undefined;
+                        secondObserver = binarta.shop.stripe.observe(spy);
                     });
 
-                    it('observers are notified of the new idle status', function () {
-                        expect(spy.status).toHaveBeenCalledWith('idle');
+                    afterEach(function () {
+                        secondObserver.disconnect();
                     });
 
-                    it('observers are asked to visit the connect uri', function () {
-                        expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check if stripe is connected', function () {
+                        expect(binarta.shop.gateway.stripeConnectedRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when connected', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.stripeConnectedResponse.success('account-id');
+                    });
+
+                    it('observers are notified of the current connected status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('connected');
+                    });
+
+                    it('observers are notified of account we are connected to', function () {
+                        expect(spy.connected).toHaveBeenCalledWith('account-id');
+                    });
+
+                    it('connecting again is not possible', function () {
+                        expect(binarta.shop.stripe.connect).toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and account id', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'connected']);
+                        binarta.shop.stripe.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('connected');
+                        expect(spy.connected).toHaveBeenCalledWith('account-id');
+                    });
+                });
+
+                describe('when disconnected', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.stripeConnectedResponse.notFound();
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.stripe.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disconnected');
+                    });
+
+                    describe('on connect', function () {
+                        beforeEach(function () {
+                            binarta.application.setLocaleForPresentation('en');
+                            binarta.shop.stripe.connect();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a stripe connect request on the gateway', function () {
+                            expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
+                        });
+                    });
+
+                    describe('on connect with success response', function () {
+                        beforeEach(function () {
+                            spy.status.calls.reset();
+                            binarta.shop.gateway = new ValidPaymentGateway();
+                            binarta.shop.stripe.connect();
+                        });
+
+                        it('observers are notified of the new idle status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('idle');
+                        });
+
+                        it('observers are asked to visit the connect uri', function () {
+                            expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
+                        });
                     });
                 });
             });

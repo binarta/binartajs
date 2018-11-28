@@ -937,14 +937,34 @@ function BinartaShopjs(checkpoint, deps) {
         var stripe = this;
         var registry = new BinartaRX();
         var status = 'idle';
+        var initRequired = true;
+        var accountId;
 
         stripe.observe = function (l) {
             var it = registry.observe(l);
-            raiseStatus();
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.stripeConnected({}, {
+                    success: function (id) {
+                        accountId = id;
+                        status = 'connected';
+                        raiseConnected();
+                    },
+                    notFound: function () {
+                        setStatus('disconnected');
+                    }
+                });
+            } else if (status == 'connected')
+                raiseConnected();
+            else if (status == 'disconnected')
+                raiseStatus();
             return it;
         };
 
         stripe.connect = function () {
+            if (status != 'disconnected')
+                throw new Error('Already Connected!');
             setStatus('working');
             shop.gateway.stripeConnect({locale: shop.binarta.application.localeForPresentation()}, {
                 success: function (it) {
@@ -961,6 +981,11 @@ function BinartaShopjs(checkpoint, deps) {
 
         function raiseStatus() {
             registry.notify('status', status);
+        }
+
+        function raiseConnected() {
+            registry.notify('connected', accountId);
+            raiseStatus();
         }
     }
 }

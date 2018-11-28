@@ -21,10 +21,13 @@ function GatewaySpy() {
     this.findCouponById = spy('findCouponByIdRequest');
     this.containsCoupon = spy('containsCouponRequest');
     this.stripeConnect = spy('stripeConnectRequest');
+    this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
 
-    function spy(requestAttribute) {
+    function spy(requestAttribute, responseAttribute) {
         return function (request, response) {
             this[requestAttribute] = request || true;
+            if (responseAttribute)
+                this[responseAttribute] = response;
         }
     }
 }
