@@ -253,8 +253,16 @@ function BinartaInMemoryGatewaysjs() {
             })
         };
 
+        var stripeAccountId;
         this.stripeConnect = function (request, response) {
+            stripeAccountId = 'stripe-account-id';
             response.success({uri: 'http://example.org/stripe'});
+        };
+
+        this.stripeConnected = function (request, response) {
+            if (stripeAccountId)
+                response.success(stripeAccountId);
+            else response.notFound();
         }
     }
 
