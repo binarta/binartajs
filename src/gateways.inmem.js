@@ -263,6 +263,10 @@ function BinartaInMemoryGatewaysjs() {
             if (stripeAccountId)
                 response.success(stripeAccountId);
             else response.notFound();
+        };
+
+        this.clear = function() {
+            stripeAccountId = undefined;
         }
     }
 
