@@ -22,6 +22,7 @@ function GatewaySpy() {
     this.containsCoupon = spy('containsCouponRequest');
     this.stripeConnect = spy('stripeConnectRequest');
     this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
+    this.stripeDisconnect = spy('stripeDisconnectRequest', 'stripeDisconnectResponse');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {

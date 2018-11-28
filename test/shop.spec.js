@@ -1902,6 +1902,30 @@
                         expect(spy.status).toHaveBeenCalledWith('connected');
                         expect(spy.connected).toHaveBeenCalledWith('account-id');
                     });
+
+                    describe('on disconnect', function () {
+                        beforeEach(function () {
+                            binarta.shop.stripe.disconnect();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a stripe connect request on the gateway', function () {
+                            expect(binarta.shop.gateway.stripeDisconnectRequest).toEqual({});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.stripeDisconnectResponse.success();
+                            });
+
+                            it('observers are notified of the new disconnected status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disconnected');
+                            });
+                        });
+                    });
                 });
 
                 describe('when disconnected', function () {
@@ -1935,10 +1959,6 @@
                             spy.status.calls.reset();
                             binarta.shop.gateway = new ValidPaymentGateway();
                             binarta.shop.stripe.connect();
-                        });
-
-                        it('observers are notified of the new idle status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('idle');
                         });
 
                         it('observers are asked to visit the connect uri', function () {

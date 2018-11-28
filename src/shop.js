@@ -968,8 +968,16 @@ function BinartaShopjs(checkpoint, deps) {
             setStatus('working');
             shop.gateway.stripeConnect({locale: shop.binarta.application.localeForPresentation()}, {
                 success: function (it) {
-                    setStatus('idle');
                     registry.notify('goto', it.uri);
+                }
+            });
+        };
+
+        stripe.disconnect = function () {
+            setStatus('working');
+            shop.gateway.stripeDisconnect({}, {
+                success: function () {
+                    setStatus('disconnected')
                 }
             });
         };

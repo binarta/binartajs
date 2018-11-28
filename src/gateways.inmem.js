@@ -265,6 +265,11 @@ function BinartaInMemoryGatewaysjs() {
             else response.notFound();
         };
 
+        this.stripeDisconnect = function(request, response) {
+            stripeAccountId = undefined;
+            response.success();
+        };
+
         this.clear = function() {
             stripeAccountId = undefined;
         }
