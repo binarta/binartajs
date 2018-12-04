@@ -1980,7 +1980,7 @@
                 var spy, observer;
 
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                    spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
                     binarta.shop.gateway = new GatewaySpy();
                     observer = binarta.shop.bancontact.observe(spy);
                 });
@@ -2073,7 +2073,7 @@
                         });
 
                         it('perform a bancontact disable request on the gateway', function () {
-                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id:'bancontact'});
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'bancontact'});
                         });
 
                         describe('success', function () {
@@ -2145,6 +2145,27 @@
                                     owner: 'John Doe',
                                     bankId: 'piggybank',
                                     supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+
+                        describe('on rejected', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureBancontactResponse.rejected({
+                                    bankId: ['required'],
+                                    ownerName: ['required']
+                                });
+                            });
+
+                            it('observers do not get a new status event', function () {
+                                expect(spy.status).not.toHaveBeenCalled();
+                            });
+
+                            it('observers are notified of the violation report', function () {
+                                expect(spy.rejected).toHaveBeenCalledWith({
+                                    bankId: ['required'],
+                                    owner: ['required']
                                 });
                             });
                         });

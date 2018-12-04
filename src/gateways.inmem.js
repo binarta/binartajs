@@ -282,9 +282,16 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.configureBancontact = function (request, response) {
-            bancontactParams.owner = request.owner;
-            bancontactParams.bankId = request.bankId;
-            response.success();
+            if (!request.owner || !request.bankId)
+                response.rejected({
+                    bankId: ['required'],
+                    ownerName: ['required']
+                });
+            else {
+                bancontactParams.owner = request.owner;
+                bancontactParams.bankId = request.bankId;
+                response.success();
+            }
         };
 
         this.clear = function () {

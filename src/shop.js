@@ -966,6 +966,13 @@ function BinartaShopjs(checkpoint, deps) {
                     params.owner = it.owner;
                     params.bankId = it.bankId;
                     raiseParams();
+                },
+                rejected: function (it) {
+                    if (it.ownerName) {
+                        it.owner = it.ownerName;
+                        delete it.ownerName;
+                    }
+                    registry.notify('rejected', it);
                 }
             });
         };
