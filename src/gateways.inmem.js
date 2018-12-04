@@ -275,7 +275,7 @@ function BinartaInMemoryGatewaysjs() {
             response.success(bancontactParams);
         };
 
-        this.disableBancontact = function (request, response) {
+        this.disablePaymentMethod = function (request, response) {
             delete bancontactParams.owner;
             delete bancontactParams.bankId;
             response.success();

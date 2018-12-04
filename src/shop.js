@@ -973,7 +973,7 @@ function BinartaShopjs(checkpoint, deps) {
         bancontact.disable = function () {
             if (status != 'configured')
                 throw new Error('Already doing something!');
-            shop.gateway.disableBancontact({}, {
+            shop.gateway.disablePaymentMethod({id: 'bancontact'}, {
                 success: function () {
                     delete params.owner;
                     delete params.bankId;

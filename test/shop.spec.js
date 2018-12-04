@@ -2073,12 +2073,12 @@
                         });
 
                         it('perform a bancontact disable request on the gateway', function () {
-                            expect(binarta.shop.gateway.disableBancontactRequest).toEqual({});
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id:'bancontact'});
                         });
 
                         describe('success', function () {
                             beforeEach(function () {
-                                binarta.shop.gateway.disableBancontactResponse.success();
+                                binarta.shop.gateway.disablePaymentMethodResponse.success();
                             });
 
                             it('observers are notified of the new disabled status', function () {
