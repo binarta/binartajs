@@ -289,7 +289,7 @@ function BinartaInMemoryGatewaysjs() {
 
         this.clear = function () {
             stripeAccountId = undefined;
-            this.disableBancontact({}, {
+            this.disablePaymentMethod({id: 'bancontact'}, {
                 success: function () {
                 }
             })
