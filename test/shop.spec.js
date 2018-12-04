@@ -1975,6 +1975,182 @@
                     });
                 });
             });
+
+            describe('bancontact', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.bancontact.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('requests bancontact params', function () {
+                    expect(binarta.shop.gateway.getBancontactParamsRequest).toEqual({});
+                });
+
+                it('configuring is not yet possible', function () {
+                    expect(binarta.shop.bancontact.configure).toThrowError();
+                });
+
+                it('disabling is not yet possible', function () {
+                    expect(binarta.shop.bancontact.disable).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.getBancontactParamsRequest = undefined;
+                        secondObserver = binarta.shop.bancontact.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check for bancontact params', function () {
+                        expect(binarta.shop.gateway.getBancontactParamsRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when configured', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getBancontactParamsResponse.success({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('observers are notified of the current configured status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                    });
+
+                    it('observers are notified of the params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('configuring again is possible', function () {
+                        expect(binarta.shop.bancontact.configure).not.toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and params', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                        binarta.shop.bancontact.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                        expect(spy.params).toHaveBeenCalledWith({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    describe('on disable', function () {
+                        beforeEach(function () {
+                            binarta.shop.bancontact.disable();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact disable request on the gateway', function () {
+                            expect(binarta.shop.gateway.disableBancontactRequest).toEqual({});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.disableBancontactResponse.success();
+                            });
+
+                            it('observers are notified of the new disabled status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disabled');
+                            });
+
+                            it('observers are notified of the updated params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+                    });
+                });
+
+                describe('when disabled', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getBancontactParamsResponse.success({
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.bancontact.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('disabling again is not possible', function () {
+                        expect(binarta.shop.bancontact.disable).toThrowError();
+                    });
+
+                    describe('on configure', function () {
+                        beforeEach(function () {
+                            binarta.shop.bancontact.configure({
+                                owner: 'John Doe',
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact configure request on the gateway', function () {
+                            expect(binarta.shop.gateway.configureBancontactRequest).toEqual({
+                                owner: 'John Doe',
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        describe('on success', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureBancontactResponse.success();
+                            });
+
+                            it('observers are notified of the new configured status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('configured');
+                            });
+
+                            it('observers are notified of the params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    owner: 'John Doe',
+                                    bankId: 'piggybank',
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+                    });
+                });
+            });
         });
 
         function UI() {

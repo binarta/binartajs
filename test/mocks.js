@@ -23,6 +23,9 @@ function GatewaySpy() {
     this.stripeConnect = spy('stripeConnectRequest');
     this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
     this.stripeDisconnect = spy('stripeDisconnectRequest', 'stripeDisconnectResponse');
+    this.getBancontactParams = spy('getBancontactParamsRequest', 'getBancontactParamsResponse');
+    this.disableBancontact = spy('disableBancontactRequest', 'disableBancontactResponse');
+    this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {

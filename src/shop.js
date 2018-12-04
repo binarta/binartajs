@@ -10,6 +10,7 @@ function BinartaShopjs(checkpoint, deps) {
     this.checkout = new Checkout();
     this.couponDictionary = new CouponDictionary();
     this.stripe = new StripeWidget();
+    this.bancontact = new BancontactWidget();
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -930,6 +931,72 @@ function BinartaShopjs(checkpoint, deps) {
 
         this.contains = function (id, response) {
             shop.gateway.containsCoupon({id: id}, response);
+        }
+    }
+
+    function BancontactWidget() {
+        var bancontact = this;
+        var registry = new BinartaRX();
+        var initRequired = true;
+        var status, params;
+
+        bancontact.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.getBancontactParams({}, {
+                    success: function (it) {
+                        params = it;
+                        raiseParams();
+                    }
+                });
+            } else if (status == 'configured')
+                raiseParams();
+            else if (status == 'disabled')
+                raiseParams();
+            return it;
+        };
+
+        bancontact.configure = function (it) {
+            if (status == 'working')
+                throw new Error('Already doing something!');
+            shop.gateway.configureBancontact(it, {
+                success: function () {
+                    params.owner = it.owner;
+                    params.bankId = it.bankId;
+                    raiseParams();
+                }
+            });
+        };
+
+        bancontact.disable = function () {
+            if (status != 'configured')
+                throw new Error('Already doing something!');
+            shop.gateway.disableBancontact({}, {
+                success: function () {
+                    delete params.owner;
+                    delete params.bankId;
+                    raiseParams();
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseParams() {
+            registry.notify('params', params);
+            if (params.owner && params.bankId)
+                setStatus('configured');
+            else
+                setStatus('disabled');
         }
     }
 

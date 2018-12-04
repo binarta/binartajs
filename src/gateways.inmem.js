@@ -265,13 +265,34 @@ function BinartaInMemoryGatewaysjs() {
             else response.notFound();
         };
 
-        this.stripeDisconnect = function(request, response) {
+        this.stripeDisconnect = function (request, response) {
             stripeAccountId = undefined;
             response.success();
         };
 
-        this.clear = function() {
+        var bancontactParams = {supportedBy: ['piggybank', 'megabank']};
+        this.getBancontactParams = function (request, response) {
+            response.success(bancontactParams);
+        };
+
+        this.disableBancontact = function (request, response) {
+            delete bancontactParams.owner;
+            delete bancontactParams.bankId;
+            response.success();
+        };
+
+        this.configureBancontact = function (request, response) {
+            bancontactParams.owner = request.owner;
+            bancontactParams.bankId = request.bankId;
+            response.success();
+        };
+
+        this.clear = function () {
             stripeAccountId = undefined;
+            this.disableBancontact({}, {
+                success: function () {
+                }
+            })
         }
     }
 
