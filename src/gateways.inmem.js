@@ -270,15 +270,35 @@ function BinartaInMemoryGatewaysjs() {
             response.success();
         };
 
+        var ccParams = {supportedBy: ['piggybank', 'megabank']};
+        this.getCCParams = function (request, response) {
+            response.success(ccParams);
+        };
+
         var bancontactParams = {supportedBy: ['piggybank', 'megabank']};
         this.getBancontactParams = function (request, response) {
             response.success(bancontactParams);
         };
 
         this.disablePaymentMethod = function (request, response) {
-            delete bancontactParams.owner;
-            delete bancontactParams.bankId;
+            if (request.id == 'cc')
+                delete ccParams.bankId;
+            if (request.id == 'bancontact') {
+                delete bancontactParams.owner;
+                delete bancontactParams.bankId;
+            }
             response.success();
+        };
+
+        this.configureCC = function (request, response) {
+            if (!request.bankId)
+                response.rejected({
+                    bankId: ['required']
+                });
+            else {
+                ccParams.bankId = request.bankId;
+                response.success();
+            }
         };
 
         this.configureBancontact = function (request, response) {
@@ -299,7 +319,11 @@ function BinartaInMemoryGatewaysjs() {
             this.disablePaymentMethod({id: 'bancontact'}, {
                 success: function () {
                 }
-            })
+            });
+            this.disablePaymentMethod({id: 'cc'}, {
+                success: function () {
+                }
+            });
         }
     }
 
