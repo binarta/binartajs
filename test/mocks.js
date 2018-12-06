@@ -23,9 +23,11 @@ function GatewaySpy() {
     this.stripeConnect = spy('stripeConnectRequest');
     this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
     this.stripeDisconnect = spy('stripeDisconnectRequest', 'stripeDisconnectResponse');
+    this.getCCParams = spy('getCCParamsRequest', 'getCCParamsResponse');
     this.getBancontactParams = spy('getBancontactParamsRequest', 'getBancontactParamsResponse');
     this.disablePaymentMethod = spy('disablePaymentMethodRequest', 'disablePaymentMethodResponse');
     this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
+    this.configureCC = spy('configureCCRequest', 'configureCCResponse');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {
