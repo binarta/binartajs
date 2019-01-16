@@ -1,0 +1,54 @@
+#!/usr/bin/env groovy
+
+pipeline {
+    agent { label 'ubuntu-1604' }
+    environment {
+      GITUSER = credentials('2f0ed470-9d45-4f70-8fdc-d3baac3ec050')
+    }
+    parameters {
+        choice(choices: ['patch', 'minor', 'major'], description: 'What type of release?', name: 'TYPE', )
+    }
+    options {
+        disableConcurrentBuilds()
+    }
+    stages {
+        stage 'update npm', {
+            steps {
+                sh 'npm update'
+            }
+        }
+        stage 'update bower', {
+            steps {
+                sh 'bower update'
+            }
+        }
+        stage 'build', {
+            steps {
+                sh 'gulp'
+            }
+        }
+        stage 'release', {
+            when {
+                branch 'master'
+            }
+            stages {
+                stage 'update version', {
+                    steps {
+                        sh 'bower version ${params.TYPE}'
+                    }
+
+                }
+                stage 'publish to git', {
+                    steps {
+                        sh 'git push --tags'
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            sh '''rm -rf node_modules & rm -rf bower_components'''
+        }
+    }
+}
