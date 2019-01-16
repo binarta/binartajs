@@ -41,6 +41,15 @@
                 publisher.blog.add();
             });
 
+            it('can pass a type to the db when adding draft', function() {
+                publisher.db = {
+                    add: function(request) {
+                        expect(request.type).toEqual('type');
+                    }
+                };
+                publisher.blog.add({type: 'type'});
+            });
+
             it('adding draft takes a success listener which receives the newly created blog post id', function () {
                 publisher.db = {
                     add: function (request, response) {
@@ -48,7 +57,7 @@
                     }
                 };
                 var spy = jasmine.createSpyObj('listener', ['success']);
-                publisher.blog.add(spy);
+                publisher.blog.add({}, spy);
                 expect(spy.success).toHaveBeenCalledWith('id');
             });
 
@@ -62,13 +71,13 @@
                 publisher.blog.add({});
             });
 
-            describe('given published log posts handle', function () {
+            describe('given published blog posts handle', function () {
                 var handle, display;
 
                 beforeEach(function () {
                     publisher.db = jasmine.createSpyObj('db', ['findAllPublishedBlogsForLocale']);
                     display = jasmine.createSpyObj('display', ['status', 'more']);
-                    handle = publisher.blog.published(display);
+                    handle = publisher.blog.published({}, display);
                 });
 
                 describe('with noop decorator', function () {
@@ -205,6 +214,24 @@
                     };
                     handle.more();
                     expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/p');
+                });
+
+                describe('for a blogtype', function() {
+                    beforeEach(function() {
+                        publisher.db.findAllPublishedBlogsForLocale.calls.reset();
+                        display.status.calls.reset();
+                        display.more.calls.reset();
+                        handle = publisher.blog.published({type: 'type'}, display);
+                    });
+
+                    it('passes the type when querying the db', function() {
+                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function(request, response) {
+                            expect(request.type).toEqual('type');
+                            response.success([]);
+                        });
+
+                        handle.more();
+                    });
                 });
             });
 
@@ -214,7 +241,7 @@
                 beforeEach(function () {
                     publisher.db = jasmine.createSpyObj('db', ['findAllBlogsInDraftForLocale']);
                     display = jasmine.createSpyObj('display', ['status', 'more']);
-                    handle = publisher.blog.drafts(display);
+                    handle = publisher.blog.drafts({}, display);
                 });
 
                 describe('with noop decorator', function () {
@@ -351,6 +378,24 @@
                     };
                     handle.more();
                     expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/p');
+                });
+
+                describe('for a blogtype', function() {
+                    beforeEach(function() {
+                        publisher.db.findAllBlogsInDraftForLocale.calls.reset();
+                        display.status.calls.reset();
+                        display.more.calls.reset();
+                        handle = publisher.blog.drafts({type: 'type'}, display);
+                    });
+
+                    it('passes the type when querying the db', function() {
+                        publisher.db.findAllBlogsInDraftForLocale.and.callFake(function(request, response) {
+                            expect(request.type).toEqual('type');
+                            response.success([]);
+                        });
+
+                        handle.more();
+                    });
                 });
             });
 
@@ -887,11 +932,52 @@
                         });
                     });
                 });
+
+                describe('and updating the type of the post', function() {
+                    var post;
+
+                    beforeEach(function() {
+                        post = {id: 'p'};
+                        publisher.db = jasmine.createSpyObj('db', ['get', 'setType']);
+                        publisher.db.get.and.callFake(function(request, response) {
+                            response.success(post);
+                        });
+                        handle.render();
+                        Object.getOwnPropertyNames(display).forEach(function(spy) {
+                            display[spy].calls.reset();
+                        });
+                    });
+
+                    it('sets the display to updating', function() {
+                        handle.setType('t');
+
+                        expect(display.status).toHaveBeenCalledWith('updating');
+                    });
+
+                    it('invokes the db to set the type', function() {
+                        handle.setType('t');
+
+                        expect(publisher.db.setType).toHaveBeenCalledWith({
+                            id: 'p',
+                            type: 't'
+                        }, jasmine.anything());
+                    });
+
+                    it('sets the display to updated on success', function() {
+                        publisher.db.setType.and.callFake(function(request, response) {
+                            response.success();
+                        });
+
+                        handle.setType('t');
+
+                        expect(display.status).toHaveBeenCalledWith('updated');
+                    });
+                });
             });
         });
 
         describe('database decorators', function () {
-            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'findAllBlogsInDraftForLocale', 'publish', 'withdraw', 'draftInAnotherLanguage', 'delete'];
+            var supportedOperations = ['add', 'get', 'findAllPublishedBlogsForLocale', 'findAllBlogsInDraftForLocale', 'publish', 'withdraw', 'draftInAnotherLanguage', 'delete', 'setType'];
 
             describe('routing by application lock decorator', function () {
                 var db, visitorDB, clerkDB;
@@ -942,6 +1028,11 @@
                         db.delete('a', 'b', 'c');
                         expect(visitorDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
                     });
+
+                    it('setType', function() {
+                        db.setType('a', 'b', 'c');
+                        expect(visitorDB.setType).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
                 });
 
                 describe('in edit mode route to clerk db:', function () {
@@ -987,6 +1078,11 @@
                     it('delete', function () {
                         db.delete('a', 'b', 'c');
                         expect(clerkDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
+                    });
+
+                    it('setType', function() {
+                        db.setType('a', 'b', 'c');
+                        expect(clerkDB.setType).toHaveBeenCalledWith('a', 'b', 'c');
                     });
                 });
             });
@@ -1036,6 +1132,10 @@
                     it('delete', function () {
                         expect(db.delete).toThrow(readOnlyErrorMessage);
                     });
+
+                    it('setType', function() {
+                        expect(db.setType).toThrow(readOnlyErrorMessage);
+                    })
                 });
 
                 describe('given unknown blog post', function () {
@@ -1284,6 +1384,12 @@
                             expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
                         });
 
+                        it('then calls the source db when given a request parameter with a different type', function() {
+                            db.sourceDB = sourceDB
+                            db.findAllPublishedBlogsForLocale({locale: 'en', type: 't', subset: {offset: 0, max: 10}});
+                            expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
+                        });
+
                         it('then a response handler is still optional', function () {
                             db.findAllPublishedBlogsForLocale({locale: 'en', subset: {offset: 0, max: 10}});
                         });
@@ -1410,6 +1516,12 @@
                             it('then calls the source db when given a request parameter with a different max', function () {
                                 db.sourceDB = sourceDB;
                                 db.findAllBlogsInDraftForLocale({locale: 'en', subset: {offset: 0, max: 999}});
+                                expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
+                            });
+
+                            it('then calls the source db when given a request parameter with a different type', function() {
+                                db.sourceDB = sourceDB
+                                db.findAllBlogsInDraftForLocale({locale: 'en', type: 't', subset: {offset: 0, max: 10}});
                                 expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
                             });
 

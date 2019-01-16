@@ -15,23 +15,35 @@ function BinartaPublisherjs(args) {
     function Blog() {
         var blog = this;
 
-        blog.published = function (display) {
-            return new Posts('findAllPublishedBlogsForLocale', display);
+        blog.published = function (request, display) {
+            return new Posts({
+                display: display,
+                query:'findAllPublishedBlogsForLocale', 
+                type: request.type
+            });
         };
 
-        blog.drafts = function (display) {
-            return new Posts('findAllBlogsInDraftForLocale', display);
+        blog.drafts = function (request, display) {
+            return new Posts({
+                display: display,
+                query: 'findAllBlogsInDraftForLocale', 
+                type: request.type
+            });
         };
 
-        blog.add = function (response) {
-            publisher.db.add(
-                {locale: publisher.binarta.application.localeForPresentation()},
-                {
-                    success: function (id) {
-                        if (response && response.success)
-                            response.success(id)
-                    }
+        blog.add = function (request, response) {
+            if (request === undefined) 
+                request = {};
+            var input = {
+                type: request.type,
+                locale: publisher.binarta.application.localeForPresentation()
+            };
+            publisher.db.add(input, {
+                success: function (id) {
+                    if (response && response.success)
+                        response.success(id)
                 }
+            }
             );
         };
 
@@ -39,8 +51,13 @@ function BinartaPublisherjs(args) {
             return new BlogPostHandle(id);
         };
 
-        function Posts(query, display) {
+        function Posts(options) {
             var posts = this;
+
+            var query, type, display;
+            query = options.query;
+            type = options.type;
+            display = options.display;
 
             posts.subset = {offset: 0, max: 10};
             posts.status = 'has-more';
@@ -52,7 +69,8 @@ function BinartaPublisherjs(args) {
                 display.status(posts.status);
                 var request = {
                     locale: publisher.binarta.application.localeForPresentation(),
-                    subset: posts.subset
+                    subset: posts.subset,
+                    type: type
                 };
                 publisher.db[query](request, {
                     success: function (it) {
@@ -196,6 +214,15 @@ function BinartaPublisherjs(args) {
                         display.deleted();
                     }
                 });
+            };
+
+            handle.setType = function(type) {
+                display.status('updating');
+                publisher.db.setType({id: post.id, type: type}, {
+                    success: function() {
+                        display.status('updated');
+                    }
+                });
             }
         }
     }
@@ -240,6 +267,10 @@ function BinartaPublisherjs(args) {
 
         db.delete = function() {
             routedDB.delete.apply(undefined, arguments);
+        };
+
+        db.setType = function() {
+            routedDB.setType.apply(undefined, arguments);
         }
     }
 
@@ -253,6 +284,7 @@ function BinartaPublisherjs(args) {
         cache.withdraw = readOnly;
         cache.draftInAnotherLanguage = readOnly;
         cache.delete = readOnly;
+        cache.setType = readOnly;
 
         function readOnly() {
             throw 'CachingDecorator is a read-only proxy!';
@@ -268,11 +300,13 @@ function BinartaPublisherjs(args) {
         };
 
         cache.findAllPublishedBlogsForLocale = function () {
-            resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, 'findAllPublishedBlogsForLocale:' + arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
+            var key = ['findAllPublishedBlogsForLocale', arguments[0].locale, arguments[0].type, arguments[0].subset.offset, arguments[0].subset.max].join(':');
+            resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, key);
         };
 
         cache.findAllBlogsInDraftForLocale = function () {
-            resolve(cache.sourceDB.findAllBlogsInDraftForLocale, arguments, 'findAllBlogsInDraftForLocale:' + arguments[0].locale + ':' + arguments[0].subset.offset + ':' + arguments[0].subset.max);
+            var key = ['findAllBlogsInDraftForLocale', arguments[0].locale, arguments[0].type, arguments[0].subset.offset, arguments[0].subset.max].join(':');
+            resolve(cache.sourceDB.findAllBlogsInDraftForLocale, arguments, key);
         };
 
         var responseQueue = {};
