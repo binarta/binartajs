@@ -4,13 +4,19 @@ pipeline {
     agent { label 'ubuntu-1604' }
     stages {
         stage 'update npm', {
-            sh 'npm update'
+            steps {
+                sh 'npm update'
+            }
         }
         stage 'update bower', {
-            sh 'bower update'
+            steps {
+                sh 'bower update'
+            }
         }
         stage 'build', {
-            sh 'gulp'
+            steps {
+                sh 'gulp'
+            }
         }
     }
     post {
