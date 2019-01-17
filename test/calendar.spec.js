@@ -14,11 +14,13 @@
         });
 
         describe('upcoming events', function () {
-            var response, observer;
+            var response, observer, now;
 
             beforeEach(function () {
+                now = new Date();
                 response = jasmine.createSpyObj('response', ['events']);
                 calendar.gateway = new ValidCalendarGateway();
+                calendar.timeline = [now, now];
             });
 
             afterEach(function () {
@@ -29,13 +31,13 @@
             it('refresh to load upcoming events from server', function () {
                 calendar.gateway = new GatewaySpy();
                 calendar.upcoming.refresh();
-                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({});
+                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({startDate: moment(now)});
             });
 
             it('installing an observer loads upcoming events from server', function () {
                 calendar.gateway = new GatewaySpy();
                 observer = calendar.upcoming.observe(response);
-                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({});
+                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({startDate: moment(now)});
             });
 
             it('observers receive the list of upcoming events', function () {
@@ -83,7 +85,7 @@
                 calendar.upcoming.refresh();
                 calendar.gateway = new GatewaySpy();
                 calendar.upcoming.refresh();
-                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({});
+                expect(calendar.gateway.findUpcomingEventsRequest).toEqual({startDate: moment(now)});
             });
         });
     });

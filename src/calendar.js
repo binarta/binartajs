@@ -1,6 +1,7 @@
 function BinartaCalendarjs() {
     var calendar = this;
 
+    calendar.timeline = new BinartaTL();
     calendar.upcoming = new Upcoming();
 
     function Upcoming() {
@@ -18,9 +19,11 @@ function BinartaCalendarjs() {
         };
 
         upcoming.refresh = function () {
-            if(!loading) {
+            if (!loading) {
                 loading = true;
-                calendar.gateway.findUpcomingEvents({}, {
+                calendar.gateway.findUpcomingEvents({
+                    startDate: moment(calendar.timeline.shift())
+                }, {
                     success: function (it) {
                         events = it.map(function (it) {
                             it.start = moment(it.start);
