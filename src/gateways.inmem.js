@@ -3,6 +3,7 @@ function BinartaInMemoryGatewaysjs() {
     this.checkpoint = new CheckpointGateway();
     this.shop = new ShopGateway();
     this.hr = new HumanResourcesDB();
+    this.calendar = new CalendarDB();
 
     function ApplicationGateway() {
         var self = this;
@@ -366,6 +367,15 @@ function BinartaInMemoryGatewaysjs() {
             response.success(records.reduce(function (p, c) {
                 return c.id == request.id ? c : p;
             }, null));
+        }
+    }
+
+    function CalendarDB() {
+        var db = this;
+
+        db.upcomingEvents = [];
+        db.findUpcomingEvents = function (request, response) {
+            response.success(upcomingEvents);
         }
     }
 }
