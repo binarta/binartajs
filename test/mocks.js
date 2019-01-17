@@ -28,6 +28,7 @@ function GatewaySpy() {
     this.disablePaymentMethod = spy('disablePaymentMethodRequest', 'disablePaymentMethodResponse');
     this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
     this.configureCC = spy('configureCCRequest', 'configureCCResponse');
+    this.findUpcomingEvents = spy('findUpcomingEventsRequest');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {
@@ -76,6 +77,16 @@ function ValidApplicationGateway() {
 
     this.addConfig = function (request, response) {
         response.success();
+    }
+}
+
+function ValidCalendarGateway() {
+    this.findUpcomingEvents = function (request, response) {
+        response.success([
+            {id: 'a', start: '2017-02-01T16:00:00Z'},
+            {id: 'b', start: '2017-02-02T16:00:00Z'},
+            {id: 'c', start: '2017-02-03T16:00:00Z'}
+        ]);
     }
 }
 
