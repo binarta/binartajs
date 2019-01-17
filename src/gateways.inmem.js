@@ -375,7 +375,7 @@ function BinartaInMemoryGatewaysjs() {
 
         db.upcomingEvents = [];
         db.findUpcomingEvents = function (request, response) {
-            response.success(upcomingEvents);
+            response.success(db.upcomingEvents);
         }
     }
 }
