@@ -51,7 +51,7 @@ pipeline {
                 }
                 stage 'publish to git', {
                     steps {
-                        sh("git push https://${urlEncode(GITUSER_USR)}:${urlEncode(GITUSER_PSW)}@github.com/binarta/binartajs --tags")
+                        sh("git push https://${urlEncode(GITUSER_USR)}:${urlEncode(GITUSER_PSW)}@github.com/binarta/binartajs master --tags")
                     }
                 }
             }
