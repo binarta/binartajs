@@ -1,17 +1,26 @@
 #!/usr/bin/env groovy
 
+def urlEncode(String text) {
+    URLEncoder.encode(text, "UTF-8")
+}
+
 pipeline {
     agent { label 'ubuntu-1604' }
     environment {
       GITUSER = credentials('2f0ed470-9d45-4f70-8fdc-d3baac3ec050')
     }
     parameters {
-        choice(choices: ['patch', 'minor', 'major'], description: 'What type of release?', name: 'TYPE', )
+        choice(choices: 'patch\nminor\nmajor', description: 'What type of release?', name: 'TYPE')
     }
     options {
         disableConcurrentBuilds()
     }
     stages {
+        stage 'show env', {
+            steps {
+                sh 'printenv'
+            }
+        }
         stage 'update npm', {
             steps {
                 sh 'npm update'
@@ -29,18 +38,20 @@ pipeline {
         }
         stage 'release', {
             when {
-                branch 'master'
+                expression {
+                    GIT_BRANCH ==~ /origin\/master/
+                }
             }
             stages {
                 stage 'update version', {
                     steps {
-                        sh 'bower version ${params.TYPE}'
+                        sh "bower version ${params.TYPE}"
                     }
 
                 }
                 stage 'publish to git', {
                     steps {
-                        sh 'git push --tags'
+                        sh("git push https://${urlEncode(GITUSER_USR)}:${urlEncode(GITUSER_PSW)}@github.com/binarta/binartajs --tags")
                     }
                 }
             }
