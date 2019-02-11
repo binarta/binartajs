@@ -73,6 +73,20 @@ function BinartaInMemoryGatewaysjs() {
             sectionData = [];
         };
         this.clear();
+
+        var widgets = {};
+        this.getWidgetAttributes = function (request, response) {
+            response.success(widgets[toWidgetKey(request)] || {})
+        };
+
+        function toWidgetKey(request) {
+            return request.headers.namespace + '.' + request.payload.platform + '.' + request.payload.component + '.' + request.payload.widget;
+        }
+
+        this.saveWidgetAttributes = function(request, response) {
+            widgets[toWidgetKey(request)] = request.attributes;
+            response.success();
+        }
     }
 
     function CheckpointGateway() {

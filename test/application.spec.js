@@ -990,6 +990,121 @@
                 expect(spy.viewing).toHaveBeenCalled();
             });
         });
+
+        describe('display settings', function () {
+            var ui, observer;
+
+            beforeEach(function () {
+                ui = jasmine.createSpyObj('ui', ['attributes']);
+            });
+
+            afterEach(function () {
+                if (observer)
+                    observer.disconnect();
+            });
+
+            describe('when selecting a component', function () {
+                var component;
+
+                beforeEach(function () {
+                    component = binarta.application.display.settings.component('component');
+                });
+
+                it('multiple requests with the same id get the same instance', function() {
+                    expect(binarta.application.display.settings.component('component')).toEqual(component);
+                });
+
+                describe('when selecting a widget', function () {
+                    var widget;
+
+                    beforeEach(function () {
+                        widget = component.widget('widget');
+                    });
+
+                    it('multiple requests with the same id get the same instance', function() {
+                        expect(component.widget('widget')).toEqual(widget);
+                    });
+
+                    it('installing an observer loads default attributes from server', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        observer = widget.observe(ui);
+                        expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
+                            component: 'component',
+                            widget: 'widget'
+                        });
+                    });
+
+                    it('observers receive the default attributes', function () {
+                        observer = widget.observe(ui);
+                        expect(ui.attributes).toHaveBeenCalledWith({
+                            aspectRatio: {width: 3, height: 2},
+                            fittingRule: 'contain'
+                        });
+                    });
+
+                    it('disconnected observers are not notified of the default attributes', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        observer = widget.observe(ui);
+                        observer.disconnect();
+                        binarta.application.gateway = new ValidApplicationGateway();
+                        widget.refresh();
+                        expect(ui.attributes).not.toHaveBeenCalled();
+                    });
+
+                    it('installing additional observers reuses previously loaded attributes', function () {
+                        observer = widget.observe(ui);
+                        binarta.application.gateway = {};
+                        ui.attributes.calls.reset();
+                        observer = widget.observe(ui).disconnect();
+                        expect(ui.attributes).toHaveBeenCalledWith({
+                            aspectRatio: {width: 3, height: 2},
+                            fittingRule: 'contain'
+                        });
+                    });
+
+                    it('when saving new default attributes then request is sent to server', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        widget.save('attributes');
+                        expect(binarta.application.gateway.saveWidgetAttributesRequest).toEqual({
+                            component: 'component',
+                            widget: 'widget',
+                            attributes: 'attributes'
+                        });
+                    });
+
+                    it('when saving new default attributes observer receives the updated attributes', function () {
+                        observer = widget.observe(ui);
+                        widget.save('attributes');
+                        expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                    });
+
+                    it('when saving new default attributes additional observers receive the updated attributes', function () {
+                        observer = widget.observe(ui);
+                        widget.save('attributes');
+                        ui.attributes.calls.reset();
+                        observer = widget.observe(ui).disconnect();
+                        expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                    });
+
+                    it('refreshing before atributes could be loaded from server does not trigger additional lookups', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        widget.refresh();
+                        binarta.application.gateway = {};
+                        widget.refresh();
+                    });
+
+                    it('refreshing after attributes could be loaded performs lookup from server', function () {
+                        widget.refresh();
+                        binarta.application.gateway = new GatewaySpy();
+                        widget.refresh();
+                        expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
+                            component: 'component',
+                            widget: 'widget'
+                        });
+                    });
+                });
+            });
+        });
     });
 
     function UI() {

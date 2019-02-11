@@ -14,6 +14,7 @@ function BinartaApplicationjs(deps) {
     app.config = new Config(app.adhesiveReading);
     app.cookies = new Cookies();
     app.lock = new Lock();
+    app.display = new Display();
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
@@ -372,8 +373,8 @@ function BinartaApplicationjs(deps) {
 
             permission.evaluate = function () {
                 if (localStorage.cookiesAccepted == 'true' || permission.blacklist.some(function (it) {
-                        return app.window.navigator.userAgent.toLowerCase().indexOf(it) != -1;
-                    }))
+                    return app.window.navigator.userAgent.toLowerCase().indexOf(it) != -1;
+                }))
                     permission.status = 'permission-granted';
                 else if (localStorage.cookiesAccepted == 'false')
                     permission.status = 'permission-revoked';
@@ -423,6 +424,84 @@ function BinartaApplicationjs(deps) {
             app.eventRegistry.forEach(function (l) {
                 l.notify('viewing');
             });
+        }
+    }
+
+    function Display() {
+        var display = this;
+
+        display.settings = new Settings();
+
+        function Settings() {
+            var settings = this;
+            var components = {};
+
+            settings.component = function (it) {
+                if(!components[it])
+                    components[it] = new Component(it);
+                return components[it];
+            };
+
+            function Component(componentId) {
+                var component = this;
+                var widgets = {};
+
+                component.widget = function (it) {
+                    if(!widgets[it])
+                        widgets[it] = new Widget(it);
+                    return widgets[it];
+                };
+
+                function Widget(widgetId) {
+                    var widget = this;
+                    var rx = new BinartaRX();
+                    var initialised = false, loading = false;
+                    var attributes = {};
+
+                    widget.observe = function (l) {
+                        var observer = rx.observe(l);
+                        if (!initialised)
+                            widget.refresh();
+                        else
+                            raiseAttributes();
+                        return observer;
+                    };
+
+                    widget.refresh = function () {
+                        if (!loading) {
+                            loading = true;
+                            app.gateway.getWidgetAttributes({
+                                component: componentId,
+                                widget: widgetId
+                            }, {
+                                success: function (it) {
+                                    initialised = true;
+                                    loading = false;
+                                    attributes = it;
+                                    raiseAttributes();
+                                }
+                            });
+                        }
+                    };
+
+                    function raiseAttributes() {
+                        rx.notify('attributes', attributes);
+                    }
+
+                    widget.save = function (attrs) {
+                        app.gateway.saveWidgetAttributes({
+                            component: componentId,
+                            widget: widgetId,
+                            attributes: attrs
+                        }, {
+                            success: function () {
+                                attributes = attrs;
+                                raiseAttributes();
+                            }
+                        });
+                    }
+                }
+            }
         }
     }
 }

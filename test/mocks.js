@@ -29,6 +29,8 @@ function GatewaySpy() {
     this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
     this.configureCC = spy('configureCCRequest', 'configureCCResponse');
     this.findUpcomingEvents = spy('findUpcomingEventsRequest');
+    this.getWidgetAttributes = spy('getWidgetAttributesRequest');
+    this.saveWidgetAttributes = spy('saveWidgetAttributesRequest');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {
@@ -76,6 +78,17 @@ function ValidApplicationGateway() {
     };
 
     this.addConfig = function (request, response) {
+        response.success();
+    };
+
+    this.getWidgetAttributes = function (request, response) {
+        response.success({
+            aspectRatio: {width: 3, height: 2},
+            fittingRule: 'contain'
+        })
+    };
+
+    this.saveWidgetAttributes = function(request, response) {
         response.success();
     }
 }
