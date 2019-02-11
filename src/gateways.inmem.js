@@ -80,7 +80,7 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         function toWidgetKey(request) {
-            return request.headers.namespace + '.' + request.payload.platform + '.' + request.payload.component + '.' + request.payload.widget;
+            return request.component + '.' + request.widget;
         }
 
         this.saveWidgetAttributes = function(request, response) {
