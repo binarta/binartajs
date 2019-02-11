@@ -995,7 +995,7 @@
             var ui, observer;
 
             beforeEach(function () {
-                ui = jasmine.createSpyObj('ui', ['attributes']);
+                ui = jasmine.createSpyObj('ui', ['attributes', 'working', 'saved']);
             });
 
             afterEach(function () {
@@ -1025,12 +1025,21 @@
                         expect(component.widget('widget')).toEqual(widget);
                     });
 
-                    it('installing an observer loads default attributes from server', function () {
-                        binarta.application.gateway = new GatewaySpy();
-                        observer = widget.observe(ui);
-                        expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
-                            component: 'component',
-                            widget: 'widget'
+                    describe('installing an observer', function() {
+                        beforeEach(function() {
+                            binarta.application.gateway = new GatewaySpy();
+                            observer = widget.observe(ui);
+                        });
+
+                        it('loads default attributes from server', function () {
+                            expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
+                                component: 'component',
+                                widget: 'widget'
+                            });
+                        });
+
+                        it('notifies observer of working status', function() {
+                            expect(ui.working).toHaveBeenCalled();
                         });
                     });
 
@@ -1062,28 +1071,45 @@
                         });
                     });
 
-                    it('when saving new default attributes then request is sent to server', function () {
-                        binarta.application.gateway = new GatewaySpy();
-                        widget.save('attributes');
-                        expect(binarta.application.gateway.saveWidgetAttributesRequest).toEqual({
-                            component: 'component',
-                            widget: 'widget',
-                            attributes: 'attributes'
+                    describe('when saving new default attributes', function() {
+                        beforeEach(function() {
+                            observer = widget.observe(ui);
+                            binarta.application.gateway = new GatewaySpy();
+                            widget.save('attributes');
+                        });
+
+                        it('then request is sent to server', function () {
+                            expect(binarta.application.gateway.saveWidgetAttributesRequest).toEqual({
+                                component: 'component',
+                                widget: 'widget',
+                                attributes: 'attributes'
+                            });
+                        });
+
+                        it('then observer is notified of working status', function() {
+                            expect(ui.working).toHaveBeenCalled();
                         });
                     });
 
-                    it('when saving new default attributes observer receives the updated attributes', function () {
-                        observer = widget.observe(ui);
-                        widget.save('attributes');
-                        expect(ui.attributes).toHaveBeenCalledWith('attributes');
-                    });
+                    describe('when saving new default attributes', function() {
+                        beforeEach(function() {
+                            observer = widget.observe(ui);
+                            widget.save('attributes');
+                        });
 
-                    it('when saving new default attributes additional observers receive the updated attributes', function () {
-                        observer = widget.observe(ui);
-                        widget.save('attributes');
-                        ui.attributes.calls.reset();
-                        observer = widget.observe(ui).disconnect();
-                        expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                        it('then the observer receives the updated attributes', function () {
+                            expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                        });
+
+                        it('then additional observers receive the updated attributes', function () {
+                            ui.attributes.calls.reset();
+                            observer = widget.observe(ui).disconnect();
+                            expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                        });
+
+                        it('then the observer is notified of save completion', function() {
+                            expect(ui.saved).toHaveBeenCalled();
+                        });
                     });
 
                     it('refreshing before atributes could be loaded from server does not trigger additional lookups', function () {

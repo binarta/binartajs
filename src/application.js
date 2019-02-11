@@ -437,7 +437,7 @@ function BinartaApplicationjs(deps) {
             var components = {};
 
             settings.component = function (it) {
-                if(!components[it])
+                if (!components[it])
                     components[it] = new Component(it);
                 return components[it];
             };
@@ -447,7 +447,7 @@ function BinartaApplicationjs(deps) {
                 var widgets = {};
 
                 component.widget = function (it) {
-                    if(!widgets[it])
+                    if (!widgets[it])
                         widgets[it] = new Widget(it);
                     return widgets[it];
                 };
@@ -469,6 +469,7 @@ function BinartaApplicationjs(deps) {
 
                     widget.refresh = function () {
                         if (!loading) {
+                            raiseWorking();
                             loading = true;
                             app.gateway.getWidgetAttributes({
                                 component: componentId,
@@ -488,7 +489,12 @@ function BinartaApplicationjs(deps) {
                         rx.notify('attributes', attributes);
                     }
 
+                    function raiseWorking() {
+                        rx.notify('working');
+                    }
+
                     widget.save = function (attrs) {
+                        raiseWorking();
                         app.gateway.saveWidgetAttributes({
                             component: componentId,
                             widget: widgetId,
@@ -497,8 +503,13 @@ function BinartaApplicationjs(deps) {
                             success: function () {
                                 attributes = attrs;
                                 raiseAttributes();
+                                raiseSaved();
                             }
                         });
+                    };
+
+                    function raiseSaved() {
+                        rx.notify('saved');
                     }
                 }
             }
