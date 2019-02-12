@@ -995,7 +995,7 @@
             var ui, observer;
 
             beforeEach(function () {
-                ui = jasmine.createSpyObj('ui', ['attributes', 'working', 'saved']);
+                ui = jasmine.createSpyObj('ui', ['attributes', 'working', 'saved', 'rejected']);
             });
 
             afterEach(function () {
@@ -1110,6 +1110,13 @@
                         it('then the observer is notified of save completion', function() {
                             expect(ui.saved).toHaveBeenCalled();
                         });
+                    });
+
+                    it('when saving invalid attributes then rejection report is sent to observers', function() {
+                        observer = widget.observe(ui);
+                        binarta.application.gateway = new InvalidApplicationGateway();
+                        widget.save('-');
+                        expect(ui.rejected).toHaveBeenCalledWith('report');
                     });
 
                     it('refreshing before atributes could be loaded from server does not trigger additional lookups', function () {

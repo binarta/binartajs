@@ -93,6 +93,12 @@ function ValidApplicationGateway() {
     }
 }
 
+function InvalidApplicationGateway() {
+    this.saveWidgetAttributes = function(request, response) {
+        response.rejected('report');
+    }
+}
+
 function ValidCalendarGateway() {
     this.findUpcomingEvents = function (request, response) {
         response.success([

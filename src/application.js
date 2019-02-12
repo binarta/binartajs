@@ -504,12 +504,17 @@ function BinartaApplicationjs(deps) {
                                 attributes = attrs;
                                 raiseAttributes();
                                 raiseSaved();
-                            }
+                            },
+                            rejected: raiseRejection
                         });
                     };
 
                     function raiseSaved() {
                         rx.notify('saved');
+                    }
+
+                    function raiseRejection(it) {
+                        rx.notify('rejected', it)
                     }
                 }
             }
