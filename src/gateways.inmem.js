@@ -86,6 +86,16 @@ function BinartaInMemoryGatewaysjs() {
         this.saveWidgetAttributes = function (request, response) {
             widgets[toWidgetKey(request)] = request.attributes;
             response.success();
+        };
+
+        var records = [];
+        this.getCustomDomainRecords = function(response) {
+            response.success(records.slice(0));
+        };
+
+        this.saveCustomDomainRecords = function(request, response) {
+            records = request;
+            response.success();
         }
     }
 

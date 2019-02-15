@@ -15,6 +15,7 @@ function BinartaApplicationjs(deps) {
     app.cookies = new Cookies();
     app.lock = new Lock();
     app.display = new Display();
+    app.dns = BinartaWidget(DNS);
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
@@ -520,5 +521,50 @@ function BinartaApplicationjs(deps) {
                 }
             }
         }
+    }
+
+    function DNS(rx, toResponseHandler) {
+        var dns = this;
+        var message;
+
+        dns.refresh = function () {
+            app.gateway.getCustomDomainRecords(
+                toResponseHandler({
+                    forbidden: function () {
+                        message = function () {
+                            rx.notify('disabled');
+                        };
+                        message();
+                    },
+                    success: raiseRecords
+                })
+            );
+        };
+
+        function raiseRecords(it) {
+            working = false;
+            var idx = 0;
+            it = it.map(function(it) {
+                it.id = idx++;
+                return it;
+            });
+            message = function () {
+                rx.notify('records', it);
+            };
+            message();
+        }
+
+        dns.onNewObserver = function () {
+            if (message)
+                message();
+        };
+
+        dns.save = function (it) {
+            app.gateway.saveCustomDomainRecords(it, toResponseHandler({
+                success: function () {
+                    raiseRecords(it);
+                }
+            }));
+        };
     }
 }

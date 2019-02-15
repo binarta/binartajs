@@ -166,7 +166,8 @@ function BinartaWidget(ConcreteWidget) {
                 rejected: function (it) {
                     setStatus('rejected');
                     registry.notify('rejected', it);
-                }
+                },
+                forbidden: it.forbidden
             };
         }
 

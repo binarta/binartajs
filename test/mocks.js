@@ -33,6 +33,7 @@ function GatewaySpy() {
     this.findUpcomingEvents = spy('findUpcomingEventsRequest');
     this.getWidgetAttributes = spy('getWidgetAttributesRequest');
     this.saveWidgetAttributes = spy('saveWidgetAttributesRequest');
+    this.getCustomDomainRecords = spy('getCustomDomainRecordsRequest');
 
     function spy(requestAttribute, responseAttribute) {
         return function (request, response) {

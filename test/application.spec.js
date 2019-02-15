@@ -1145,6 +1145,110 @@
                 });
             });
         });
+
+        describe('dns', function () {
+            var ui, db, observer;
+
+            beforeEach(function () {
+                ui = jasmine.createSpyObj('ui', ['status', 'disabled', 'records', 'rejected']);
+                db = jasmine.createSpyObj('db', ['getCustomDomainRecords', 'saveCustomDomainRecords']);
+                binarta.application.gateway = db;
+            });
+
+            it('does not yet load custom domain records from server', function () {
+                expect(db.getCustomDomainRecords).not.toHaveBeenCalled();
+            });
+
+            describe('with observer', function () {
+                beforeEach(function () {
+                    observer = binarta.application.dns.observe(ui);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('loads custom domain records from server', function () {
+                    expect(db.getCustomDomainRecords).toHaveBeenCalled();
+                });
+
+                describe('when custom domain records are not supported', function () {
+                    beforeEach(function () {
+                        db.getCustomDomainRecords.calls.mostRecent().args[0].forbidden();
+                    });
+
+                    it('notify observers the feature is disabled', function () {
+                        expect(ui.disabled).toHaveBeenCalled();
+                    });
+
+                    it('notify additional observers the feature is disabled', function () {
+                        ui.disabled.calls.reset();
+                        binarta.application.dns.observe(ui).disconnect();
+                        expect(ui.disabled).toHaveBeenCalled();
+                    });
+                });
+
+                describe('when custom domain records are supported', function () {
+                    var records;
+
+                    beforeEach(function () {
+                        records = [
+                            {name: '', type: 'A', values: ['a']},
+                            {name: 'x', type: 'TXT', values: ['b']},
+                            {name: 'y', type: 'CNAME', values: ['c']}
+                        ];
+                        db.getCustomDomainRecords.calls.mostRecent().args[0].success(records);
+                    });
+
+                    it('notify observers of the found records', function () {
+                        expect(ui.records).toHaveBeenCalledWith([
+                            {id: 0, name: '', type: 'A', values: ['a']},
+                            {id: 1, name: 'x', type: 'TXT', values: ['b']},
+                            {id: 2, name: 'y', type: 'CNAME', values: ['c']}
+                        ]);
+                    });
+
+                    it('notify additional observers of the found records', function () {
+                        ui.records.calls.reset();
+                        binarta.application.dns.observe(ui).disconnect();
+                        expect(ui.records).toHaveBeenCalledWith(records);
+                    });
+
+                    it('on refresh load custom domain records from server', function () {
+                        db.getCustomDomainRecords.calls.reset();
+                        binarta.application.dns.refresh();
+                        expect(db.getCustomDomainRecords).toHaveBeenCalled();
+                    });
+
+                    describe('when saving custom domain records', function () {
+                        beforeEach(function () {
+                            records = ['x', 'y', 'z'];
+                            binarta.application.dns.save(records);
+                        });
+
+                        it('perform server call', function () {
+                            expect(db.saveCustomDomainRecords).toHaveBeenCalledWith(records, jasmine.any(Object));
+                        });
+
+                        describe('is success', function () {
+                            beforeEach(function () {
+                                db.saveCustomDomainRecords.calls.mostRecent().args[1].success();
+                            });
+
+                            it('notify observer with saved records', function () {
+                                expect(ui.records).toHaveBeenCalledWith(records);
+                            });
+
+                            it('additional obervers are notified of the previously saved records', function () {
+                                ui.records.calls.reset();
+                                binarta.application.dns.observe(ui).disconnect();
+                                expect(ui.records).toHaveBeenCalledWith(records);
+                            });
+                        });
+                    });
+                });
+            });
+        });
     });
 
     function UI() {
