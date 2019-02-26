@@ -285,6 +285,14 @@ function BinartaInMemoryGatewaysjs() {
             response.success();
         };
 
+        var paymentOnReceiptParams;
+        this.getPaymentOnReceiptParams = function (request, response) {
+            if(paymentOnReceiptParams)
+                response.success(paymentOnReceiptParams);
+            else
+                response.notFound();
+        };
+
         var ccParams = {supportedBy: ['piggybank', 'megabank']};
         this.getCCParams = function (request, response) {
             response.success(ccParams);
@@ -296,12 +304,19 @@ function BinartaInMemoryGatewaysjs() {
         };
 
         this.disablePaymentMethod = function (request, response) {
+            if (request.id == 'payment-on-receipt')
+                paymentOnReceiptParams = undefined;
             if (request.id == 'cc')
                 delete ccParams.bankId;
             if (request.id == 'bancontact') {
                 delete bancontactParams.owner;
                 delete bancontactParams.bankId;
             }
+            response.success();
+        };
+
+        this.configurePaymentOnReceipt = function (request, response) {
+            paymentOnReceiptParams = {};
             response.success();
         };
 

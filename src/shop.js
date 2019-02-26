@@ -12,6 +12,7 @@ function BinartaShopjs(checkpoint, deps) {
     this.stripe = new StripeWidget();
     this.bancontact = new BancontactWidget();
     this.cc = new CreditCardWidget();
+    this.paymentOnReceipt = new PaymentOnReceiptWidget();
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -932,6 +933,73 @@ function BinartaShopjs(checkpoint, deps) {
 
         this.contains = function (id, response) {
             shop.gateway.containsCoupon({id: id}, response);
+        }
+    }
+
+    function PaymentOnReceiptWidget() {
+        var widget = this;
+        var registry = new BinartaRX();
+        var initRequired = true;
+        var status, params;
+
+        widget.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.getPaymentOnReceiptParams({}, {
+                    success: function (it) {
+                        params = it;
+                        raiseParams();
+                    },
+                    notFound: function () {
+                        setStatus('disabled');
+                    }
+                });
+            } else if (status == 'configured')
+                raiseParams();
+            else if (status == 'disabled')
+                raiseParams();
+            return it;
+        };
+
+        widget.configure = function (it) {
+            if (status == 'working')
+                throw new Error('Already doing something!');
+            shop.gateway.configurePaymentOnReceipt(it, {
+                success: function () {
+                    params = {};
+                    raiseParams();
+                }
+            });
+        };
+
+        widget.disable = function () {
+            if (status != 'configured')
+                throw new Error('Already doing something!');
+            shop.gateway.disablePaymentMethod({id: 'payment-on-receipt'}, {
+                success: function () {
+                    params = undefined;
+                    raiseParams();
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseParams() {
+            registry.notify('params', params);
+            if (params != undefined)
+                setStatus('configured');
+            else
+                setStatus('disabled');
         }
     }
 

@@ -23,9 +23,11 @@ function GatewaySpy() {
     this.stripeConnect = spy('stripeConnectRequest');
     this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
     this.stripeDisconnect = spy('stripeDisconnectRequest', 'stripeDisconnectResponse');
+    this.getPaymentOnReceiptParams = spy('getPaymentOnReceiptParamsRequest', 'getPaymentOnReceiptParamsResponse');
     this.getCCParams = spy('getCCParamsRequest', 'getCCParamsResponse');
     this.getBancontactParams = spy('getBancontactParamsRequest', 'getBancontactParamsResponse');
     this.disablePaymentMethod = spy('disablePaymentMethodRequest', 'disablePaymentMethodResponse');
+    this.configurePaymentOnReceipt = spy('configurePaymentOnReceiptRequest', 'configurePaymentOnReceiptResponse');
     this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
     this.configureCC = spy('configureCCRequest', 'configureCCResponse');
     this.findUpcomingEvents = spy('findUpcomingEventsRequest');

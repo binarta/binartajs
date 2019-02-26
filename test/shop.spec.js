@@ -1976,6 +1976,156 @@
                 });
             });
 
+            describe('paymentOnReceipt', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.paymentOnReceipt.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('requests params', function () {
+                    expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toEqual({});
+                });
+
+                it('configuring is not yet possible', function () {
+                    expect(binarta.shop.paymentOnReceipt.configure).toThrowError();
+                });
+
+                it('disabling is not yet possible', function () {
+                    expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.getPaymentOnReceiptParamsRequest = undefined;
+                        secondObserver = binarta.shop.paymentOnReceipt.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check for bancontact params', function () {
+                        expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when configured', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.success({});
+                    });
+
+                    it('observers are notified of the current configured status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                    });
+
+                    it('observers are notified of the params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({});
+                    });
+
+                    it('configuring again is possible', function () {
+                        expect(binarta.shop.paymentOnReceipt.configure).not.toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and params', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                        expect(spy.params).toHaveBeenCalledWith({});
+                    });
+
+                    describe('on disable', function () {
+                        beforeEach(function () {
+                            binarta.shop.paymentOnReceipt.disable();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a cc disable request on the gateway', function () {
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'payment-on-receipt'});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.disablePaymentMethodResponse.success();
+                            });
+
+                            it('observers are notified of the new disabled status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disabled');
+                            });
+
+                            it('observers are notified of the updated params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({});
+                            });
+                        });
+                    });
+                });
+
+                describe('when disabled', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.notFound();
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('disabling again is not possible', function () {
+                        expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+                    });
+
+                    describe('on configure', function () {
+                        beforeEach(function () {
+                            binarta.shop.paymentOnReceipt.configure({});
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact configure request on the gateway', function () {
+                            expect(binarta.shop.gateway.configurePaymentOnReceiptRequest).toEqual({});
+                        });
+
+                        describe('on success', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configurePaymentOnReceiptResponse.success();
+                            });
+
+                            it('observers are notified of the new configured status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('configured');
+                            });
+
+                            it('observers are notified of the params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({});
+                            });
+                        });
+                    });
+                });
+            });
+
             describe('cc', function () {
                 var spy, observer;
 
