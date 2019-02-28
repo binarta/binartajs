@@ -114,7 +114,7 @@
             var spy;
 
             beforeEach(function () {
-                spy = jasmine.createSpyObj('spy', ['setPrimaryLanguage']);
+                spy = jasmine.createSpyObj('spy', ['applicationProfile', 'setPrimaryLanguage']);
                 binarta.application.eventRegistry.add(spy);
                 new ValidApplicationGateway().fetchApplicationProfile(undefined, {
                     success: binarta.application.setProfile
@@ -139,6 +139,13 @@
 
             it('then app event listeners receive a set primary language event', function () {
                 expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('en');
+            });
+
+            it('then app event listeners receive an application profile event', function () {
+                expect(spy.applicationProfile).toHaveBeenCalledWith({
+                    name: 'test-application',
+                    supportedLanguages: ['en', 'nl']
+                });
             });
 
             it('and refresh events then listeners receive a set primary language event', function () {
@@ -1010,7 +1017,7 @@
                     component = binarta.application.display.settings.component('component');
                 });
 
-                it('multiple requests with the same id get the same instance', function() {
+                it('multiple requests with the same id get the same instance', function () {
                     expect(binarta.application.display.settings.component('component')).toEqual(component);
                 });
 
@@ -1021,12 +1028,12 @@
                         widget = component.widget('widget');
                     });
 
-                    it('multiple requests with the same id get the same instance', function() {
+                    it('multiple requests with the same id get the same instance', function () {
                         expect(component.widget('widget')).toEqual(widget);
                     });
 
-                    describe('installing an observer', function() {
-                        beforeEach(function() {
+                    describe('installing an observer', function () {
+                        beforeEach(function () {
                             binarta.application.gateway = new GatewaySpy();
                             observer = widget.observe(ui);
                         });
@@ -1038,7 +1045,7 @@
                             });
                         });
 
-                        it('notifies observer of working status', function() {
+                        it('notifies observer of working status', function () {
                             expect(ui.working).toHaveBeenCalled();
                         });
                     });
@@ -1071,8 +1078,8 @@
                         });
                     });
 
-                    describe('when saving new default attributes', function() {
-                        beforeEach(function() {
+                    describe('when saving new default attributes', function () {
+                        beforeEach(function () {
                             observer = widget.observe(ui);
                             binarta.application.gateway = new GatewaySpy();
                             widget.save('attributes');
@@ -1086,13 +1093,13 @@
                             });
                         });
 
-                        it('then observer is notified of working status', function() {
+                        it('then observer is notified of working status', function () {
                             expect(ui.working).toHaveBeenCalled();
                         });
                     });
 
-                    describe('when saving new default attributes', function() {
-                        beforeEach(function() {
+                    describe('when saving new default attributes', function () {
+                        beforeEach(function () {
                             observer = widget.observe(ui);
                             widget.save('attributes');
                         });
@@ -1107,12 +1114,12 @@
                             expect(ui.attributes).toHaveBeenCalledWith('attributes');
                         });
 
-                        it('then the observer is notified of save completion', function() {
+                        it('then the observer is notified of save completion', function () {
                             expect(ui.saved).toHaveBeenCalled();
                         });
                     });
 
-                    it('when saving invalid attributes then rejection report is sent to observers', function() {
+                    it('when saving invalid attributes then rejection report is sent to observers', function () {
                         observer = widget.observe(ui);
                         binarta.application.gateway = new InvalidApplicationGateway();
                         widget.save('-');

@@ -2511,6 +2511,229 @@
                     });
                 });
             });
+
+            describe('delivery methods', function () {
+                var ui, db, observer;
+
+                beforeEach(function () {
+                    ui = jasmine.createSpyObj('ui', ['status', 'activeDeliveryMethod', 'supportedDeliveryMethods', 'rejected']);
+                    db = jasmine.createSpyObj('db', ['getDeliveryMethodParams', 'activateDeliveryMethod', 'fetchBillingProfile', 'fetchAddresses']);
+                    binarta.shop.gateway = db;
+                });
+
+                it('is a widget', function () {
+                    expect(binarta.shop.deliveryMethods.constructor.name).toEqual('Widget');
+                });
+
+                it('params are not yet requested', function () {
+                    expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                });
+
+                describe('when installing an observer', function () {
+                    beforeEach(function () {
+                        observer = binarta.shop.deliveryMethods.observe(ui);
+                    });
+
+                    afterEach(function () {
+                        observer.disconnect();
+                    });
+
+                    it('observers are immediately notified of the current idle status', function () {
+                        expect(ui.status).toHaveBeenCalledWith('idle');
+                    });
+
+                    it('observers are not yet notified of an active delivery method', function () {
+                        expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                    });
+
+                    it('params are still not requested', function () {
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('installing additional observers', function () {
+                        var secondObserver;
+
+                        beforeEach(function () {
+                            ui.status.calls.reset();
+                            secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                        });
+
+                        afterEach(function () {
+                            secondObserver.disconnect();
+                        });
+
+                        it('additional observer is also notified of current idle status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('idle');
+                        });
+
+                        it('params are still not requested', function () {
+                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                        });
+                    });
+
+                    describe('when an application profile is set', function () {
+                        beforeEach(function () {
+                            binarta.application.setProfile({activeDeliveryMethod: 'shipping'});
+                        });
+
+                        it('then observers are notified of the active delivery method', function () {
+                            expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                        });
+
+                        it('additional observers are immediately notified of the previously discovered active delivery method', function () {
+                            ui.activeDeliveryMethod.calls.reset();
+                            binarta.shop.deliveryMethods.observe(ui).disconnect();
+                            expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                        });
+                    });
+
+                    it('with the wrong permission do not request params', function () {
+                        binarta.checkpoint.gateway = new WithPermissionsGateway(['-']);
+                        binarta.checkpoint.profile.refresh();
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('with permission', function () {
+                        beforeEach(function () {
+                            binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                            binarta.checkpoint.profile.refresh();
+                        });
+
+                        it('request params', function () {
+                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                        });
+
+                        it('additional observer is also notified of current working status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('installing additional observers does not cause additional requests', function () {
+                            db.getDeliveryMethodParams.calls.reset();
+                            binarta.shop.deliveryMethods.observe(ui).disconnect();
+                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                        });
+                    });
+                });
+
+                describe('with permission', function () {
+                    beforeEach(function () {
+                        binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                        binarta.checkpoint.profile.refresh();
+                    });
+
+                    it('params are still not requested', function () {
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('when installing an observer', function () {
+                        beforeEach(function () {
+                            observer = binarta.shop.deliveryMethods.observe(ui);
+                        });
+
+                        afterEach(function () {
+                            observer.disconnect();
+                        });
+
+                        it('observers are immediately notified of the current working status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('observers are not yet notified of an active delivery method', function () {
+                            expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                        });
+
+                        it('params are requested', function () {
+                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                        });
+
+                        describe('installing additional observers', function () {
+                            var secondObserver;
+
+                            beforeEach(function () {
+                                ui.status.calls.reset();
+                                db.getDeliveryMethodParams.calls.reset();
+                                secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                            });
+
+                            afterEach(function () {
+                                secondObserver.disconnect();
+                            });
+
+                            it('additional observer is also notified of current working status', function () {
+                                expect(ui.status).toHaveBeenCalledWith('working');
+                            });
+
+                            it('params are not requested again', function () {
+                                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                            });
+                        });
+
+                        describe('when params are received', function () {
+                            beforeEach(function () {
+                                ui.status.calls.reset();
+                                db.getDeliveryMethodParams.calls.mostRecent().args[1].success({
+                                    active: 'shipping',
+                                    supported: ['shipping', 'collect']
+                                });
+                            });
+
+                            it('observers are notified of the current idle status', function () {
+                                expect(ui.status).toHaveBeenCalledWith('idle');
+                            });
+
+                            it('then observers are notified of the active delivery method', function () {
+                                expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                            });
+
+                            it('then observers are notified of the supported delivery methods', function () {
+                                expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
+                            });
+
+                            describe('when activating a delivery method', function () {
+                                beforeEach(function () {
+                                    binarta.shop.deliveryMethods.activate('collect');
+                                });
+
+                                it('observers are notified of the current working status', function () {
+                                    expect(ui.status).toHaveBeenCalledWith('working');
+                                });
+
+                                it('activation request is made', function () {
+                                    expect(db.activateDeliveryMethod).toHaveBeenCalledWith({id: 'collect'}, jasmine.any(Object));
+                                });
+
+                                describe('on rejection', function () {
+                                    beforeEach(function () {
+                                        db.activateDeliveryMethod.calls.mostRecent().args[1].rejected('validation-report');
+                                    });
+
+                                    it('observers are notified of the current rejected status', function () {
+                                        expect(ui.status).toHaveBeenCalledWith('rejected');
+                                    });
+
+                                    it('observers are notified of the validation report', function () {
+                                        expect(ui.rejected).toHaveBeenCalledWith('validation-report');
+                                    });
+                                });
+
+                                describe('on success', function () {
+                                    beforeEach(function () {
+                                        db.activateDeliveryMethod.calls.mostRecent().args[1].success();
+                                    });
+
+                                    it('observers are notified of the current idle status', function () {
+                                        expect(ui.status).toHaveBeenCalledWith('idle');
+                                    });
+
+                                    it('observers are notified of the active delivery method', function () {
+                                        expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('collect');
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
         });
 
         function UI() {

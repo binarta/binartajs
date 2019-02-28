@@ -13,6 +13,7 @@ function BinartaShopjs(checkpoint, deps) {
     this.bancontact = new BancontactWidget();
     this.cc = new CreditCardWidget();
     this.paymentOnReceipt = new PaymentOnReceiptWidget();
+    this.deliveryMethods = binWidget(DeliveryMethodWidget);
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -1207,5 +1208,119 @@ function BinartaShopjs(checkpoint, deps) {
             registry.notify('connected', accountId);
             raiseStatus();
         }
+    }
+
+    function DeliveryMethodWidget(registry, response) {
+        var activeDeliveryMethod, supportedDeliveryMethods;
+        var widget = this;
+
+        widget.permission = 'get.delivery.method.params';
+
+        widget.onNewObserver = function () {
+            if (activeDeliveryMethod)
+                raiseActiveDeliveryMethod();
+        };
+
+        widget.refresh = function () {
+            shop.gateway.getDeliveryMethodParams({}, response({
+                success: function (it) {
+                    setActiveDeliveryMethod(it.active);
+                    setSupportedDeliveryMethods(it.supported);
+                }
+            }));
+        };
+
+        widget.activate = function (id) {
+            shop.gateway.activateDeliveryMethod({id: id}, response({
+                success: function () {
+                    setActiveDeliveryMethod(id);
+                }
+            }));
+        };
+
+        function setActiveDeliveryMethod(it) {
+            activeDeliveryMethod = it;
+            raiseActiveDeliveryMethod();
+        }
+
+        function raiseActiveDeliveryMethod() {
+            registry.notify('activeDeliveryMethod', activeDeliveryMethod);
+        }
+
+        function setSupportedDeliveryMethods(it) {
+            supportedDeliveryMethods = it;
+            raiseSupportedDeliveryMethods();
+        }
+
+        function raiseSupportedDeliveryMethods() {
+            registry.notify('supportedDeliveryMethods', supportedDeliveryMethods);
+        }
+
+        application.eventRegistry.add({
+            applicationProfile: function (it) {
+                setActiveDeliveryMethod(it.activeDeliveryMethod);
+            }
+        });
+    }
+
+    function binWidget(ConcreteWidget) {
+        var refresh;
+
+        function Widget() {
+            var registry = new BinartaRX();
+            var widget = this;
+            var status = 'idle', initialized;
+
+            widget.observe = function (l) {
+                refresh = function () {
+                    initialized = true;
+                    if (checkpoint.profile.hasPermission(widget.permission))
+                        widget.refresh();
+                };
+                var it = registry.observe(l);
+                raiseStatus();
+                if (!initialized)
+                    refresh();
+                if (widget.onNewObserver)
+                    widget.onNewObserver();
+                return it;
+            };
+
+            function setStatus(it) {
+                status = it;
+                raiseStatus();
+            }
+
+            function raiseStatus() {
+                registry.notify('status', status);
+            }
+
+            function response(it) {
+                setStatus('working');
+                return {
+                    success: function () {
+                        setStatus('idle');
+                        it.success.apply(null, arguments);
+                    },
+                    rejected: function (it) {
+                        setStatus('rejected');
+                        registry.notify('rejected', it);
+                    }
+                };
+            }
+
+            ConcreteWidget.apply(widget, [registry, response].concat(arguments));
+            setStatus('idle');
+        }
+
+        var widget = new Widget();
+        if (widget.permission)
+            checkpoint.profile.eventRegistry.add({
+                signedin: function () {
+                    if (refresh)
+                        refresh();
+                }
+            });
+        return widget;
     }
 }

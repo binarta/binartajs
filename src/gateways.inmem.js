@@ -83,7 +83,7 @@ function BinartaInMemoryGatewaysjs() {
             return request.component + '.' + request.widget;
         }
 
-        this.saveWidgetAttributes = function(request, response) {
+        this.saveWidgetAttributes = function (request, response) {
             widgets[toWidgetKey(request)] = request.attributes;
             response.success();
         }
@@ -287,7 +287,7 @@ function BinartaInMemoryGatewaysjs() {
 
         var paymentOnReceiptParams;
         this.getPaymentOnReceiptParams = function (request, response) {
-            if(paymentOnReceiptParams)
+            if (paymentOnReceiptParams)
                 response.success(paymentOnReceiptParams);
             else
                 response.notFound();
@@ -342,6 +342,19 @@ function BinartaInMemoryGatewaysjs() {
                 bancontactParams.bankId = request.bankId;
                 response.success();
             }
+        };
+
+        var deliveryMethodParams = {
+            active: 'shipping',
+            supported: ['shipping', 'collect']
+        };
+        this.getDeliveryMethodParams = function (request, response) {
+            response.success(deliveryMethodParams);
+        };
+
+        this.activateDeliveryMethod = function (request, response) {
+            deliveryMethodParams.active = request.id;
+            response.success();
         };
 
         this.clear = function () {

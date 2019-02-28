@@ -96,6 +96,7 @@ function BinartaApplicationjs(deps) {
     };
 
     app.refreshEvents = function () {
+        app.eventRegistry.notify('applicationProfile', profileCache);
         localeSelector.setPrimaryLanguage(app.primaryLanguage());
         app.eventRegistry.forEach(function (l) {
             l.notify('setPrimaryLanguage', app.primaryLanguage());
