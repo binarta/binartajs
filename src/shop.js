@@ -1219,6 +1219,8 @@ function BinartaShopjs(checkpoint, deps) {
         widget.onNewObserver = function () {
             if (activeDeliveryMethod)
                 raiseActiveDeliveryMethod();
+            if (supportedDeliveryMethods)
+                raiseSupportedDeliveryMethods();
         };
 
         widget.refresh = function () {

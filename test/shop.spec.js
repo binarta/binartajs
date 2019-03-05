@@ -2689,6 +2689,33 @@
                                 expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
                             });
 
+                            describe('and installing additional observers', function () {
+                                var secondObserver;
+
+                                beforeEach(function () {
+                                    ui.status.calls.reset();
+                                    ui.activeDeliveryMethod.calls.reset();
+                                    ui.supportedDeliveryMethods.calls.reset();
+                                    secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                                });
+
+                                afterEach(function () {
+                                    secondObserver.disconnect();
+                                });
+
+                                it('additional observer is also notified of current idle status', function () {
+                                    expect(ui.status).toHaveBeenCalledWith('idle');
+                                });
+
+                                it('additional observer is also notified of the active delivery method', function () {
+                                    expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                                });
+
+                                it('additional observer is also notified of the supported delivery methods', function () {
+                                    expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
+                                });
+                            });
+
                             describe('when activating a delivery method', function () {
                                 beforeEach(function () {
                                     binarta.shop.deliveryMethods.activate('collect');
