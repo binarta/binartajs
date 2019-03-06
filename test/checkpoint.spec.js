@@ -523,6 +523,88 @@
                 })
             });
         });
+
+        describe('PermittedBinartaWidget', function () {
+            var widget, extension, ui, observer;
+
+            beforeEach(function () {
+                extension = jasmine.createSpyObj('extension', ['refresh', 'signedout']);
+                widget = PermittedBinartaWidget(function () {
+                    var widget = this;
+                    widget.permission = 'my.permission';
+                    widget.refresh = extension.refresh;
+                    widget.signedout = extension.signedout;
+                });
+                ui = jasmine.createSpyObj('ui', ['disabled']);
+            });
+
+            describe('when installing an observer', function () {
+                beforeEach(function () {
+                    observer = widget.observe(ui);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('with the wrong permission do not refresh', function () {
+                    binarta.checkpoint.gateway = new WithPermissionsGateway(['-']);
+                    binarta.checkpoint.profile.refresh();
+                    expect(extension.refresh).not.toHaveBeenCalled();
+                });
+
+                describe('with permission', function () {
+                    beforeEach(function () {
+                        binarta.checkpoint.gateway = new WithPermissionsGateway(['my.permission']);
+                        binarta.checkpoint.profile.refresh();
+                    });
+
+                    it('refresh is requested', function () {
+                        expect(extension.refresh).toHaveBeenCalled();
+                    });
+
+                    describe('on signout', function () {
+                        beforeEach(function () {
+                            binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                            binarta.checkpoint.profile.signout();
+                        });
+
+                        it('observers are notified the widget is disabled', function () {
+                            expect(ui.disabled).toHaveBeenCalled();
+                        });
+
+                        it('the extension is notified of the signout', function () {
+                            expect(extension.signedout).toHaveBeenCalled();
+                        });
+                    });
+                });
+            });
+
+            describe('with permission', function () {
+                beforeEach(function () {
+                    binarta.checkpoint.gateway = new WithPermissionsGateway(['my.permission']);
+                    binarta.checkpoint.profile.refresh();
+                });
+
+                it('refresh is not yet requested', function () {
+                    expect(extension.refresh).not.toHaveBeenCalled();
+                });
+
+                describe('when installing an observer', function () {
+                    beforeEach(function () {
+                        observer = widget.observe(ui);
+                    });
+
+                    afterEach(function () {
+                        observer.disconnect();
+                    });
+
+                    it('refresh is requested', function () {
+                        expect(extension.refresh).toHaveBeenCalled();
+                    });
+                });
+            });
+        })
     });
 
     function UI() {

@@ -1,9 +1,42 @@
+var PermittedBinartaWidget;
+
 function BinartaCheckpointjs() {
     var checkpoint = this;
 
     this.signinForm = new SigninForm();
     this.registrationForm = new RegistrationForm();
     this.profile = new Profile();
+
+    PermittedBinartaWidget = function (ConcreteWidget) {
+        function PermittedWidget(rx) {
+            var widget = this;
+            ConcreteWidget.apply(widget, arguments);
+
+            var allowRefreshOnSignin = false;
+            var refreshDelegate = widget.refresh;
+            widget.refresh = function () {
+                allowRefreshOnSignin = true;
+                refresh();
+            };
+
+            if (widget.permission)
+                checkpoint.profile.eventRegistry.add({
+                    signedin: refresh,
+                    signedout: function () {
+                        if (widget.signedout)
+                            widget.signedout();
+                        rx.notify('disabled');
+                    }
+                });
+
+            function refresh() {
+                if (allowRefreshOnSignin && refreshDelegate && checkpoint.profile.hasPermission(widget.permission))
+                    refreshDelegate();
+            }
+        }
+
+        return BinartaWidget(PermittedWidget);
+    };
 
     function RegistrationForm() {
         var self = this;
