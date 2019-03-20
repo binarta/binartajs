@@ -163,6 +163,140 @@
         })
     });
 
+    describe('replayable binartax', function () {
+        beforeEach(function () {
+            this.registry = new ReplayableBinartaRX();
+
+            this.spy1 = jasmine.createSpyObj('spy1', ['on']);
+            this.spy2 = jasmine.createSpyObj('spy2', ['on']);
+            this.spyUnsupportedEvent = jasmine.createSpyObj('spy-unsupported-event', ['notSupported']);
+        });
+
+        it('register and invoke listeners', function () {
+            this.registry.add(this.spy1);
+            this.registry.add(this.spy2);
+
+            this.registry.notify('on', 'ctx');
+
+            expect(this.spy1.on).toHaveBeenCalledWith('ctx');
+            expect(this.spy2.on).toHaveBeenCalledWith('ctx');
+        });
+
+        it('register and invoke listeners using the observe factory method', function () {
+            this.registry.observe(this.spy1);
+            this.registry.observe(this.spy2);
+
+            this.registry.notify('on', 'ctx');
+
+            expect(this.spy1.on).toHaveBeenCalledWith('ctx');
+            expect(this.spy2.on).toHaveBeenCalledWith('ctx');
+        });
+
+        it('listeners which do not suport the event are not notified', function () {
+            this.registry.add(this.spyUnsupportedEvent);
+
+            this.registry.notify('on', 'ctx');
+        });
+
+        it('deregister listeners', function () {
+            this.registry.add(this.spy1);
+            this.registry.remove(this.spy1);
+
+            this.registry.notify('on');
+
+            expect(this.spy1.on).not.toHaveBeenCalled();
+        });
+
+        it('disconnected observes are not notified', function () {
+            var observer = this.registry.observe(this.spy1);
+            observer.disconnect();
+
+            this.registry.notify('on');
+
+            expect(this.spy1.on).not.toHaveBeenCalled();
+        });
+
+        it('deregistering unknown listeners has no effect', function () {
+            this.registry.add(this.spy1);
+            this.registry.remove(this.spy2);
+
+            this.registry.notify('on');
+
+            expect(this.spy1.on).toHaveBeenCalled();
+            expect(this.spy2.on).not.toHaveBeenCalled();
+        });
+
+        it('deregistering listeners while events are being raised', function () {
+            var spec = this;
+
+            var deregisteringListener = new function () {
+                var self = this;
+
+                this.on = function () {
+                    spec.registry.remove(self);
+                }
+            };
+
+            this.registry.add(deregisteringListener);
+            this.registry.add(this.spy1);
+
+            this.registry.notify('on');
+
+            expect(this.spy1.on).toHaveBeenCalled();
+        });
+
+        it('isEmpty exposes if any listeners are installed or not', function () {
+            expect(this.registry.isEmpty()).toBeTruthy();
+            this.registry.add(this.spy1);
+            expect(this.registry.isEmpty()).toBeFalsy();
+            this.registry.remove(this.spy1);
+            expect(this.registry.isEmpty()).toBeTruthy();
+        });
+
+        it('should be possible to register conditional observers', function () {
+            this.registry.observeIf(function (ctx) {
+                return ctx === 'ctx'
+            }, this.spy1);
+            this.registry.observeIf(function (ctx) {
+                return ctx !== 'ctx'
+            }, this.spy2);
+
+            this.registry.notify('on', 'ctx');
+
+            expect(this.spy1.on).toHaveBeenCalledWith('ctx');
+            expect(this.spy2.on).not.toHaveBeenCalled();
+        });
+
+        [
+            {
+                name: 'observe', installer: function () {
+                    this.registry.observe(this.spy1)
+                }
+            },
+            {
+                name: 'add', installer: function () {
+                    this.registry.add(this.spy1)
+                }
+            },
+            {
+                name: 'observeIf', installer: function () {
+                    this.registry.observeIf(function () {
+                        return true;
+                    }, this.spy1)
+                }
+            }
+        ].forEach(function (context) {
+            it('replays the last emitted value to new subscribers using ' + context.name + '()', function () {
+                this.registry.notify('on', 'ctx');
+
+                context.installer.apply(this);
+
+                expect(this.spy1.on).toHaveBeenCalledWith('ctx');
+            });
+        });
+
+    });
+
     describe('BinartaWidget', function () {
         var widget, extension, ui, observer;
 
@@ -244,7 +378,7 @@
                     });
                 });
 
-                describe('on rejected', function() {
+                describe('on rejected', function () {
                     beforeEach(function () {
                         response.rejected('violation-report');
                     });

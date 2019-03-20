@@ -64,8 +64,41 @@ function BinartaMergingUI() {
     Array.prototype.slice.call(arguments).forEach(this.add);
 }
 
+function ReplayableBinartaRX() {
+    var delegate = new BinartaRX();
+    var cache = {};
+
+    this.add = function(listener) {
+        var original = delegate.add.call(delegate, listener);
+        Object.keys(cache).forEach(function(evt) {
+            listener.notify(evt, cache[evt]);
+        });
+        return original;
+    };
+
+    this.observe = function() {
+        return delegate.observe.apply(this, arguments);
+    };
+
+    this.observeIf = function() {
+        return delegate.observeIf.apply(this, arguments);
+    };
+
+    this.notify = function(evt, ctx) {
+        cache[evt] = ctx;
+        return delegate.notify.apply(delegate, arguments);
+    };
+
+    this.remove = function() {
+        return delegate.remove.apply(delegate, arguments);
+    };
+
+    this.isEmpty = function() {
+        return delegate.isEmpty.apply(delegate, arguments);
+    };
+}
+
 function BinartaRX() {
-    var rx = this;
     var listeners = [];
 
     this.add = function (l) {
@@ -80,7 +113,7 @@ function BinartaRX() {
     };
 
     this.observe = function (l) {
-        return new Observer(rx, l);
+        return new Observer(this, l);
     };
 
     this.observeIf = function (predicate, l) {
@@ -105,7 +138,7 @@ function BinartaRX() {
     };
 
     this.isEmpty = function () {
-        return listeners.length == 0;
+        return listeners.length === 0;
     };
 
     function Observer(root, listener) {
@@ -114,7 +147,7 @@ function BinartaRX() {
         root.add(listener);
 
         observer.disconnect = function () {
-            rx.remove(listener);
+            root.remove(listener);
         }
     }
 }

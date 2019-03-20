@@ -233,6 +233,24 @@
                         handle.more();
                     });
                 });
+
+                describe('for a content filter', function() {
+                    beforeEach(function() {
+                        publisher.db.findAllPublishedBlogsForLocale.calls.reset();
+                        display.status.calls.reset();
+                        display.more.calls.reset();
+                        handle = publisher.blog.published({content: 'content'}, display);
+                    });
+
+                    it('passes the content when querying the db', function() {
+                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function(request, response) {
+                            expect(request.content).toEqual('content');
+                            response.success([]);
+                        });
+
+                        handle.more();
+                    });
+                })
             });
 
             describe('given draft blog posts handle', function () {
@@ -1387,6 +1405,12 @@
                         it('then calls the source db when given a request parameter with a different type', function() {
                             db.sourceDB = sourceDB
                             db.findAllPublishedBlogsForLocale({locale: 'en', type: 't', subset: {offset: 0, max: 10}});
+                            expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
+                        });
+
+                        it('then calls the source db when given a request parameter with a different content', function() {
+                            db.sourceDB = sourceDB;
+                            db.findAllPublishedBlogsForLocale({locale: 'en', content: 'c', subset: {offset: 0, max:10}});
                             expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
                         });
 

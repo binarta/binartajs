@@ -19,7 +19,8 @@ function BinartaPublisherjs(args) {
             return new Posts({
                 display: display,
                 query:'findAllPublishedBlogsForLocale', 
-                type: request.type
+                type: request.type,
+                content: request.content
             });
         };
 
@@ -54,10 +55,11 @@ function BinartaPublisherjs(args) {
         function Posts(options) {
             var posts = this;
 
-            var query, type, display;
+            var query, type, display, content;
             query = options.query;
             type = options.type;
             display = options.display;
+            content = options.content;
 
             posts.subset = {offset: 0, max: 10};
             posts.status = 'has-more';
@@ -70,7 +72,8 @@ function BinartaPublisherjs(args) {
                 var request = {
                     locale: publisher.binarta.application.localeForPresentation(),
                     subset: posts.subset,
-                    type: type
+                    type: type,
+                    content: content
                 };
                 publisher.db[query](request, {
                     success: function (it) {
@@ -300,7 +303,14 @@ function BinartaPublisherjs(args) {
         };
 
         cache.findAllPublishedBlogsForLocale = function () {
-            var key = ['findAllPublishedBlogsForLocale', arguments[0].locale, arguments[0].type, arguments[0].subset.offset, arguments[0].subset.max].join(':');
+            var key = [
+                'findAllPublishedBlogsForLocale',
+                arguments[0].locale,
+                arguments[0].type,
+                arguments[0].content,
+                arguments[0].subset.offset,
+                arguments[0].subset.max
+            ].filter(function(key) { return !!key}).join(':');
             resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, key);
         };
 
