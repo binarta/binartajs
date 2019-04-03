@@ -3,6 +3,7 @@ function BinartaInMemoryGatewaysjs() {
     this.checkpoint = new CheckpointGateway();
     this.shop = new ShopGateway();
     this.hr = new HumanResourcesDB();
+    this.calendar = new CalendarDB();
 
     function ApplicationGateway() {
         var self = this;
@@ -72,6 +73,30 @@ function BinartaInMemoryGatewaysjs() {
             sectionData = [];
         };
         this.clear();
+
+        var widgets = {};
+        this.getWidgetAttributes = function (request, response) {
+            response.success(widgets[toWidgetKey(request)] || {})
+        };
+
+        function toWidgetKey(request) {
+            return request.component + '.' + request.widget;
+        }
+
+        this.saveWidgetAttributes = function (request, response) {
+            widgets[toWidgetKey(request)] = request.attributes;
+            response.success();
+        };
+
+        var records = [];
+        this.getCustomDomainRecords = function(response) {
+            response.success(records.slice(0));
+        };
+
+        this.saveCustomDomainRecords = function(request, response) {
+            records = request;
+            response.success();
+        }
     }
 
     function CheckpointGateway() {
@@ -128,6 +153,10 @@ function BinartaInMemoryGatewaysjs() {
             activeProfile = undefined;
             if (response && response.unauthenticated)
                 response.unauthenticated();
+        };
+
+        this.delete = function () {
+            response.success();
         };
 
         this.fetchAccountMetadata = function (response) {
@@ -247,6 +276,158 @@ function BinartaInMemoryGatewaysjs() {
                 },
                 notFound: response.notFound
             })
+        };
+
+        var stripeAccountId;
+        this.stripeConnect = function (request, response) {
+            stripeAccountId = 'stripe-account-id';
+            response.success({uri: 'http://example.org/stripe'});
+        };
+
+        this.stripeConnected = function (request, response) {
+            if (stripeAccountId)
+                response.success(stripeAccountId);
+            else response.notFound();
+        };
+
+        this.stripeDisconnect = function (request, response) {
+            stripeAccountId = undefined;
+            response.success();
+        };
+
+        var paymentOnReceiptParams;
+        this.getPaymentOnReceiptParams = function (request, response) {
+            if (paymentOnReceiptParams)
+                response.success(paymentOnReceiptParams);
+            else
+                response.notFound();
+        };
+
+        var ccParams = {supportedBy: ['piggybank', 'megabank']};
+        this.getCCParams = function (request, response) {
+            response.success(ccParams);
+        };
+
+        var bancontactParams = {supportedBy: ['piggybank', 'megabank']};
+        this.getBancontactParams = function (request, response) {
+            response.success(bancontactParams);
+        };
+
+        this.disablePaymentMethod = function (request, response) {
+            if (request.id == 'payment-on-receipt')
+                paymentOnReceiptParams = undefined;
+            if (request.id == 'cc')
+                delete ccParams.bankId;
+            if (request.id == 'bancontact') {
+                delete bancontactParams.owner;
+                delete bancontactParams.bankId;
+            }
+            response.success();
+        };
+
+        this.configurePaymentOnReceipt = function (request, response) {
+            paymentOnReceiptParams = {};
+            response.success();
+        };
+
+        this.configureCC = function (request, response) {
+            if (!request.bankId)
+                response.rejected({
+                    bankId: ['required']
+                });
+            else {
+                ccParams.bankId = request.bankId;
+                response.success();
+            }
+        };
+
+        this.configureBancontact = function (request, response) {
+            if (!request.owner || !request.bankId)
+                response.rejected({
+                    bankId: ['required'],
+                    ownerName: ['required']
+                });
+            else {
+                bancontactParams.owner = request.owner;
+                bancontactParams.bankId = request.bankId;
+                response.success();
+            }
+        };
+
+        var deliveryMethodParams = {
+            active: 'shipping',
+            supported: ['shipping', 'collect']
+        };
+        this.getDeliveryMethodParams = function (request, response) {
+            response.success(deliveryMethodParams);
+        };
+
+        this.activateDeliveryMethod = function (request, response) {
+            deliveryMethodParams.active = request.id;
+            response.success();
+        };
+
+        this.clear = function () {
+            stripeAccountId = undefined;
+            this.disablePaymentMethod({id: 'bancontact'}, {
+                success: function () {
+                }
+            });
+            this.disablePaymentMethod({id: 'cc'}, {
+                success: function () {
+                }
+            });
+        }
+    }
+
+    function HumanResourcesDB() {
+        var records = [
+            {
+                "id": "1",
+                "name": "Financial Advisor",
+                "sectorName": "Finance",
+                "contractType": "permanent",
+                "status": "vacant",
+                "locationName": "Leuven",
+                "duration": "PT0S"
+            },
+            {
+                "id": "2",
+                "name": "Technical Writer",
+                "sectorName": "Customer Support",
+                "contractType": "contractor",
+                "status": "vacant",
+                "locationName": "Leuven",
+                "duration": "P12W"
+            },
+            {
+                "id": "3",
+                "name": "Project Manager",
+                "sectorName": "Operations",
+                "contractType": "part-time",
+                "status": "vacant",
+                "locationName": "Brussels",
+                "duration": "PT0S"
+            }
+        ];
+
+        this.search = function (request, response) {
+            response.success(records);
+        };
+
+        this.get = function (request, response) {
+            response.success(records.reduce(function (p, c) {
+                return c.id == request.id ? c : p;
+            }, null));
+        }
+    }
+
+    function CalendarDB() {
+        var db = this;
+
+        db.upcomingEvents = [];
+        db.findUpcomingEvents = function (request, response) {
+            response.success(db.upcomingEvents);
         }
     }
 

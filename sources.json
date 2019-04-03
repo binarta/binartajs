@@ -4,7 +4,14 @@
     "binarta-applicationjs": "bower_components/binartajs/src/application.js",
     "binarta-checkpointjs": "bower_components/binartajs/src/checkpoint.js",
     "binarta-mediajs": "bower_components/binartajs/src/media.js",
+    "binarta-catalogjs": "bower_components/binartajs/src/catalog.js",
     "moment": "bower_components/moment/moment.js"
+  },
+  "blog": {
+    "binarta-publisherjs": "bower_components/binartajs/src/publisher.js"
+  },
+  "calendar": {
+    "binarta-calendarjs": "bower_components/binartajs/src/calendar.js"
   },
   "shop": {
     "binarta-shopjs": "bower_components/binartajs/src/shop.js",

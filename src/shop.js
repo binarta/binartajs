@@ -9,6 +9,11 @@ function BinartaShopjs(checkpoint, deps) {
     this.basket = new Basket();
     this.checkout = new Checkout();
     this.couponDictionary = new CouponDictionary();
+    this.stripe = new StripeWidget();
+    this.bancontact = new BancontactWidget();
+    this.cc = new CreditCardWidget();
+    this.paymentOnReceipt = new PaymentOnReceiptWidget();
+    this.deliveryMethods = PermittedBinartaWidget(DeliveryMethodWidget);
 
     this.previewOrder = function (order, render) {
         shop.gateway.previewOrder(order, {success: render});
@@ -357,8 +362,8 @@ function BinartaShopjs(checkpoint, deps) {
                 if (p && !finished && ctx.roadmap.length == i + 1) return false;
                 if (c == ctx.currentStep) finished = true;
                 if (!finished && !gatewaySteps.some(function (gatewayStep) {
-                        return c == gatewayStep;
-                    }))
+                    return c == gatewayStep;
+                }))
                     return c;
                 return p;
             }, undefined);
@@ -424,7 +429,7 @@ function BinartaShopjs(checkpoint, deps) {
             var self = this;
             fsm.currentState = this;
             this.name = 'summary';
-            var violationReportCache = {};
+            var violationReportCache = fsm.context().summaryViolationReport || {};
 
             fsm.getPaymentProvider = function () {
                 return fsm.context().order.provider;
@@ -452,12 +457,15 @@ function BinartaShopjs(checkpoint, deps) {
                     item.couponCode = code;
                 });
                 fsm.persist(ctx);
-                fsm.eventRegistry.forEach(function(l) {
+                fsm.eventRegistry.forEach(function (l) {
                     l.setCouponCode(code);
                 });
             };
 
             fsm.confirm = function (onSuccessListener) {
+                var ctx = fsm.context();
+                delete ctx.summaryViolationReport;
+                fsm.persist(ctx);
                 shop.gateway.submitOrder(fsm.context().order, {
                     success: onSuccess(onSuccessListener),
                     rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
@@ -504,9 +512,10 @@ function BinartaShopjs(checkpoint, deps) {
             return function (args) {
                 var ctx = self.context();
                 ctx.order.id = args.id;
-                if (args.approvalUrl) {
+                if (args.approvalUrl)
                     ctx.order.approvalUrl = args.approvalUrl;
-                }
+                if (args.signingContext)
+                    ctx.order.signingContext = args.signingContext;
                 self.persist(ctx);
                 listener(args);
             }
@@ -556,23 +565,32 @@ function BinartaShopjs(checkpoint, deps) {
                         if (onSuccess)
                             onSuccess();
                     },
-                    rejected: cacheViolationReport
+                    rejected: function (report) {
+                        var ctx = fsm.context();
+                        ctx.summaryViolationReport = report;
+                        fsm.persist(ctx);
+                        returnToSummary(onSuccess)();
+                    }
                 });
             };
 
             fsm.cancelPayment = function (onSuccess) {
                 shop.gateway.cancelOrder(fsm.context().order, {
-                    success: function () {
-                        var ctx = fsm.context();
-                        delete ctx.order.id;
-                        fsm.persist(ctx);
-                        fsm.jumpTo('summary');
-                        if (onSuccess)
-                            onSuccess();
-                    },
+                    success: returnToSummary(onSuccess),
                     rejected: cacheViolationReport
                 });
             };
+
+            function returnToSummary(onSuccess) {
+                return function () {
+                    var ctx = fsm.context();
+                    delete ctx.order.id;
+                    fsm.persist(ctx);
+                    fsm.jumpTo('summary');
+                    if (onSuccess)
+                        onSuccess();
+                }
+            }
 
             function cacheViolationReport(report) {
                 violationReportCache = report;
@@ -914,8 +932,336 @@ function BinartaShopjs(checkpoint, deps) {
             shop.gateway.findCouponById({id: id}, presenter);
         };
 
-        this.contains = function(id, response) {
-            shop.gateway.containsCoupon({id:id}, response);
+        this.contains = function (id, response) {
+            shop.gateway.containsCoupon({id: id}, response);
         }
+    }
+
+    function PaymentOnReceiptWidget() {
+        var widget = this;
+        var registry = new BinartaRX();
+        var initRequired = true;
+        var status, params;
+
+        widget.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.getPaymentOnReceiptParams({}, {
+                    success: function (it) {
+                        params = it;
+                        raiseParams();
+                    },
+                    notFound: function () {
+                        setStatus('disabled');
+                    }
+                });
+            } else if (status == 'configured')
+                raiseParams();
+            else if (status == 'disabled')
+                raiseParams();
+            return it;
+        };
+
+        widget.configure = function (it) {
+            if (status == 'working')
+                throw new Error('Already doing something!');
+            shop.gateway.configurePaymentOnReceipt(it, {
+                success: function () {
+                    params = {};
+                    raiseParams();
+                }
+            });
+        };
+
+        widget.disable = function () {
+            if (status != 'configured')
+                throw new Error('Already doing something!');
+            shop.gateway.disablePaymentMethod({id: 'payment-on-receipt'}, {
+                success: function () {
+                    params = undefined;
+                    raiseParams();
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseParams() {
+            registry.notify('params', params);
+            if (params != undefined)
+                setStatus('configured');
+            else
+                setStatus('disabled');
+        }
+    }
+
+    function CreditCardWidget() {
+        var cc = this;
+        var registry = new BinartaRX();
+        var initRequired = true;
+        var status, params;
+
+        cc.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.getCCParams({}, {
+                    success: function (it) {
+                        params = it;
+                        raiseParams();
+                    }
+                });
+            } else if (status == 'configured')
+                raiseParams();
+            else if (status == 'disabled')
+                raiseParams();
+            return it;
+        };
+
+        cc.configure = function (it) {
+            if (status == 'working')
+                throw new Error('Already doing something!');
+            shop.gateway.configureCC(it, {
+                success: function () {
+                    params.bankId = it.bankId;
+                    raiseParams();
+                },
+                rejected: function (it) {
+                    registry.notify('rejected', it);
+                }
+            });
+        };
+
+        cc.disable = function () {
+            if (status != 'configured')
+                throw new Error('Already doing something!');
+            shop.gateway.disablePaymentMethod({id: 'cc'}, {
+                success: function () {
+                    delete params.bankId;
+                    raiseParams();
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseParams() {
+            registry.notify('params', params);
+            if (params.bankId)
+                setStatus('configured');
+            else
+                setStatus('disabled');
+        }
+    }
+
+    function BancontactWidget() {
+        var bancontact = this;
+        var registry = new BinartaRX();
+        var initRequired = true;
+        var status, params;
+
+        bancontact.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.getBancontactParams({}, {
+                    success: function (it) {
+                        params = it;
+                        raiseParams();
+                    }
+                });
+            } else if (status == 'configured')
+                raiseParams();
+            else if (status == 'disabled')
+                raiseParams();
+            return it;
+        };
+
+        bancontact.configure = function (it) {
+            if (status == 'working')
+                throw new Error('Already doing something!');
+            shop.gateway.configureBancontact(it, {
+                success: function () {
+                    params.owner = it.owner;
+                    params.bankId = it.bankId;
+                    raiseParams();
+                },
+                rejected: function (it) {
+                    if (it.ownerName) {
+                        it.owner = it.ownerName;
+                        delete it.ownerName;
+                    }
+                    registry.notify('rejected', it);
+                }
+            });
+        };
+
+        bancontact.disable = function () {
+            if (status != 'configured')
+                throw new Error('Already doing something!');
+            shop.gateway.disablePaymentMethod({id: 'bancontact'}, {
+                success: function () {
+                    delete params.owner;
+                    delete params.bankId;
+                    raiseParams();
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseParams() {
+            registry.notify('params', params);
+            if (params.owner && params.bankId)
+                setStatus('configured');
+            else
+                setStatus('disabled');
+        }
+    }
+
+    function StripeWidget() {
+        var stripe = this;
+        var registry = new BinartaRX();
+        var status = 'idle';
+        var initRequired = true;
+        var accountId;
+
+        stripe.observe = function (l) {
+            var it = registry.observe(l);
+            if (initRequired) {
+                initRequired = false;
+                setStatus('working');
+                shop.gateway.stripeConnected({}, {
+                    success: function (id) {
+                        accountId = id;
+                        status = 'connected';
+                        raiseConnected();
+                    },
+                    notFound: function () {
+                        setStatus('disconnected');
+                    }
+                });
+            } else if (status == 'connected')
+                raiseConnected();
+            else if (status == 'disconnected')
+                raiseStatus();
+            return it;
+        };
+
+        stripe.connect = function () {
+            if (status != 'disconnected')
+                throw new Error('Already Connected!');
+            setStatus('working');
+            shop.gateway.stripeConnect({locale: shop.binarta.application.localeForPresentation()}, {
+                success: function (it) {
+                    registry.notify('goto', it.uri);
+                }
+            });
+        };
+
+        stripe.disconnect = function () {
+            if (status != 'connected')
+                throw new Error('Already Disconnected!');
+            setStatus('working');
+            shop.gateway.stripeDisconnect({}, {
+                success: function () {
+                    setStatus('disconnected')
+                }
+            });
+        };
+
+        function setStatus(it) {
+            status = it;
+            raiseStatus();
+        }
+
+        function raiseStatus() {
+            registry.notify('status', status);
+        }
+
+        function raiseConnected() {
+            registry.notify('connected', accountId);
+            raiseStatus();
+        }
+    }
+
+    function DeliveryMethodWidget(registry, response) {
+        var activeDeliveryMethod, supportedDeliveryMethods;
+        var widget = this;
+
+        widget.permission = 'get.delivery.method.params';
+
+        widget.onNewObserver = function () {
+            if (activeDeliveryMethod)
+                raiseActiveDeliveryMethod();
+            if (supportedDeliveryMethods)
+                raiseSupportedDeliveryMethods();
+        };
+
+        widget.refresh = function () {
+            shop.gateway.getDeliveryMethodParams({}, response({
+                success: function (it) {
+                    setActiveDeliveryMethod(it.active);
+                    setSupportedDeliveryMethods(it.supported);
+                }
+            }));
+        };
+
+        widget.activate = function (id) {
+            shop.gateway.activateDeliveryMethod({id: id}, response({
+                success: function () {
+                    setActiveDeliveryMethod(id);
+                }
+            }));
+        };
+
+        function setActiveDeliveryMethod(it) {
+            activeDeliveryMethod = it;
+            raiseActiveDeliveryMethod();
+        }
+
+        function raiseActiveDeliveryMethod() {
+            registry.notify('activeDeliveryMethod', activeDeliveryMethod);
+        }
+
+        function setSupportedDeliveryMethods(it) {
+            supportedDeliveryMethods = it;
+            raiseSupportedDeliveryMethods();
+        }
+
+        function raiseSupportedDeliveryMethods() {
+            registry.notify('supportedDeliveryMethods', supportedDeliveryMethods);
+        }
+
+        application.eventRegistry.add({
+            applicationProfile: function (it) {
+                setActiveDeliveryMethod(it.activeDeliveryMethod);
+            }
+        });
     }
 }

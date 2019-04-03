@@ -2,6 +2,7 @@ function GatewaySpy() {
     this.fetchApplicationProfile = spy('fetchApplicationProfileRequest');
     this.signin = spy('signinRequest');
     this.signout = spy('signoutRequest');
+    this.delete = spy('deleteRequest');
     this.register = spy('registrationRequest');
     this.updateBillingProfile = spy('updateBillingProfileRequest');
     this.addAddress = spy('addAddressRequest');
@@ -19,10 +20,26 @@ function GatewaySpy() {
     this.findConfig = spy('findConfigRequest');
     this.findCouponById = spy('findCouponByIdRequest');
     this.containsCoupon = spy('containsCouponRequest');
+    this.stripeConnect = spy('stripeConnectRequest');
+    this.stripeConnected = spy('stripeConnectedRequest', 'stripeConnectedResponse');
+    this.stripeDisconnect = spy('stripeDisconnectRequest', 'stripeDisconnectResponse');
+    this.getPaymentOnReceiptParams = spy('getPaymentOnReceiptParamsRequest', 'getPaymentOnReceiptParamsResponse');
+    this.getCCParams = spy('getCCParamsRequest', 'getCCParamsResponse');
+    this.getBancontactParams = spy('getBancontactParamsRequest', 'getBancontactParamsResponse');
+    this.disablePaymentMethod = spy('disablePaymentMethodRequest', 'disablePaymentMethodResponse');
+    this.configurePaymentOnReceipt = spy('configurePaymentOnReceiptRequest', 'configurePaymentOnReceiptResponse');
+    this.configureBancontact = spy('configureBancontactRequest', 'configureBancontactResponse');
+    this.configureCC = spy('configureCCRequest', 'configureCCResponse');
+    this.findUpcomingEvents = spy('findUpcomingEventsRequest');
+    this.getWidgetAttributes = spy('getWidgetAttributesRequest');
+    this.saveWidgetAttributes = spy('saveWidgetAttributesRequest');
+    this.getCustomDomainRecords = spy('getCustomDomainRecordsRequest');
 
-    function spy(requestAttribute) {
+    function spy(requestAttribute, responseAttribute) {
         return function (request, response) {
             this[requestAttribute] = request || true;
+            if (responseAttribute)
+                this[responseAttribute] = response;
         }
     }
 }
@@ -65,6 +82,33 @@ function ValidApplicationGateway() {
 
     this.addConfig = function (request, response) {
         response.success();
+    };
+
+    this.getWidgetAttributes = function (request, response) {
+        response.success({
+            aspectRatio: {width: 3, height: 2},
+            fittingRule: 'contain'
+        })
+    };
+
+    this.saveWidgetAttributes = function(request, response) {
+        response.success();
+    }
+}
+
+function InvalidApplicationGateway() {
+    this.saveWidgetAttributes = function(request, response) {
+        response.rejected('report');
+    }
+}
+
+function ValidCalendarGateway() {
+    this.findUpcomingEvents = function (request, response) {
+        response.success([
+            {id: 'a', start: '2017-02-01T16:00:00Z'},
+            {id: 'b', start: '2017-02-02T16:00:00Z'},
+            {id: 'c', start: '2017-02-03T16:00:00Z'}
+        ]);
     }
 }
 
@@ -132,6 +176,10 @@ function MissingPermissionsGateway() {
 function AuthenticatedGateway() {
     this.signout = function (response) {
         response.unauthenticated();
+    };
+
+    this.delete = function (response) {
+        response.success();
     };
 
     this.fetchAccountMetadata = function (response) {
@@ -206,7 +254,8 @@ function ValidCredentialsGateway() {
         response.success();
     };
 
-    this.signout = function () {
+    this.signout = function (response) {
+        response.unauthenticated();
     };
 
     this.fetchAccountMetadata = function (response) {
@@ -350,12 +399,22 @@ function ValidOrderGateway() {
 function ValidPaymentGateway() {
     this.confirmPayment = function (request, response) {
         response.success();
+    };
+
+    this.stripeConnect = function (request, response) {
+        response.success({uri: 'stripe-connect-uri'});
     }
 }
 
 function InvalidPaymentGateway() {
     this.confirmPayment = function (request, response) {
         response.rejected('violation-report');
+    }
+}
+
+function ExpiredPaymentGateway() {
+    this.confirmPayment = function (request, response) {
+        response.rejected({payment: [{label: 'expired'}]});
     }
 }
 
@@ -366,6 +425,10 @@ function ValidOrderWithPaymentRequiredGateway() {
         var onSuccess = response.success;
         response.success = function (ctx) {
             ctx.approvalUrl = 'approval-url';
+            ctx.signingContext = {
+                institution: 'test-bank',
+                approvalUrl: ctx.approvalUrl
+            };
             onSuccess(ctx);
         };
         delegate.submitOrder(request, response);

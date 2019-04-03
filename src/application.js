@@ -1,6 +1,7 @@
 function BinartaApplicationjs(deps) {
     var app = this;
     var timeline = deps && deps.timeline || new BinartaTL();
+    app.window = deps && deps.window ? deps.window : window;
     app.localStorage = deps && deps.localStorage ? deps.localStorage : WebStorageFactory('localStorage');
     app.sessionStorage = deps && deps.sessionStorage ? deps.sessionStorage : WebStorageFactory('sessionStorage');
 
@@ -11,6 +12,10 @@ function BinartaApplicationjs(deps) {
     app.eventRegistry = new BinartaRX();
     app.adhesiveReading = new AdhesiveReading(app);
     app.config = new Config(app.adhesiveReading);
+    app.cookies = new Cookies();
+    app.lock = new Lock();
+    app.display = new Display();
+    app.dns = BinartaWidget(DNS);
 
     app.installed = function () {
         extendBinartaWithJobScheduler();
@@ -92,6 +97,7 @@ function BinartaApplicationjs(deps) {
     };
 
     app.refreshEvents = function () {
+        app.eventRegistry.notify('applicationProfile', profileCache);
         localeSelector.setPrimaryLanguage(app.primaryLanguage());
         app.eventRegistry.forEach(function (l) {
             l.notify('setPrimaryLanguage', app.primaryLanguage());
@@ -312,6 +318,76 @@ function BinartaApplicationjs(deps) {
         this.clear();
     }
 
+    function Cookies() {
+        var cookies = this;
+
+        cookies.permission = new Permission();
+
+        function Permission() {
+            var permission = this;
+
+            permission.status;
+
+            permission.eventRegistry = new BinartaRX();
+            permission.blacklist = [
+                'phantomjs',
+                'googlebot',
+                'bingbot',
+                'yandex',
+                'baiduspider',
+                'twitterbot',
+                'facebookexternalhit',
+                'rogerbot',
+                'linkedinbot',
+                'embedly',
+                'quora link preview',
+                'showyoubot',
+                'outbrain',
+                'pinterest',
+                'slackbot',
+                'vkShare',
+                'W3C_Validator',
+                'developers.google.com/+/web/snippet',
+                'www.google.com/webmasters/tools/richsnippets',
+                'redditbot',
+                'Applebot',
+                'WhatsApp',
+                'flipboard',
+                'tumblr',
+                'bitlybot',
+                'SkypeUriPreview',
+                'nuzzel',
+                'Discordbot',
+                'Google Page Speed',
+                'Qwantify'
+            ];
+
+            permission.grant = function () {
+                localStorage.cookiesAccepted = true;
+                permission.evaluate();
+                permission.eventRegistry.notify('granted');
+            };
+
+            permission.revoke = function () {
+                localStorage.cookiesAccepted = false;
+                permission.evaluate();
+            };
+
+            permission.evaluate = function () {
+                if (localStorage.cookiesAccepted == 'true' || permission.blacklist.some(function (it) {
+                    return app.window.navigator.userAgent.toLowerCase().indexOf(it) != -1;
+                }))
+                    permission.status = 'permission-granted';
+                else if (localStorage.cookiesAccepted == 'false')
+                    permission.status = 'permission-revoked';
+                else
+                    permission.status = localStorage.storageAvailable == 'true' ? 'permission-required' : 'permission-storage-disabled';
+            };
+
+            permission.evaluate();
+        }
+    }
+
     function JobScheduler() {
         var self = this;
         self.$jobs = [];
@@ -331,5 +407,164 @@ function BinartaApplicationjs(deps) {
             else
                 self.$jobs.push(job);
         }
+    }
+
+    function Lock() {
+        var self = this;
+
+        self.status = 'open';
+
+        self.reserve = function () {
+            self.status = 'closed';
+            app.eventRegistry.forEach(function (l) {
+                l.notify('editing');
+            });
+        };
+
+        self.release = function () {
+            self.status = 'open';
+            app.eventRegistry.forEach(function (l) {
+                l.notify('viewing');
+            });
+        }
+    }
+
+    function Display() {
+        var display = this;
+
+        display.settings = new Settings();
+
+        function Settings() {
+            var settings = this;
+            var components = {};
+
+            settings.component = function (it) {
+                if (!components[it])
+                    components[it] = new Component(it);
+                return components[it];
+            };
+
+            function Component(componentId) {
+                var component = this;
+                var widgets = {};
+
+                component.widget = function (it) {
+                    if (!widgets[it])
+                        widgets[it] = new Widget(it);
+                    return widgets[it];
+                };
+
+                function Widget(widgetId) {
+                    var widget = this;
+                    var rx = new BinartaRX();
+                    var initialised = false, loading = false;
+                    var attributes = {};
+
+                    widget.observe = function (l) {
+                        var observer = rx.observe(l);
+                        if (!initialised)
+                            widget.refresh();
+                        else
+                            raiseAttributes();
+                        return observer;
+                    };
+
+                    widget.refresh = function () {
+                        if (!loading) {
+                            raiseWorking();
+                            loading = true;
+                            app.gateway.getWidgetAttributes({
+                                component: componentId,
+                                widget: widgetId
+                            }, {
+                                success: function (it) {
+                                    initialised = true;
+                                    loading = false;
+                                    attributes = it;
+                                    raiseAttributes();
+                                }
+                            });
+                        }
+                    };
+
+                    function raiseAttributes() {
+                        rx.notify('attributes', attributes);
+                    }
+
+                    function raiseWorking() {
+                        rx.notify('working');
+                    }
+
+                    widget.save = function (attrs) {
+                        raiseWorking();
+                        app.gateway.saveWidgetAttributes({
+                            component: componentId,
+                            widget: widgetId,
+                            attributes: attrs
+                        }, {
+                            success: function () {
+                                attributes = attrs;
+                                raiseAttributes();
+                                raiseSaved();
+                            },
+                            rejected: raiseRejection
+                        });
+                    };
+
+                    function raiseSaved() {
+                        rx.notify('saved');
+                    }
+
+                    function raiseRejection(it) {
+                        rx.notify('rejected', it)
+                    }
+                }
+            }
+        }
+    }
+
+    function DNS(rx, toResponseHandler) {
+        var dns = this;
+        var message;
+
+        dns.refresh = function () {
+            app.gateway.getCustomDomainRecords(
+                toResponseHandler({
+                    forbidden: function () {
+                        message = function () {
+                            rx.notify('disabled');
+                        };
+                        message();
+                    },
+                    success: raiseRecords
+                })
+            );
+        };
+
+        function raiseRecords(it) {
+            working = false;
+            var idx = 0;
+            it = it.map(function(it) {
+                it.id = idx++;
+                return it;
+            });
+            message = function () {
+                rx.notify('records', it);
+            };
+            message();
+        }
+
+        dns.onNewObserver = function () {
+            if (message)
+                message();
+        };
+
+        dns.save = function (it) {
+            app.gateway.saveCustomDomainRecords(it, toResponseHandler({
+                success: function () {
+                    raiseRecords(it);
+                }
+            }));
+        };
     }
 }

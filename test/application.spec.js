@@ -1,20 +1,23 @@
 (function () {
     describe('binarta-applicationjs', function () {
-        var binarta, ui, now;
+        var binarta, ui, now, window;
 
         beforeEach(function () {
             localStorage.removeItem('locale');
             sessionStorage.removeItem('locale');
+            localStorage.setItem('storageAvailable', 'true');
         });
         beforeEach(function () {
             now = new Date();
+            window = {navigator: {userAgent: 'test'}};
 
             ui = new UI();
             var factory = new BinartajsFactory();
             factory.addUI(ui);
             factory.addSubSystems({
                 application: new BinartaApplicationjs({
-                    timeline: [now]
+                    timeline: [now],
+                    window: window
                 })
             });
             binarta = factory.create();
@@ -25,6 +28,7 @@
         afterEach(function () {
             sessionStorage.removeItem('binarta:config:k');
             sessionStorage.removeItem('binarta:config:adhesive.config');
+            localStorage.removeItem('cookiesAccepted');
         });
 
         it('exposes an empty profile', function () {
@@ -110,7 +114,7 @@
             var spy;
 
             beforeEach(function () {
-                spy = jasmine.createSpyObj('spy', ['setPrimaryLanguage']);
+                spy = jasmine.createSpyObj('spy', ['applicationProfile', 'setPrimaryLanguage']);
                 binarta.application.eventRegistry.add(spy);
                 new ValidApplicationGateway().fetchApplicationProfile(undefined, {
                     success: binarta.application.setProfile
@@ -135,6 +139,13 @@
 
             it('then app event listeners receive a set primary language event', function () {
                 expect(spy.setPrimaryLanguage).toHaveBeenCalledWith('en');
+            });
+
+            it('then app event listeners receive an application profile event', function () {
+                expect(spy.applicationProfile).toHaveBeenCalledWith({
+                    name: 'test-application',
+                    supportedLanguages: ['en', 'nl']
+                });
             });
 
             it('and refresh events then listeners receive a set primary language event', function () {
@@ -743,14 +754,14 @@
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.observePublic('k', spy);
                     expect(spy).toHaveBeenCalledWith('v');
-                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    binarta.application.config.addPublic({id: 'k', value: 'v2'});
                     expect(spy).toHaveBeenCalledWith('v2');
                 });
 
-                it('public observers receives value from session storage when an older version is being cached', function() {
+                it('public observers receives value from session storage when an older version is being cached', function () {
                     binarta.application.gateway = new ValidApplicationGateway();
                     binarta.application.config.observePublic('k', spy);
-                    binarta.application.config.addPublic({id:'k', value:'v2'});
+                    binarta.application.config.addPublic({id: 'k', value: 'v2'});
                     binarta.application.config.cache('k', 'v3', moment(now).subtract(1, 's'));
                     expect(spy).toHaveBeenCalledWith('v');
                     expect(spy).toHaveBeenCalledWith('v2');
@@ -882,6 +893,360 @@
                 binarta.application.config.cache('k', 'v');
                 binarta.application.config.observePublic('k', spy);
                 expect(spy).toHaveBeenCalledWith('v');
+            });
+        });
+
+        describe('cookies', function () {
+            describe('permission', function () {
+                it('status is automatically evaluated', function () {
+                    expect(binarta.application.cookies.permission.status).toBeDefined();
+                });
+
+                it('when local storage is disabled then expose permission storage disabled status', function () {
+                    localStorage.removeItem('storageAvailable');
+                    binarta.application.cookies.permission.evaluate();
+                    expect(binarta.application.cookies.permission.status).toEqual('permission-storage-disabled');
+                });
+
+                describe('when local storage is enabled', function () {
+                    it('then expose permission required status', function () {
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-required');
+                    });
+
+                    it('when granting cookie permission then expose permission granted status', function () {
+                        binarta.application.cookies.permission.grant();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                    });
+
+                    it('when granting cookie permission then invoke grant listeners', function () {
+                        var spy = jasmine.createSpyObj('spy', ['granted']);
+                        binarta.application.cookies.permission.eventRegistry.observe(spy);
+                        binarta.application.cookies.permission.grant();
+                        expect(spy.granted).toHaveBeenCalled();
+                    });
+
+                    it('when local storage indicates permission was granted then expose permission granted status', function () {
+                        localStorage.cookiesAccepted = 'true';
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                    });
+
+                    it('when revoking cookie permission then expose permission revoked status', function () {
+                        binarta.application.cookies.permission.revoke();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-revoked');
+                    });
+
+                    it('when local storage indicates permission was revoked then expose permission revoked status', function () {
+                        localStorage.cookiesAccepted = 'false';
+                        binarta.application.cookies.permission.evaluate();
+                        expect(binarta.application.cookies.permission.status).toEqual('permission-revoked');
+                    });
+
+                    it('when user agent is black listed', function () {
+                        binarta.application.cookies.permission.blacklist = ['a', 'b', 'rt'];
+
+                        ['a', 'b', 'partial'].forEach(function (it) {
+                            window.navigator = {userAgent: it};
+                            binarta.application.cookies.permission.evaluate();
+                            expect(binarta.application.cookies.permission.status).toEqual('permission-granted');
+                        });
+
+                        ['x', 'FireFox', 'Chrome', 'Internet Explorer'].forEach(function (it) {
+                            window.navigator = {userAgent: it};
+                            binarta.application.cookies.permission.evaluate();
+                            expect(binarta.application.cookies.permission.status).toEqual('permission-required');
+                        });
+                    });
+                });
+            });
+        });
+
+        describe('application lock', function () {
+            var spy;
+
+            beforeEach(function () {
+                spy = jasmine.createSpyObj('listener', ['editing', 'viewing']);
+            });
+
+            it('application lock is initially open', function () {
+                expect(binarta.application.lock.status).toEqual('open');
+            });
+
+            it('reserving the application lock', function () {
+                binarta.application.lock.reserve();
+                expect(binarta.application.lock.status).toEqual('closed');
+            });
+
+            it('observe reserving the application lock', function () {
+                binarta.application.eventRegistry.observe(spy);
+                binarta.application.lock.reserve();
+                expect(spy.editing).toHaveBeenCalled();
+            });
+
+            it('releasing the application lock', function () {
+                binarta.application.lock.reserve();
+                binarta.application.lock.release();
+                expect(binarta.application.lock.status).toEqual('open');
+            });
+
+            it('observe releasing the application lock', function () {
+                binarta.application.eventRegistry.observe(spy);
+                binarta.application.lock.reserve();
+                binarta.application.lock.release();
+                expect(spy.viewing).toHaveBeenCalled();
+            });
+        });
+
+        describe('display settings', function () {
+            var ui, observer;
+
+            beforeEach(function () {
+                ui = jasmine.createSpyObj('ui', ['attributes', 'working', 'saved', 'rejected']);
+            });
+
+            afterEach(function () {
+                if (observer)
+                    observer.disconnect();
+            });
+
+            describe('when selecting a component', function () {
+                var component;
+
+                beforeEach(function () {
+                    component = binarta.application.display.settings.component('component');
+                });
+
+                it('multiple requests with the same id get the same instance', function () {
+                    expect(binarta.application.display.settings.component('component')).toEqual(component);
+                });
+
+                describe('when selecting a widget', function () {
+                    var widget;
+
+                    beforeEach(function () {
+                        widget = component.widget('widget');
+                    });
+
+                    it('multiple requests with the same id get the same instance', function () {
+                        expect(component.widget('widget')).toEqual(widget);
+                    });
+
+                    describe('installing an observer', function () {
+                        beforeEach(function () {
+                            binarta.application.gateway = new GatewaySpy();
+                            observer = widget.observe(ui);
+                        });
+
+                        it('loads default attributes from server', function () {
+                            expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
+                                component: 'component',
+                                widget: 'widget'
+                            });
+                        });
+
+                        it('notifies observer of working status', function () {
+                            expect(ui.working).toHaveBeenCalled();
+                        });
+                    });
+
+                    it('observers receive the default attributes', function () {
+                        observer = widget.observe(ui);
+                        expect(ui.attributes).toHaveBeenCalledWith({
+                            aspectRatio: {width: 3, height: 2},
+                            fittingRule: 'contain'
+                        });
+                    });
+
+                    it('disconnected observers are not notified of the default attributes', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        observer = widget.observe(ui);
+                        observer.disconnect();
+                        binarta.application.gateway = new ValidApplicationGateway();
+                        widget.refresh();
+                        expect(ui.attributes).not.toHaveBeenCalled();
+                    });
+
+                    it('installing additional observers reuses previously loaded attributes', function () {
+                        observer = widget.observe(ui);
+                        binarta.application.gateway = {};
+                        ui.attributes.calls.reset();
+                        observer = widget.observe(ui).disconnect();
+                        expect(ui.attributes).toHaveBeenCalledWith({
+                            aspectRatio: {width: 3, height: 2},
+                            fittingRule: 'contain'
+                        });
+                    });
+
+                    describe('when saving new default attributes', function () {
+                        beforeEach(function () {
+                            observer = widget.observe(ui);
+                            binarta.application.gateway = new GatewaySpy();
+                            widget.save('attributes');
+                        });
+
+                        it('then request is sent to server', function () {
+                            expect(binarta.application.gateway.saveWidgetAttributesRequest).toEqual({
+                                component: 'component',
+                                widget: 'widget',
+                                attributes: 'attributes'
+                            });
+                        });
+
+                        it('then observer is notified of working status', function () {
+                            expect(ui.working).toHaveBeenCalled();
+                        });
+                    });
+
+                    describe('when saving new default attributes', function () {
+                        beforeEach(function () {
+                            observer = widget.observe(ui);
+                            widget.save('attributes');
+                        });
+
+                        it('then the observer receives the updated attributes', function () {
+                            expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                        });
+
+                        it('then additional observers receive the updated attributes', function () {
+                            ui.attributes.calls.reset();
+                            observer = widget.observe(ui).disconnect();
+                            expect(ui.attributes).toHaveBeenCalledWith('attributes');
+                        });
+
+                        it('then the observer is notified of save completion', function () {
+                            expect(ui.saved).toHaveBeenCalled();
+                        });
+                    });
+
+                    it('when saving invalid attributes then rejection report is sent to observers', function () {
+                        observer = widget.observe(ui);
+                        binarta.application.gateway = new InvalidApplicationGateway();
+                        widget.save('-');
+                        expect(ui.rejected).toHaveBeenCalledWith('report');
+                    });
+
+                    it('refreshing before atributes could be loaded from server does not trigger additional lookups', function () {
+                        binarta.application.gateway = new GatewaySpy();
+                        widget.refresh();
+                        binarta.application.gateway = {};
+                        widget.refresh();
+                    });
+
+                    it('refreshing after attributes could be loaded performs lookup from server', function () {
+                        widget.refresh();
+                        binarta.application.gateway = new GatewaySpy();
+                        widget.refresh();
+                        expect(binarta.application.gateway.getWidgetAttributesRequest).toEqual({
+                            component: 'component',
+                            widget: 'widget'
+                        });
+                    });
+                });
+            });
+        });
+
+        describe('dns', function () {
+            var ui, db, observer;
+
+            beforeEach(function () {
+                ui = jasmine.createSpyObj('ui', ['status', 'disabled', 'records', 'rejected']);
+                db = jasmine.createSpyObj('db', ['getCustomDomainRecords', 'saveCustomDomainRecords']);
+                binarta.application.gateway = db;
+            });
+
+            it('does not yet load custom domain records from server', function () {
+                expect(db.getCustomDomainRecords).not.toHaveBeenCalled();
+            });
+
+            describe('with observer', function () {
+                beforeEach(function () {
+                    observer = binarta.application.dns.observe(ui);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('loads custom domain records from server', function () {
+                    expect(db.getCustomDomainRecords).toHaveBeenCalled();
+                });
+
+                describe('when custom domain records are not supported', function () {
+                    beforeEach(function () {
+                        db.getCustomDomainRecords.calls.mostRecent().args[0].forbidden();
+                    });
+
+                    it('notify observers the feature is disabled', function () {
+                        expect(ui.disabled).toHaveBeenCalled();
+                    });
+
+                    it('notify additional observers the feature is disabled', function () {
+                        ui.disabled.calls.reset();
+                        binarta.application.dns.observe(ui).disconnect();
+                        expect(ui.disabled).toHaveBeenCalled();
+                    });
+                });
+
+                describe('when custom domain records are supported', function () {
+                    var records;
+
+                    beforeEach(function () {
+                        records = [
+                            {name: '', type: 'A', values: ['a']},
+                            {name: 'x', type: 'TXT', values: ['b']},
+                            {name: 'y', type: 'CNAME', values: ['c']}
+                        ];
+                        db.getCustomDomainRecords.calls.mostRecent().args[0].success(records);
+                    });
+
+                    it('notify observers of the found records', function () {
+                        expect(ui.records).toHaveBeenCalledWith([
+                            {id: 0, name: '', type: 'A', values: ['a']},
+                            {id: 1, name: 'x', type: 'TXT', values: ['b']},
+                            {id: 2, name: 'y', type: 'CNAME', values: ['c']}
+                        ]);
+                    });
+
+                    it('notify additional observers of the found records', function () {
+                        ui.records.calls.reset();
+                        binarta.application.dns.observe(ui).disconnect();
+                        expect(ui.records).toHaveBeenCalledWith(records);
+                    });
+
+                    it('on refresh load custom domain records from server', function () {
+                        db.getCustomDomainRecords.calls.reset();
+                        binarta.application.dns.refresh();
+                        expect(db.getCustomDomainRecords).toHaveBeenCalled();
+                    });
+
+                    describe('when saving custom domain records', function () {
+                        beforeEach(function () {
+                            records = ['x', 'y', 'z'];
+                            binarta.application.dns.save(records);
+                        });
+
+                        it('perform server call', function () {
+                            expect(db.saveCustomDomainRecords).toHaveBeenCalledWith(records, jasmine.any(Object));
+                        });
+
+                        describe('is success', function () {
+                            beforeEach(function () {
+                                db.saveCustomDomainRecords.calls.mostRecent().args[1].success();
+                            });
+
+                            it('notify observer with saved records', function () {
+                                expect(ui.records).toHaveBeenCalledWith(records);
+                            });
+
+                            it('additional obervers are notified of the previously saved records', function () {
+                                ui.records.calls.reset();
+                                binarta.application.dns.observe(ui).disconnect();
+                                expect(ui.records).toHaveBeenCalledWith(records);
+                            });
+                        });
+                    });
+                });
             });
         });
     });

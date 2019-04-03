@@ -968,6 +968,10 @@
                             binarta.shop.checkout.confirm();
                             expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
                             expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                            expect(binarta.shop.checkout.context().order.signingContext).toEqual({
+                                institution: 'test-bank',
+                                approvalUrl: 'approval-url'
+                            });
                         });
 
                         it('you can set a coupon code', function () {
@@ -987,6 +991,15 @@
                         it('setting a coupon code raises event', function () {
                             binarta.shop.checkout.setCouponCode('coupon-code');
                             expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
+                        });
+
+                        it('on confirmation deletes the summary violation report from the persistent context', function () {
+                            var ctx = binarta.shop.checkout.context();
+                            ctx.summaryViolationReport = {};
+                            binarta.shop.checkout.persist(ctx);
+                            binarta.shop.gateway = new ValidOrderGateway();
+                            binarta.shop.checkout.confirm();
+                            expect(binarta.shop.checkout.context().summaryViolationReport).toBeUndefined();
                         });
                     });
                 });
@@ -1113,13 +1126,38 @@
                         expect(spy).toHaveBeenCalled();
                     });
 
-                    it('when payment confirmation is rejected expose violation report', function () {
+                    it('when payment confirmation is rejected expose violation report on the summary step', function () {
                         binarta.shop.gateway = new InvalidPaymentGateway();
 
                         binarta.shop.checkout.confirm('-');
 
-                        expect(binarta.shop.checkout.status()).toEqual('payment');
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
                         expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    });
+
+                    it('when payment confirmation is rejected then trigger an optional on success listener', function () {
+                        var spy = jasmine.createSpy('spy');
+                        binarta.shop.gateway = new InvalidPaymentGateway();
+                        binarta.shop.checkout.confirm('-', spy);
+                        expect(spy).toHaveBeenCalled();
+                    });
+
+                    describe('when payment confirmation is rejected because the payment has expired', function () {
+                        beforeEach(function () {
+                            var ctx = binarta.shop.checkout.context();
+                            ctx.order.id = 'o';
+                            binarta.shop.checkout.persist(ctx);
+                            binarta.shop.gateway = new ExpiredPaymentGateway();
+                            binarta.shop.checkout.confirm('-');
+                        });
+
+                        it('then return to summary step', function () {
+                            expect(binarta.shop.checkout.status()).toEqual('summary');
+                        });
+
+                        it('then remove id from order so it can be resubmitted', function () {
+                            expect(binarta.shop.checkout.context().order.id).toBeUndefined();
+                        });
                     });
 
                     it('when canceling the payment then cancel order request is sent', function () {
@@ -1148,7 +1186,7 @@
                             expect(binarta.shop.checkout.status()).toEqual('summary');
                         });
 
-                        it('then remove id from order so ti can be resubmitted', function () {
+                        it('then remove id from order so it can be resubmitted', function () {
                             expect(binarta.shop.checkout.context().order.id).toBeUndefined();
                         });
                     });
@@ -1791,6 +1829,936 @@
                     binarta.shop.gateway = new ValidOrderGateway();
                     binarta.shop.couponDictionary.contains('-', spy);
                     expect(spy.ok).toHaveBeenCalledWith('contains-response');
+                });
+            });
+
+            describe('stripe', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'goto', 'connected']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.stripe.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('checks if stripe is connected', function () {
+                    expect(binarta.shop.gateway.stripeConnectedRequest).toEqual({});
+                });
+
+                it('connecting is not yet possible', function () {
+                    expect(binarta.shop.stripe.connect).toThrowError();
+                });
+
+                it('disconnecting is not yet possible', function () {
+                    expect(binarta.shop.stripe.disconnect).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.stripeConnectedRequest = undefined;
+                        secondObserver = binarta.shop.stripe.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check if stripe is connected', function () {
+                        expect(binarta.shop.gateway.stripeConnectedRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when connected', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.stripeConnectedResponse.success('account-id');
+                    });
+
+                    it('observers are notified of the current connected status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('connected');
+                    });
+
+                    it('observers are notified of account we are connected to', function () {
+                        expect(spy.connected).toHaveBeenCalledWith('account-id');
+                    });
+
+                    it('connecting again is not possible', function () {
+                        expect(binarta.shop.stripe.connect).toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and account id', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'connected']);
+                        binarta.shop.stripe.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('connected');
+                        expect(spy.connected).toHaveBeenCalledWith('account-id');
+                    });
+
+                    describe('on disconnect', function () {
+                        beforeEach(function () {
+                            binarta.shop.stripe.disconnect();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a stripe connect request on the gateway', function () {
+                            expect(binarta.shop.gateway.stripeDisconnectRequest).toEqual({});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.stripeDisconnectResponse.success();
+                            });
+
+                            it('observers are notified of the new disconnected status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disconnected');
+                            });
+                        });
+                    });
+                });
+
+                describe('when disconnected', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.stripeConnectedResponse.notFound();
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.stripe.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disconnected');
+                    });
+
+                    it('disconnecting again is not possible', function () {
+                        expect(binarta.shop.stripe.disconnect).toThrowError();
+                    });
+
+                    describe('on connect', function () {
+                        beforeEach(function () {
+                            binarta.application.setLocaleForPresentation('en');
+                            binarta.shop.stripe.connect();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a stripe connect request on the gateway', function () {
+                            expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
+                        });
+                    });
+
+                    describe('on connect with success response', function () {
+                        beforeEach(function () {
+                            spy.status.calls.reset();
+                            binarta.shop.gateway = new ValidPaymentGateway();
+                            binarta.shop.stripe.connect();
+                        });
+
+                        it('observers are asked to visit the connect uri', function () {
+                            expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
+                        });
+                    });
+                });
+            });
+
+            describe('paymentOnReceipt', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.paymentOnReceipt.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('requests params', function () {
+                    expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toEqual({});
+                });
+
+                it('configuring is not yet possible', function () {
+                    expect(binarta.shop.paymentOnReceipt.configure).toThrowError();
+                });
+
+                it('disabling is not yet possible', function () {
+                    expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.getPaymentOnReceiptParamsRequest = undefined;
+                        secondObserver = binarta.shop.paymentOnReceipt.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check for bancontact params', function () {
+                        expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when configured', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.success({});
+                    });
+
+                    it('observers are notified of the current configured status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                    });
+
+                    it('observers are notified of the params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({});
+                    });
+
+                    it('configuring again is possible', function () {
+                        expect(binarta.shop.paymentOnReceipt.configure).not.toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and params', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                        expect(spy.params).toHaveBeenCalledWith({});
+                    });
+
+                    describe('on disable', function () {
+                        beforeEach(function () {
+                            binarta.shop.paymentOnReceipt.disable();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a cc disable request on the gateway', function () {
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'payment-on-receipt'});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.disablePaymentMethodResponse.success();
+                            });
+
+                            it('observers are notified of the new disabled status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disabled');
+                            });
+
+                            it('observers are notified of the updated params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({});
+                            });
+                        });
+                    });
+                });
+
+                describe('when disabled', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.notFound();
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('disabling again is not possible', function () {
+                        expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+                    });
+
+                    describe('on configure', function () {
+                        beforeEach(function () {
+                            binarta.shop.paymentOnReceipt.configure({});
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact configure request on the gateway', function () {
+                            expect(binarta.shop.gateway.configurePaymentOnReceiptRequest).toEqual({});
+                        });
+
+                        describe('on success', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configurePaymentOnReceiptResponse.success();
+                            });
+
+                            it('observers are notified of the new configured status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('configured');
+                            });
+
+                            it('observers are notified of the params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({});
+                            });
+                        });
+                    });
+                });
+            });
+
+            describe('cc', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.cc.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('requests cc params', function () {
+                    expect(binarta.shop.gateway.getCCParamsRequest).toEqual({});
+                });
+
+                it('configuring is not yet possible', function () {
+                    expect(binarta.shop.cc.configure).toThrowError();
+                });
+
+                it('disabling is not yet possible', function () {
+                    expect(binarta.shop.cc.disable).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.getCCParamsRequest = undefined;
+                        secondObserver = binarta.shop.cc.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check for bancontact params', function () {
+                        expect(binarta.shop.gateway.getCCParamsRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when configured', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getCCParamsResponse.success({
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('observers are notified of the current configured status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                    });
+
+                    it('observers are notified of the params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('configuring again is possible', function () {
+                        expect(binarta.shop.cc.configure).not.toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and params', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                        binarta.shop.cc.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                        expect(spy.params).toHaveBeenCalledWith({
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    describe('on disable', function () {
+                        beforeEach(function () {
+                            binarta.shop.cc.disable();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a cc disable request on the gateway', function () {
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'cc'});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.disablePaymentMethodResponse.success();
+                            });
+
+                            it('observers are notified of the new disabled status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disabled');
+                            });
+
+                            it('observers are notified of the updated params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+                    });
+                });
+
+                describe('when disabled', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getCCParamsResponse.success({
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.cc.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('disabling again is not possible', function () {
+                        expect(binarta.shop.cc.disable).toThrowError();
+                    });
+
+                    describe('on configure', function () {
+                        beforeEach(function () {
+                            binarta.shop.cc.configure({
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact configure request on the gateway', function () {
+                            expect(binarta.shop.gateway.configureCCRequest).toEqual({
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        describe('on success', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureCCResponse.success();
+                            });
+
+                            it('observers are notified of the new configured status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('configured');
+                            });
+
+                            it('observers are notified of the params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    bankId: 'piggybank',
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+
+                        describe('on rejected', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureCCResponse.rejected({
+                                    bankId: ['required']
+                                });
+                            });
+
+                            it('observers do not get a new status event', function () {
+                                expect(spy.status).not.toHaveBeenCalled();
+                            });
+
+                            it('observers are notified of the violation report', function () {
+                                expect(spy.rejected).toHaveBeenCalledWith({
+                                    bankId: ['required']
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            describe('bancontact', function () {
+                var spy, observer;
+
+                beforeEach(function () {
+                    spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
+                    binarta.shop.gateway = new GatewaySpy();
+                    observer = binarta.shop.bancontact.observe(spy);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('requests bancontact params', function () {
+                    expect(binarta.shop.gateway.getBancontactParamsRequest).toEqual({});
+                });
+
+                it('configuring is not yet possible', function () {
+                    expect(binarta.shop.bancontact.configure).toThrowError();
+                });
+
+                it('disabling is not yet possible', function () {
+                    expect(binarta.shop.bancontact.disable).toThrowError();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.getBancontactParamsRequest = undefined;
+                        secondObserver = binarta.shop.bancontact.observe(spy);
+                    });
+
+                    afterEach(function () {
+                        secondObserver.disconnect();
+                    });
+
+                    it('does not generate an additional working status update', function () {
+                        expect(spy.status).not.toHaveBeenCalledWith('working');
+                    });
+
+                    it('does not check for bancontact params', function () {
+                        expect(binarta.shop.gateway.getBancontactParamsRequest).toBeUndefined();
+                    });
+                });
+
+                describe('when configured', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getBancontactParamsResponse.success({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('observers are notified of the current configured status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                    });
+
+                    it('observers are notified of the params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('configuring again is possible', function () {
+                        expect(binarta.shop.bancontact.configure).not.toThrowError();
+                    });
+
+                    it('new observers are notified of the current status and params', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                        binarta.shop.bancontact.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('configured');
+                        expect(spy.params).toHaveBeenCalledWith({
+                            owner: 'John Doe',
+                            bankId: 'piggybank',
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    describe('on disable', function () {
+                        beforeEach(function () {
+                            binarta.shop.bancontact.disable();
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact disable request on the gateway', function () {
+                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'bancontact'});
+                        });
+
+                        describe('success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway.disablePaymentMethodResponse.success();
+                            });
+
+                            it('observers are notified of the new disabled status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('disabled');
+                            });
+
+                            it('observers are notified of the updated params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+                    });
+                });
+
+                describe('when disabled', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.getBancontactParamsResponse.success({
+                            supportedBy: ['piggybank', 'megabank']
+                        });
+                    });
+
+                    it('new observers are notified of the current status', function () {
+                        var spy = jasmine.createSpyObj('spy', ['status']);
+                        binarta.shop.bancontact.observe(spy).disconnect();
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('disabling again is not possible', function () {
+                        expect(binarta.shop.bancontact.disable).toThrowError();
+                    });
+
+                    describe('on configure', function () {
+                        beforeEach(function () {
+                            binarta.shop.bancontact.configure({
+                                owner: 'John Doe',
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        it('observers are notified of the new working status', function () {
+                            expect(spy.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('perform a bancontact configure request on the gateway', function () {
+                            expect(binarta.shop.gateway.configureBancontactRequest).toEqual({
+                                owner: 'John Doe',
+                                bankId: 'piggybank'
+                            });
+                        });
+
+                        describe('on success', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureBancontactResponse.success();
+                            });
+
+                            it('observers are notified of the new configured status', function () {
+                                expect(spy.status).toHaveBeenCalledWith('configured');
+                            });
+
+                            it('observers are notified of the params', function () {
+                                expect(spy.params).toHaveBeenCalledWith({
+                                    owner: 'John Doe',
+                                    bankId: 'piggybank',
+                                    supportedBy: ['piggybank', 'megabank']
+                                });
+                            });
+                        });
+
+                        describe('on rejected', function () {
+                            beforeEach(function () {
+                                spy.status.calls.reset();
+                                binarta.shop.gateway.configureBancontactResponse.rejected({
+                                    bankId: ['required'],
+                                    ownerName: ['required']
+                                });
+                            });
+
+                            it('observers do not get a new status event', function () {
+                                expect(spy.status).not.toHaveBeenCalled();
+                            });
+
+                            it('observers are notified of the violation report', function () {
+                                expect(spy.rejected).toHaveBeenCalledWith({
+                                    bankId: ['required'],
+                                    owner: ['required']
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            describe('delivery methods', function () {
+                var ui, db, observer;
+
+                beforeEach(function () {
+                    ui = jasmine.createSpyObj('ui', ['status', 'activeDeliveryMethod', 'supportedDeliveryMethods', 'rejected']);
+                    db = jasmine.createSpyObj('db', ['getDeliveryMethodParams', 'activateDeliveryMethod', 'fetchBillingProfile', 'fetchAddresses']);
+                    binarta.shop.gateway = db;
+                });
+
+                it('is a widget', function () {
+                    expect(binarta.shop.deliveryMethods.constructor.name).toEqual('Widget');
+                });
+
+                it('params are not yet requested', function () {
+                    expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                });
+
+                describe('when installing an observer', function () {
+                    beforeEach(function () {
+                        observer = binarta.shop.deliveryMethods.observe(ui);
+                    });
+
+                    afterEach(function () {
+                        observer.disconnect();
+                    });
+
+                    it('observers are immediately notified of the current idle status', function () {
+                        expect(ui.status).toHaveBeenCalledWith('idle');
+                    });
+
+                    it('observers are not yet notified of an active delivery method', function () {
+                        expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                    });
+
+                    it('params are still not requested', function () {
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('installing additional observers', function () {
+                        var secondObserver;
+
+                        beforeEach(function () {
+                            ui.status.calls.reset();
+                            secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                        });
+
+                        afterEach(function () {
+                            secondObserver.disconnect();
+                        });
+
+                        it('additional observer is also notified of current idle status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('idle');
+                        });
+
+                        it('params are still not requested', function () {
+                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                        });
+                    });
+
+                    describe('when an application profile is set', function () {
+                        beforeEach(function () {
+                            binarta.application.setProfile({activeDeliveryMethod: 'shipping'});
+                        });
+
+                        it('then observers are notified of the active delivery method', function () {
+                            expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                        });
+
+                        it('additional observers are immediately notified of the previously discovered active delivery method', function () {
+                            ui.activeDeliveryMethod.calls.reset();
+                            binarta.shop.deliveryMethods.observe(ui).disconnect();
+                            expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                        });
+                    });
+
+                    it('with the wrong permission do not request params', function () {
+                        binarta.checkpoint.gateway = new WithPermissionsGateway(['-']);
+                        binarta.checkpoint.profile.refresh();
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('with permission', function () {
+                        beforeEach(function () {
+                            binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                            binarta.checkpoint.profile.refresh();
+                        });
+
+                        it('request params', function () {
+                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                        });
+
+                        it('additional observer is also notified of current working status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('installing additional observers does not cause additional requests', function () {
+                            db.getDeliveryMethodParams.calls.reset();
+                            binarta.shop.deliveryMethods.observe(ui).disconnect();
+                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                        });
+                    });
+                });
+
+                describe('with permission', function () {
+                    beforeEach(function () {
+                        binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                        binarta.checkpoint.profile.refresh();
+                    });
+
+                    it('params are still not requested', function () {
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+
+                    describe('when installing an observer', function () {
+                        beforeEach(function () {
+                            observer = binarta.shop.deliveryMethods.observe(ui);
+                        });
+
+                        afterEach(function () {
+                            observer.disconnect();
+                        });
+
+                        it('observers are immediately notified of the current working status', function () {
+                            expect(ui.status).toHaveBeenCalledWith('working');
+                        });
+
+                        it('observers are not yet notified of an active delivery method', function () {
+                            expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                        });
+
+                        it('params are requested', function () {
+                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                        });
+
+                        describe('installing additional observers', function () {
+                            var secondObserver;
+
+                            beforeEach(function () {
+                                ui.status.calls.reset();
+                                db.getDeliveryMethodParams.calls.reset();
+                                secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                            });
+
+                            afterEach(function () {
+                                secondObserver.disconnect();
+                            });
+
+                            it('additional observer is also notified of current working status', function () {
+                                expect(ui.status).toHaveBeenCalledWith('working');
+                            });
+
+                            it('params are not requested again', function () {
+                                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                            });
+                        });
+
+                        describe('when params are received', function () {
+                            beforeEach(function () {
+                                ui.status.calls.reset();
+                                db.getDeliveryMethodParams.calls.mostRecent().args[1].success({
+                                    active: 'shipping',
+                                    supported: ['shipping', 'collect']
+                                });
+                            });
+
+                            it('observers are notified of the current idle status', function () {
+                                expect(ui.status).toHaveBeenCalledWith('idle');
+                            });
+
+                            it('then observers are notified of the active delivery method', function () {
+                                expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                            });
+
+                            it('then observers are notified of the supported delivery methods', function () {
+                                expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
+                            });
+
+                            describe('and installing additional observers', function () {
+                                var secondObserver;
+
+                                beforeEach(function () {
+                                    ui.status.calls.reset();
+                                    ui.activeDeliveryMethod.calls.reset();
+                                    ui.supportedDeliveryMethods.calls.reset();
+                                    secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                                });
+
+                                afterEach(function () {
+                                    secondObserver.disconnect();
+                                });
+
+                                it('additional observer is also notified of current idle status', function () {
+                                    expect(ui.status).toHaveBeenCalledWith('idle');
+                                });
+
+                                it('additional observer is also notified of the active delivery method', function () {
+                                    expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                                });
+
+                                it('additional observer is also notified of the supported delivery methods', function () {
+                                    expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
+                                });
+                            });
+
+                            describe('when activating a delivery method', function () {
+                                beforeEach(function () {
+                                    binarta.shop.deliveryMethods.activate('collect');
+                                });
+
+                                it('observers are notified of the current working status', function () {
+                                    expect(ui.status).toHaveBeenCalledWith('working');
+                                });
+
+                                it('activation request is made', function () {
+                                    expect(db.activateDeliveryMethod).toHaveBeenCalledWith({id: 'collect'}, jasmine.any(Object));
+                                });
+
+                                describe('on rejection', function () {
+                                    beforeEach(function () {
+                                        db.activateDeliveryMethod.calls.mostRecent().args[1].rejected('validation-report');
+                                    });
+
+                                    it('observers are notified of the current rejected status', function () {
+                                        expect(ui.status).toHaveBeenCalledWith('rejected');
+                                    });
+
+                                    it('observers are notified of the validation report', function () {
+                                        expect(ui.rejected).toHaveBeenCalledWith('validation-report');
+                                    });
+                                });
+
+                                describe('on success', function () {
+                                    beforeEach(function () {
+                                        db.activateDeliveryMethod.calls.mostRecent().args[1].success();
+                                    });
+
+                                    it('observers are notified of the current idle status', function () {
+                                        expect(ui.status).toHaveBeenCalledWith('idle');
+                                    });
+
+                                    it('observers are notified of the active delivery method', function () {
+                                        expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('collect');
+                                    });
+                                });
+                            });
+                        });
+                    });
                 });
             });
         });

@@ -1,9 +1,42 @@
+var PermittedBinartaWidget;
+
 function BinartaCheckpointjs() {
     var checkpoint = this;
 
     this.signinForm = new SigninForm();
     this.registrationForm = new RegistrationForm();
     this.profile = new Profile();
+
+    PermittedBinartaWidget = function (ConcreteWidget) {
+        function PermittedWidget(rx) {
+            var widget = this;
+            ConcreteWidget.apply(widget, arguments);
+
+            var allowRefreshOnSignin = false;
+            var refreshDelegate = widget.refresh;
+            widget.refresh = function () {
+                allowRefreshOnSignin = true;
+                refresh();
+            };
+
+            if (widget.permission)
+                checkpoint.profile.eventRegistry.add({
+                    signedin: refresh,
+                    signedout: function () {
+                        if (widget.signedout)
+                            widget.signedout();
+                        rx.notify('disabled');
+                    }
+                });
+
+            function refresh() {
+                if (allowRefreshOnSignin && refreshDelegate && checkpoint.profile.hasPermission(widget.permission))
+                    refreshDelegate();
+            }
+        }
+
+        return BinartaWidget(PermittedWidget);
+    };
 
     function RegistrationForm() {
         var self = this;
@@ -211,7 +244,7 @@ function BinartaCheckpointjs() {
                 checkpoint.registrationForm.reset();
                 checkpoint.signinForm.reset();
                 response.unauthenticated();
-                if(wasAuthenticated)
+                if (wasAuthenticated)
                     self.eventRegistry.forEach(function (l) {
                         l.notify('signedout');
                     });
@@ -239,6 +272,14 @@ function BinartaCheckpointjs() {
 
         this.signout = function (response) {
             checkpoint.gateway.signout({unauthenticated: onSignout(toNoOpResponse(response))});
+        };
+
+        this.delete = function (response) {
+            checkpoint.gateway.delete({
+                success: function () {
+                    self.signout({unauthenticated: toNoOpResponse(response).success});
+                }
+            });
         };
 
         function toNoOpResponse(it) {
@@ -269,8 +310,8 @@ function BinartaCheckpointjs() {
             return self.permissionCache;
         };
 
-        this.hasPermission = function(expected) {
-            return self.permissions().some(function(permission) {
+        this.hasPermission = function (expected) {
+            return self.permissions().some(function (permission) {
                 return permission.name == expected;
             });
         };
@@ -294,8 +335,8 @@ function BinartaCheckpointjs() {
             this.violationReport = violationReport || {};
 
             var request = rejectedRequest || fsm.updateProfileRequestDecorators.reduce(function (p, c) {
-                    return c(p);
-                }, {});
+                return c(p);
+            }, {});
 
             fsm.cancel = function () {
                 new IdleState(fsm);
