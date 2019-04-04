@@ -3,6 +3,7 @@
     "binartajs": "bower_components/binartajs/src/binarta.js",
     "binarta-applicationjs": "bower_components/binartajs/src/application.js",
     "binarta-checkpointjs": "bower_components/binartajs/src/checkpoint.js",
+    "binarta-i18njs": "bower_components/binartajs/src/i18n.js",
     "binarta-mediajs": "bower_components/binartajs/src/media.js",
     "binarta-catalogjs": "bower_components/binartajs/src/catalog.js",
     "moment": "bower_components/moment/moment.js"

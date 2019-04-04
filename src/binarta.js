@@ -77,11 +77,11 @@ function ReplayableBinartaRX() {
     };
 
     this.observe = function() {
-        return delegate.observe.apply(this, arguments);
+        return delegate.observe.apply(this, [].slice.call(arguments).concat([this]));
     };
 
     this.observeIf = function() {
-        return delegate.observeIf.apply(this, arguments);
+        return delegate.observeIf.apply(this, [].slice.call(arguments).concat([this]));
     };
 
     this.notify = function(evt, ctx) {
@@ -100,6 +100,7 @@ function ReplayableBinartaRX() {
 
 function BinartaRX() {
     var listeners = [];
+    var rx = this;
 
     this.add = function (l) {
         if (l.predicate === undefined) l.predicate = function () {
@@ -112,13 +113,13 @@ function BinartaRX() {
         listeners.push(l);
     };
 
-    this.observe = function (l) {
-        return new Observer(this, l);
+    this.observe = function (l, root) {
+        return new Observer(root || rx, l);
     };
 
-    this.observeIf = function (predicate, l) {
+    this.observeIf = function (predicate, l, root) {
         l.predicate = predicate;
-        return this.observe(l);
+        return rx.observe(l, root);
     };
 
     this.forEach = function (cb) {
@@ -126,7 +127,7 @@ function BinartaRX() {
     };
 
     this.notify = function (evt, ctx) {
-        this.forEach(function (l) {
+        rx.forEach(function (l) {
             l.notify(evt, ctx);
         })
     };

@@ -8,10 +8,12 @@
             factory.addUI(ui);
             var checkpoint = new BinartaCheckpointjs();
             var application = new BinartaApplicationjs();
+            var i18n = new BinartaI18njs();
             factory.addSubSystems({
                 checkpoint: checkpoint,
                 application: application,
-                publisher: new BinartaPublisherjs({application: application})
+                i18n: i18n,
+                publisher: new BinartaPublisherjs({application: application, i18n: i18n})
             });
             binarta = factory.create();
             publisher = binarta.publisher;
@@ -41,9 +43,9 @@
                 publisher.blog.add();
             });
 
-            it('can pass a type to the db when adding draft', function() {
+            it('can pass a type to the db when adding draft', function () {
                 publisher.db = {
-                    add: function(request) {
+                    add: function (request) {
                         expect(request.type).toEqual('type');
                     }
                 };
@@ -216,16 +218,16 @@
                     expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/p');
                 });
 
-                describe('for a blogtype', function() {
-                    beforeEach(function() {
+                describe('for a blogtype', function () {
+                    beforeEach(function () {
                         publisher.db.findAllPublishedBlogsForLocale.calls.reset();
                         display.status.calls.reset();
                         display.more.calls.reset();
                         handle = publisher.blog.published({type: 'type'}, display);
                     });
 
-                    it('passes the type when querying the db', function() {
-                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function(request, response) {
+                    it('passes the type when querying the db', function () {
+                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function (request, response) {
                             expect(request.type).toEqual('type');
                             response.success([]);
                         });
@@ -234,16 +236,16 @@
                     });
                 });
 
-                describe('for a content filter', function() {
-                    beforeEach(function() {
+                describe('for a content filter', function () {
+                    beforeEach(function () {
                         publisher.db.findAllPublishedBlogsForLocale.calls.reset();
                         display.status.calls.reset();
                         display.more.calls.reset();
                         handle = publisher.blog.published({content: 'content'}, display);
                     });
 
-                    it('passes the content when querying the db', function() {
-                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function(request, response) {
+                    it('passes the content when querying the db', function () {
+                        publisher.db.findAllPublishedBlogsForLocale.and.callFake(function (request, response) {
                             expect(request.content).toEqual('content');
                             response.success([]);
                         });
@@ -398,16 +400,16 @@
                     expect(display.more.calls.mostRecent().args[0][0].uri).toEqual('/blog/post/p');
                 });
 
-                describe('for a blogtype', function() {
-                    beforeEach(function() {
+                describe('for a blogtype', function () {
+                    beforeEach(function () {
                         publisher.db.findAllBlogsInDraftForLocale.calls.reset();
                         display.status.calls.reset();
                         display.more.calls.reset();
                         handle = publisher.blog.drafts({type: 'type'}, display);
                     });
 
-                    it('passes the type when querying the db', function() {
-                        publisher.db.findAllBlogsInDraftForLocale.and.callFake(function(request, response) {
+                    it('passes the type when querying the db', function () {
+                        publisher.db.findAllBlogsInDraftForLocale.and.callFake(function (request, response) {
                             expect(request.type).toEqual('type');
                             response.success([]);
                         });
@@ -430,7 +432,7 @@
                     expect(display.status).toHaveBeenCalledWith('idle');
                 });
 
-                it('while fetching the blog post to render the exposes status is loading', function () {
+                it('while fetching the blog post to render the exposed status is loading', function () {
                     publisher.db = {
                         get: function (request, response) {
                         }
@@ -455,6 +457,11 @@
 
                     it('then the exposed status returns to idle', function () {
                         expect(display.status).toHaveBeenCalledWith('idle');
+                    });
+
+                    it('ignores i18n translations', function () {
+                        binarta.i18n.raiseTranslation({code: '?', message: '-'});
+                        expect(display.post).not.toHaveBeenCalled();
                     });
                 });
 
@@ -589,7 +596,7 @@
                     var post;
 
                     beforeEach(function () {
-                        post = {status: 'published'};
+                        post = {id: 'id', status: 'published'};
                         publisher.db = {
                             get: function (request, response) {
                                 response.success(post);
@@ -661,6 +668,50 @@
                         binarta.checkpoint.signinForm.submit({});
                         binarta.application.lock.reserve();
                         expect(display.status).not.toHaveBeenCalledWith('withdrawable');
+                    });
+
+                    describe('i18n translations', function () {
+                        beforeEach(function () {
+                            display.post.calls.reset();
+                        });
+
+                        it('for unknown codes do not cause a re-render', function () {
+                            binarta.i18n.raiseTranslation({code: '?', message: '-'});
+                            expect(display.post).not.toHaveBeenCalled();
+                        });
+
+                        it('for the blog title code cause a re-render', function () {
+                            binarta.i18n.raiseTranslation({code: post.id, message: 't'});
+                            expect(display.post).toHaveBeenCalledWith({
+                                id: post.id,
+                                status: post.status,
+                                title: 't'
+                            });
+                        });
+
+                        it('for the blog lead code cause a re-render', function () {
+                            binarta.i18n.raiseTranslation({code: post.id + '.lead', message: 'l'});
+                            expect(display.post).toHaveBeenCalledWith({
+                                id: post.id,
+                                status: post.status,
+                                lead: 'l'
+                            });
+                        });
+
+                        it('for the blog body code cause a re-render', function () {
+                            binarta.i18n.raiseTranslation({code: post.id + '.body', message: 'b'});
+                            expect(display.post).toHaveBeenCalledWith({
+                                id: post.id,
+                                status: post.status,
+                                body: 'b'
+                            });
+                        });
+
+                        it('ignores translations when disconnected', function() {
+                            handle.disconnect();
+                            binarta.i18n.raiseTranslation({code: post.id, message: 't'});
+                            expect(display.post).not.toHaveBeenCalled();
+                        })
                     });
                 });
 
@@ -951,28 +1002,28 @@
                     });
                 });
 
-                describe('and updating the type of the post', function() {
+                describe('and updating the type of the post', function () {
                     var post;
 
-                    beforeEach(function() {
+                    beforeEach(function () {
                         post = {id: 'p'};
                         publisher.db = jasmine.createSpyObj('db', ['get', 'setType']);
-                        publisher.db.get.and.callFake(function(request, response) {
+                        publisher.db.get.and.callFake(function (request, response) {
                             response.success(post);
                         });
                         handle.render();
-                        Object.getOwnPropertyNames(display).forEach(function(spy) {
+                        Object.getOwnPropertyNames(display).forEach(function (spy) {
                             display[spy].calls.reset();
                         });
                     });
 
-                    it('sets the display to updating', function() {
+                    it('sets the display to updating', function () {
                         handle.setType('t');
 
                         expect(display.status).toHaveBeenCalledWith('updating');
                     });
 
-                    it('invokes the db to set the type', function() {
+                    it('invokes the db to set the type', function () {
                         handle.setType('t');
 
                         expect(publisher.db.setType).toHaveBeenCalledWith({
@@ -981,8 +1032,8 @@
                         }, jasmine.anything());
                     });
 
-                    it('sets the display to updated on success', function() {
-                        publisher.db.setType.and.callFake(function(request, response) {
+                    it('sets the display to updated on success', function () {
+                        publisher.db.setType.and.callFake(function (request, response) {
                             response.success();
                         });
 
@@ -1047,7 +1098,7 @@
                         expect(visitorDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
                     });
 
-                    it('setType', function() {
+                    it('setType', function () {
                         db.setType('a', 'b', 'c');
                         expect(visitorDB.setType).toHaveBeenCalledWith('a', 'b', 'c');
                     });
@@ -1098,7 +1149,7 @@
                         expect(clerkDB.delete).toHaveBeenCalledWith('a', 'b', 'c');
                     });
 
-                    it('setType', function() {
+                    it('setType', function () {
                         db.setType('a', 'b', 'c');
                         expect(clerkDB.setType).toHaveBeenCalledWith('a', 'b', 'c');
                     });
@@ -1151,7 +1202,7 @@
                         expect(db.delete).toThrow(readOnlyErrorMessage);
                     });
 
-                    it('setType', function() {
+                    it('setType', function () {
                         expect(db.setType).toThrow(readOnlyErrorMessage);
                     })
                 });
@@ -1402,15 +1453,19 @@
                             expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
                         });
 
-                        it('then calls the source db when given a request parameter with a different type', function() {
+                        it('then calls the source db when given a request parameter with a different type', function () {
                             db.sourceDB = sourceDB
                             db.findAllPublishedBlogsForLocale({locale: 'en', type: 't', subset: {offset: 0, max: 10}});
                             expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
                         });
 
-                        it('then calls the source db when given a request parameter with a different content', function() {
+                        it('then calls the source db when given a request parameter with a different content', function () {
                             db.sourceDB = sourceDB;
-                            db.findAllPublishedBlogsForLocale({locale: 'en', content: 'c', subset: {offset: 0, max:10}});
+                            db.findAllPublishedBlogsForLocale({
+                                locale: 'en',
+                                content: 'c',
+                                subset: {offset: 0, max: 10}
+                            });
                             expect(sourceDB.findAllPublishedBlogsForLocale).toHaveBeenCalled();
                         });
 
@@ -1543,9 +1598,13 @@
                                 expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
                             });
 
-                            it('then calls the source db when given a request parameter with a different type', function() {
+                            it('then calls the source db when given a request parameter with a different type', function () {
                                 db.sourceDB = sourceDB
-                                db.findAllBlogsInDraftForLocale({locale: 'en', type: 't', subset: {offset: 0, max: 10}});
+                                db.findAllBlogsInDraftForLocale({
+                                    locale: 'en',
+                                    type: 't',
+                                    subset: {offset: 0, max: 10}
+                                });
                                 expect(sourceDB.findAllBlogsInDraftForLocale).toHaveBeenCalled();
                             });
 

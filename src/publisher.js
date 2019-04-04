@@ -1,6 +1,7 @@
 function BinartaPublisherjs(args) {
     var publisher = this;
     var app = args.application;
+    var i18n = args.i18n;
 
     publisher.blog = new Blog();
 
@@ -18,7 +19,7 @@ function BinartaPublisherjs(args) {
         blog.published = function (request, display) {
             return new Posts({
                 display: display,
-                query:'findAllPublishedBlogsForLocale', 
+                query: 'findAllPublishedBlogsForLocale',
                 type: request.type,
                 content: request.content
             });
@@ -27,24 +28,24 @@ function BinartaPublisherjs(args) {
         blog.drafts = function (request, display) {
             return new Posts({
                 display: display,
-                query: 'findAllBlogsInDraftForLocale', 
+                query: 'findAllBlogsInDraftForLocale',
                 type: request.type
             });
         };
 
         blog.add = function (request, response) {
-            if (request === undefined) 
+            if (request === undefined)
                 request = {};
             var input = {
                 type: request.type,
                 locale: publisher.binarta.application.localeForPresentation()
             };
             publisher.db.add(input, {
-                success: function (id) {
-                    if (response && response.success)
-                        response.success(id)
+                    success: function (id) {
+                        if (response && response.success)
+                            response.success(id)
+                    }
                 }
-            }
             );
         };
 
@@ -107,7 +108,8 @@ function BinartaPublisherjs(args) {
                 publisher.binarta.application.eventRegistry.observe({
                     editing: testForManipulationStatus,
                     viewing: becomeIdle
-                })
+                }),
+                i18n.observe({translation: updateTranslatableAttributes})
             ];
 
             function testForManipulationStatus() {
@@ -123,6 +125,22 @@ function BinartaPublisherjs(args) {
 
             function becomeIdle() {
                 display.status('idle');
+            }
+
+            function updateTranslatableAttributes(it) {
+                if(post) {
+                    if(it.code == post.id)
+                        render('title', it.message);
+                    if(it.code == post.id + '.lead')
+                        render('lead', it.message);
+                    if(it.code == post.id + '.body')
+                        render('body', it.message);
+                }
+            }
+
+            function render(attribute, value) {
+                post[attribute] = value;
+                display.post(post);
             }
 
             handle.connect = function (it) {
@@ -219,10 +237,10 @@ function BinartaPublisherjs(args) {
                 });
             };
 
-            handle.setType = function(type) {
+            handle.setType = function (type) {
                 display.status('updating');
                 publisher.db.setType({id: post.id, type: type}, {
-                    success: function() {
+                    success: function () {
                         display.status('updated');
                     }
                 });
@@ -268,11 +286,11 @@ function BinartaPublisherjs(args) {
             routedDB.draftInAnotherLanguage.apply(undefined, arguments);
         };
 
-        db.delete = function() {
+        db.delete = function () {
             routedDB.delete.apply(undefined, arguments);
         };
 
-        db.setType = function() {
+        db.setType = function () {
             routedDB.setType.apply(undefined, arguments);
         }
     }
@@ -310,7 +328,9 @@ function BinartaPublisherjs(args) {
                 arguments[0].content,
                 arguments[0].subset.offset,
                 arguments[0].subset.max
-            ].filter(function(key) { return !!key}).join(':');
+            ].filter(function (key) {
+                return !!key
+            }).join(':');
             resolve(cache.sourceDB.findAllPublishedBlogsForLocale, arguments, key);
         };
 
