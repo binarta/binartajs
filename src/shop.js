@@ -464,6 +464,7 @@ function BinartaShopjs(checkpoint, deps) {
 
             fsm.confirm = function (onSuccessListener) {
                 var ctx = fsm.context();
+                ctx.order.paymentProtocolVersion = '20190620';
                 delete ctx.summaryViolationReport;
                 fsm.persist(ctx);
                 shop.gateway.submitOrder(fsm.context().order, {
@@ -557,6 +558,7 @@ function BinartaShopjs(checkpoint, deps) {
             var violationReportCache = {};
 
             fsm.confirm = function (request, onSuccess) {
+                request.protocolVersion = '20190620';
                 shop.gateway.confirmPayment(request, {
                     success: function () {
                         fsm.next();

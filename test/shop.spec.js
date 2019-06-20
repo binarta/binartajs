@@ -971,6 +971,7 @@
                                 institution: 'test-bank',
                                 approvalUrl: 'approval-url'
                             });
+                            expect(binarta.shop.checkout.context().order.paymentProtocolVersion).toEqual('20190620');
                         });
 
                         it('you can set a coupon code', function () {
@@ -1101,8 +1102,11 @@
 
                     it('when confirming the payment then confirm payment request is sent', function () {
                         binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.confirm('confirmation-context');
-                        expect(binarta.shop.gateway.confirmPaymentRequest).toEqual('confirmation-context');
+                        binarta.shop.checkout.confirm({id: 'p'});
+                        expect(binarta.shop.gateway.confirmPaymentRequest).toEqual({
+                            id: 'p',
+                            protocolVersion: '20190620' // for SCA supported CC payments
+                        });
                     });
 
                     it('when payment confirmation has not yet completed then optional on success listener is not yet triggered', function () {
