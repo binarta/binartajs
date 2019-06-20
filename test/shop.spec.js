@@ -967,7 +967,6 @@
                             binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
                             binarta.shop.checkout.confirm();
                             expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
-                            expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
                             expect(binarta.shop.checkout.context().order.signingContext).toEqual({
                                 institution: 'test-bank',
                                 approvalUrl: 'approval-url'
@@ -1056,7 +1055,7 @@
                         binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
                         binarta.shop.checkout.retry();
                         expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
-                        expect(binarta.shop.checkout.context().order.approvalUrl).toEqual('approval-url');
+                        expect(binarta.shop.checkout.context().order.signingContext.approvalUrl).toEqual('approval-url');
                     });
 
                     it('when order is accepted proceed to next step', function () {

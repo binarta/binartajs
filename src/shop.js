@@ -512,8 +512,6 @@ function BinartaShopjs(checkpoint, deps) {
             return function (args) {
                 var ctx = self.context();
                 ctx.order.id = args.id;
-                if (args.approvalUrl)
-                    ctx.order.approvalUrl = args.approvalUrl;
                 if (args.signingContext)
                     ctx.order.signingContext = args.signingContext;
                 self.persist(ctx);
