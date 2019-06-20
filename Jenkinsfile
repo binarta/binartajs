@@ -2,6 +2,9 @@
 
 pipeline {
     agent { label 'ubuntu-1604' }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '3'))
+    }
     stages {
         stage 'update npm', {
             steps {
