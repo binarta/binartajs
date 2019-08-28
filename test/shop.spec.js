@@ -1,2194 +1,2288 @@
-(function () {
-    (function () {
-        describe('binarta-shopjs', function () {
-            var binarta, ui;
+describe('binarta-shopjs', function () {
+    var binarta, ui;
+
+    beforeEach(function () {
+        ui = new UI();
+        var factory = new BinartajsFactory();
+        factory.addUI(ui);
+        var checkpoint = new BinartaCheckpointjs();
+        var application = new BinartaApplicationjs();
+        var shop = new BinartaShopjs(checkpoint, {application: application});
+        factory.addSubSystems({
+            checkpoint: checkpoint,
+            application: application,
+            shop: shop
+        });
+        binarta = factory.create();
+
+        localStorage.removeItem('binartaJSPaymentProvider');
+    });
+
+    afterEach(function () {
+        sessionStorage.removeItem('binartaJSCheckout');
+    });
+
+    describe('basket', function () {
+        var eventListener;
+
+        beforeEach(function () {
+            binarta.shop.basket.clear();
+
+            eventListener = jasmine.createSpyObj('event-listener', ['itemAdded', 'itemRemoved', 'itemUpdated', 'cleared']);
+            binarta.shop.basket.eventRegistry.add(eventListener);
+        });
+
+        it('initializing when local storage exceeds quota silently succeeds', function () {
+            binarta.shop.localStorage = {
+                setItem: function () {
+                    throw new Error('QuotaExceeded');
+                }
+            };
+            binarta.shop.basket.initialize();
+        });
+
+        it('refreshing an empty basket remains empty', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.basket.refresh();
+            expect(binarta.shop.basket.items()).toEqual([]);
+            expect(binarta.shop.basket.subTotal()).toEqual(0);
+            expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+        });
+
+        it('restore when local storage is disabled silently succeeds', function () {
+            binarta.shop.localStorage = undefined;
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.basket.restore();
+        });
+
+        it('expose coupon code', function () {
+            expect(binarta.shop.basket.couponCode()).toBeUndefined();
+            binarta.shop.basket.couponCode('1234');
+            expect(binarta.shop.basket.couponCode()).toEqual('1234');
+            expect(JSON.parse(localStorage.basket).coupon).toEqual('1234');
+        });
+
+        it('restore coupon code from local storage', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            localStorage.basket = JSON.stringify({items: [], coupon: '1234'});
+            binarta.shop.basket.restore();
+            expect(binarta.shop.basket.couponCode()).toEqual('1234');
+        });
+
+        describe('when adding an item to the basket', function () {
+            var item;
+            var error = jasmine.createSpy('error');
+            var success = jasmine.createSpy('success');
 
             beforeEach(function () {
-                ui = new UI();
-                var factory = new BinartajsFactory();
-                factory.addUI(ui);
-                var checkpoint = new BinartaCheckpointjs();
-                var application = new BinartaApplicationjs();
-                var shop = new BinartaShopjs(checkpoint, {application: application});
-                factory.addSubSystems({
-                    checkpoint: checkpoint,
-                    application: application,
-                    shop: shop
+                binarta.shop.gateway = new GatewaySpy();
+            });
+
+            it('return value from toOrder can be modified without affecting the actual basket', function () {
+                binarta.shop.basket.toOrder().quantity = 99;
+                expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+            });
+
+            it('validate the order', function () {
+                item = {id: 'sale-id', price: 100, quantity: 2};
+                binarta.shop.basket.add({item: item, success: success, error: error});
+                expect(binarta.shop.gateway.validateOrderRequest).toEqual({
+                    items: [
+                        {id: 'sale-id', price: 100, quantity: 2}
+                    ]
                 });
-                binarta = factory.create();
-
-                localStorage.removeItem('binartaJSPaymentProvider');
             });
 
-            afterEach(function () {
-                sessionStorage.removeItem('binartaJSCheckout');
-            });
-
-            describe('basket', function () {
-                var eventListener;
-
+            describe('on succesful validation', function () {
                 beforeEach(function () {
-                    binarta.shop.basket.clear();
-
-                    eventListener = jasmine.createSpyObj('event-listener', ['itemAdded', 'itemRemoved', 'itemUpdated', 'cleared']);
-                    binarta.shop.basket.eventRegistry.add(eventListener);
+                    binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                    item = {id: 'sale-id', quantity: 2};
+                    binarta.shop.basket.add({item: item, success: success, error: error});
                 });
 
-                it('initializing when local storage exceeds quota silently succeeds', function () {
-                    binarta.shop.localStorage = {
-                        setItem: function () {
-                            throw new Error('QuotaExceeded');
-                        }
-                    };
-                    binarta.shop.basket.initialize();
+                it('basket refresh request is made', function () {
+                    expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                        items: [{
+                            id: 'sale-id',
+                            quantity: 2
+                        }]
+                    });
                 });
 
-                it('refreshing an empty basket remains empty', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.basket.refresh();
-                    expect(binarta.shop.basket.items()).toEqual([]);
-                    expect(binarta.shop.basket.subTotal()).toEqual(0);
+                it('basket status is not yet updated', function () {
                     expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                    expect(success).not.toHaveBeenCalled();
+                    expect(eventListener.itemAdded).not.toHaveBeenCalled();
                 });
 
-                it('restore when local storage is disabled silently succeeds', function () {
-                    binarta.shop.localStorage = undefined;
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.basket.restore();
-                });
-
-                it('expose coupon code', function () {
-                    expect(binarta.shop.basket.couponCode()).toBeUndefined();
-                    binarta.shop.basket.couponCode('1234');
-                    expect(binarta.shop.basket.couponCode()).toEqual('1234');
-                    expect(JSON.parse(localStorage.basket).coupon).toEqual('1234');
-                });
-
-                it('restore coupon code from local storage', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    localStorage.basket = JSON.stringify({items: [], coupon: '1234'});
-                    binarta.shop.basket.restore();
-                    expect(binarta.shop.basket.couponCode()).toEqual('1234');
-                });
-
-                describe('when adding an item to the basket', function () {
-                    var item;
-                    var error = jasmine.createSpy('error');
-                    var success = jasmine.createSpy('success');
-
+                describe('when refresh completes', function () {
                     beforeEach(function () {
-                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.gateway.doPreviewOrders();
                     });
 
-                    it('return value from toOrder can be modified without affecting the actual basket', function () {
-                        binarta.shop.basket.toOrder().quantity = 99;
-                        expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                    it('then the item is added to the item list', function () {
+                        expect(binarta.shop.basket.items()).toEqual([{id: 'sale-id', price: 100, quantity: 2}]);
+                        expect(binarta.shop.basket.toOrder().items[0].id).toEqual('sale-id');
+                        expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(2);
+                        expect(binarta.shop.basket.toOrder().items[0].price).toEqual(100);
+                        expect(binarta.shop.basket.toOrder().quantity).toEqual(2);
                     });
 
-                    it('validate the order', function () {
-                        item = {id: 'sale-id', price: 100, quantity: 2};
-                        binarta.shop.basket.add({item: item, success: success, error: error});
-                        expect(binarta.shop.gateway.validateOrderRequest).toEqual({
-                            items: [
-                                {id: 'sale-id', price: 100, quantity: 2}
-                            ]
-                        });
+                    it('calculate sub total', function () {
+                        expect(binarta.shop.basket.subTotal()).toEqual(200);
                     });
 
-                    describe('on succesful validation', function () {
+                    it('expose presentable sub total', function () {
+                        expect(binarta.shop.basket.presentableSubTotal()).toEqual('$99.99');
+                    });
+
+                    it('success callback has been called', function () {
+                        expect(success).toHaveBeenCalled();
+                        expect(eventListener.itemAdded).toHaveBeenCalled();
+                    });
+
+                    describe('repeatedly', function () {
                         beforeEach(function () {
-                            binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
-                            item = {id: 'sale-id', quantity: 2};
-                            binarta.shop.basket.add({item: item, success: success, error: error});
                         });
 
-                        it('basket refresh request is made', function () {
-                            expect(binarta.shop.gateway.previewOrderRequest).toEqual({
-                                items: [{
-                                    id: 'sale-id',
-                                    quantity: 2
-                                }]
-                            });
-                        });
-
-                        it('basket status is not yet updated', function () {
-                            expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
-                            expect(success).not.toHaveBeenCalled();
-                            expect(eventListener.itemAdded).not.toHaveBeenCalled();
-                        });
-
-                        describe('when refresh completes', function () {
+                        describe('with success', function () {
                             beforeEach(function () {
-                                binarta.shop.gateway.doPreviewOrders();
+                                binarta.shop.basket.add({item: item});
                             });
 
-                            it('then the item is added to the item list', function () {
-                                expect(binarta.shop.basket.items()).toEqual([{id: 'sale-id', price: 100, quantity: 2}]);
-                                expect(binarta.shop.basket.toOrder().items[0].id).toEqual('sale-id');
-                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(2);
-                                expect(binarta.shop.basket.toOrder().items[0].price).toEqual(100);
-                                expect(binarta.shop.basket.toOrder().quantity).toEqual(2);
-                            });
-
-                            it('calculate sub total', function () {
-                                expect(binarta.shop.basket.subTotal()).toEqual(200);
-                            });
-
-                            it('expose presentable sub total', function () {
-                                expect(binarta.shop.basket.presentableSubTotal()).toEqual('$99.99');
-                            });
-
-                            it('success callback has been called', function () {
-                                expect(success).toHaveBeenCalled();
-                                expect(eventListener.itemAdded).toHaveBeenCalled();
-                            });
-
-                            describe('repeatedly', function () {
-                                beforeEach(function () {
-                                });
-
-                                describe('with success', function () {
-                                    beforeEach(function () {
-                                        binarta.shop.basket.add({item: item});
-                                    });
-
-                                    it('causes increments', function () {
-                                        expect(binarta.shop.basket.items()).toEqual([
-                                            {id: item.id, price: 100, quantity: 4}
-                                        ]);
-                                    });
-
-                                    it('calculate sub total', function () {
-                                        expect(binarta.shop.basket.subTotal()).toEqual(400);
-                                    });
-                                });
-
-                                describe('with rejection', function () {
-                                    beforeEach(function () {
-                                        binarta.shop.gateway = new InvalidOrderGateway();
-                                        binarta.shop.basket.add({item: item});
-                                    });
-
-                                    it('test', function () {
-                                        expect(binarta.shop.basket.items()).toEqual([
-                                            {id: item.id, price: 100, quantity: 2}
-                                        ])
-                                    });
-                                });
-                            });
-                        });
-
-                        it('add with configuration', function () {
-                            binarta.shop.gateway = new ValidOrderGateway();
-                            var item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
-                            binarta.shop.basket.add({item: item2, success: success, error: error});
-                            expect(binarta.shop.basket.items()[1].configuration).toEqual({x: 'y'});
-                        });
-
-                        describe('and any additional items', function () {
-                            var item2;
-
-                            beforeEach(function () {
-                                binarta.shop.gateway = new ValidOrderGateway();
-                                item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
-                                binarta.shop.basket.couponCode('coupon-code');
-                                binarta.shop.basket.add({item: item2, success: success, error: error});
-                            });
-
-                            it('are added to the item list', function () {
+                            it('causes increments', function () {
                                 expect(binarta.shop.basket.items()).toEqual([
-                                    {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
-                                    {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
+                                    {id: item.id, price: 100, quantity: 4}
                                 ]);
                             });
 
                             it('calculate sub total', function () {
-                                expect(binarta.shop.basket.subTotal()).toEqual(300);
+                                expect(binarta.shop.basket.subTotal()).toEqual(400);
+                            });
+                        });
+
+                        describe('with rejection', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway = new InvalidOrderGateway();
+                                binarta.shop.basket.add({item: item});
                             });
 
-                            it('are flushed', function () {
-                                expect(JSON.parse(localStorage.basket)).toEqual({
+                            it('test', function () {
+                                expect(binarta.shop.basket.items()).toEqual([
+                                    {id: item.id, price: 100, quantity: 2}
+                                ])
+                            });
+                        });
+                    });
+                });
+
+                it('add with configuration', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    var item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
+                    binarta.shop.basket.add({item: item2, success: success, error: error});
+                    expect(binarta.shop.basket.items()[1].configuration).toEqual({x: 'y'});
+                });
+
+                describe('and any additional items', function () {
+                    var item2;
+
+                    beforeEach(function () {
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        item2 = {id: 'sale-id-2', price: 200, quantity: 1, configuration: {x: 'y'}};
+                        binarta.shop.basket.couponCode('coupon-code');
+                        binarta.shop.basket.add({item: item2, success: success, error: error});
+                    });
+
+                    it('are added to the item list', function () {
+                        expect(binarta.shop.basket.items()).toEqual([
+                            {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
+                            {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
+                        ]);
+                    });
+
+                    it('calculate sub total', function () {
+                        expect(binarta.shop.basket.subTotal()).toEqual(300);
+                    });
+
+                    it('are flushed', function () {
+                        expect(JSON.parse(localStorage.basket)).toEqual({
+                            items: [
+                                {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
+                                {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
+                            ],
+                            quantity: 3,
+                            presentableItemTotal: '$99.99',
+                            presentablePrice: '$99.99',
+                            additionalCharges: 'additional-charges',
+                            coupon: 'coupon-code'
+                        });
+                    });
+
+                    describe('and updating an item', function () {
+                        var updatedQuantity;
+
+                        function resetSpies(spies) {
+                            spies.forEach(function (it) {
+                                it.calls.reset()
+                            });
+                        }
+
+                        beforeEach(function () {
+                            resetSpies([success, error]);
+                            binarta.shop.gateway = new GatewaySpy();
+                            updatedQuantity = 10;
+                            var it = binarta.shop.basket.toOrder().items[0];
+                            it.quantity = updatedQuantity;
+                            it.update();
+                        });
+
+                        it('then validate the order', function () {
+                            expect(binarta.shop.gateway.validateOrderRequest).toEqual({items: binarta.shop.basket.items()});
+                        });
+
+                        it('with the updated quantity', function () {
+                            expect(binarta.shop.gateway.validateOrderRequest.items[0].quantity).toEqual(updatedQuantity);
+                        });
+
+                        describe('with success', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                                var it = binarta.shop.basket.toOrder().items[0];
+                                it.quantity = updatedQuantity;
+                                it.update();
+                            });
+
+                            it('basket refresh request is made', function () {
+                                expect(binarta.shop.gateway.previewOrderRequest).toEqual({
                                     items: [
-                                        {id: 'sale-id', price: 100, quantity: 2, couponCode: 'coupon-code'},
-                                        {id: 'sale-id-2', price: 100, quantity: 1, configuration: {x: 'y'}}
-                                    ],
-                                    quantity: 3,
-                                    presentableItemTotal: '$99.99',
-                                    presentablePrice: '$99.99',
-                                    additionalCharges: 'additional-charges',
-                                    coupon: 'coupon-code'
-                                });
-                            });
-
-                            describe('and updating an item', function () {
-                                var updatedQuantity;
-
-                                function resetSpies(spies) {
-                                    spies.forEach(function (it) {
-                                        it.calls.reset()
-                                    });
-                                }
-
-                                beforeEach(function () {
-                                    resetSpies([success, error]);
-                                    binarta.shop.gateway = new GatewaySpy();
-                                    updatedQuantity = 10;
-                                    var it = binarta.shop.basket.toOrder().items[0];
-                                    it.quantity = updatedQuantity;
-                                    it.update();
-                                });
-
-                                it('then validate the order', function () {
-                                    expect(binarta.shop.gateway.validateOrderRequest).toEqual({items: binarta.shop.basket.items()});
-                                });
-
-                                it('with the updated quantity', function () {
-                                    expect(binarta.shop.gateway.validateOrderRequest.items[0].quantity).toEqual(updatedQuantity);
-                                });
-
-                                describe('with success', function () {
-                                    beforeEach(function () {
-                                        binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
-                                        var it = binarta.shop.basket.toOrder().items[0];
-                                        it.quantity = updatedQuantity;
-                                        it.update();
-                                    });
-
-                                    it('basket refresh request is made', function () {
-                                        expect(binarta.shop.gateway.previewOrderRequest).toEqual({
-                                            items: [
-                                                {
-                                                    id: 'sale-id',
-                                                    quantity: 10,
-                                                    couponCode: 'coupon-code'
-                                                },
-                                                {
-                                                    id: 'sale-id-2',
-                                                    quantity: 1,
-                                                    configuration: {x: 'y'}
-                                                }]
-                                        });
-                                    });
-
-                                    it('basket status is not yet updated', function () {
-                                        expect(binarta.shop.basket.toOrder().quantity).toEqual(3);
-                                        expect(success).not.toHaveBeenCalled();
-                                        expect(eventListener.itemUpdated).not.toHaveBeenCalled();
-                                    });
-
-                                    describe('when refresh completes', function () {
-                                        beforeEach(function () {
-                                            binarta.shop.gateway.doPreviewOrders();
-                                        });
-
-                                        it('then quantity is updated', function () {
-                                            expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
-                                        });
-
-                                        it('then updates are flushed', function () {
-                                            expect(JSON.parse(localStorage.basket)).toEqual({
-                                                items: [
-                                                    {
-                                                        id: 'sale-id',
-                                                        quantity: 10,
-                                                        couponCode: 'coupon-code',
-                                                        price: 100
-                                                    },
-                                                    {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
-                                                ],
-                                                quantity: 11,
-                                                presentableItemTotal: '$99.99',
-                                                presentablePrice: '$99.99',
-                                                additionalCharges: 'additional-charges',
-                                                coupon: 'coupon-code'
-                                            });
-                                        });
-
-                                        it('success callback has been called', function () {
-                                            expect(eventListener.itemUpdated).toHaveBeenCalled();
-                                        });
-
-                                        describe('to blank', function () {
-                                            beforeEach(function () {
-                                                updatedItem = {id: item.id, price: item.price, quantity: ''};
-                                                binarta.shop.basket.update({item: updatedItem});
-                                            });
-
-                                            it('then quantity is unaffected', function () {
-                                                expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
-                                            });
-                                        });
-
-                                        describe('to zero', function () {
-                                            beforeEach(function () {
-                                                updatedItem = {id: item.id, price: item.price, quantity: 0};
-                                                binarta.shop.basket.update({item: updatedItem});
-                                            });
-
-                                            it('then quantity is unaffected', function () {
-                                                expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
-                                            });
-                                        });
-                                    });
-                                });
-
-                                describe('with rejection', function () {
-                                    beforeEach(function () {
-                                        binarta.shop.gateway = new InvalidOrderGateway();
-                                        var it = binarta.shop.basket.toOrder().items[0];
-                                        it.quantity = updatedQuantity;
-                                        it.update();
-                                    });
-
-                                    it('original values are retained', function () {
-                                        expect(binarta.shop.basket.items()[0].quantity).toEqual(item.quantity);
-                                    });
-
-                                    describe('for different item', function () {
-                                        beforeEach(function () {
-                                            binarta.shop.gateway = new ValidOrderGateway();
-                                            updatedItem = {id: item.id, price: item.price, quantity: 10};
-                                            binarta.shop.basket.update({item: updatedItem});
-                                        });
-
-                                        it('then quantity is updated', function () {
-                                            expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
-                                        });
-
-                                        it('then updates are flushed', function () {
-                                            expect(JSON.parse(localStorage.basket)).toEqual({
-                                                items: [
-                                                    {
-                                                        id: 'sale-id',
-                                                        quantity: 10,
-                                                        couponCode: 'coupon-code',
-                                                        price: 100
-                                                    },
-                                                    {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
-                                                ],
-                                                quantity: 11,
-                                                presentableItemTotal: '$99.99',
-                                                presentablePrice: '$99.99',
-                                                additionalCharges: 'additional-charges',
-                                                coupon: 'coupon-code'
-                                            });
-                                        });
-                                    });
-
-                                    describe('with rejection callback', function () {
-                                        beforeEach(function () {
-                                            resetSpies([success, error]);
-                                            binarta.shop.gateway = new InvalidOrderGateway();
-                                            updatedItem = {id: item.id, price: item.price, quantity: 10};
-                                            binarta.shop.basket.update({item: updatedItem, error: error});
-                                        });
-
-                                        it('then callback is executed', function () {
-                                            expect(error.calls.argsFor(0)[0]).toEqual({
-                                                quantity: ['invalid']
-                                            });
-                                        })
-                                    });
-
-                                });
-                            });
-
-                            it('increment item quantity', function () {
-                                binarta.shop.basket.toOrder().items[0].incrementQuantity();
-                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(3);
-                            });
-
-                            it('decrement item quantity', function () {
-                                binarta.shop.basket.toOrder().items[0].decrementQuantity();
-                                expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(1);
-                            });
-
-                            it('removing an item is flushed to local storage', function () {
-                                binarta.shop.basket.toOrder().items[0].remove();
-                                expect(JSON.parse(localStorage.basket)).toEqual({
-                                    items: [
+                                        {
+                                            id: 'sale-id',
+                                            quantity: 10,
+                                            couponCode: 'coupon-code'
+                                        },
                                         {
                                             id: 'sale-id-2',
                                             quantity: 1,
-                                            configuration: {x: 'y'},
-                                            couponCode: 'coupon-code',
-                                            price: 100
-                                        }
-                                    ],
-                                    quantity: 1,
-                                    presentableItemTotal: '$99.99',
-                                    presentablePrice: '$99.99',
-                                    additionalCharges: 'additional-charges',
-                                    coupon: 'coupon-code'
+                                            configuration: {x: 'y'}
+                                        }]
                                 });
                             });
 
-                            describe('remove', function () {
+                            it('basket status is not yet updated', function () {
+                                expect(binarta.shop.basket.toOrder().quantity).toEqual(3);
+                                expect(success).not.toHaveBeenCalled();
+                                expect(eventListener.itemUpdated).not.toHaveBeenCalled();
+                            });
+
+                            describe('when refresh completes', function () {
                                 beforeEach(function () {
-                                    binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
-                                    binarta.shop.basket.toOrder().items[0].remove();
+                                    binarta.shop.gateway.doPreviewOrders();
                                 });
 
-                                it('basket refresh request is made', function () {
-                                    expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                                it('then quantity is updated', function () {
+                                    expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                });
+
+                                it('then updates are flushed', function () {
+                                    expect(JSON.parse(localStorage.basket)).toEqual({
                                         items: [
                                             {
-                                                id: 'sale-id-2',
-                                                quantity: 1,
-                                                configuration: {x: 'y'},
-                                                couponCode: 'coupon-code'
-                                            }]
+                                                id: 'sale-id',
+                                                quantity: 10,
+                                                couponCode: 'coupon-code',
+                                                price: 100
+                                            },
+                                            {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
+                                        ],
+                                        quantity: 11,
+                                        presentableItemTotal: '$99.99',
+                                        presentablePrice: '$99.99',
+                                        additionalCharges: 'additional-charges',
+                                        coupon: 'coupon-code'
                                     });
                                 });
 
-                                it('remove will not trigger on success listener before refresh completes', function () {
-                                    expect(eventListener.itemRemoved).not.toHaveBeenCalled();
+                                it('success callback has been called', function () {
+                                    expect(eventListener.itemUpdated).toHaveBeenCalled();
                                 });
 
-                                it('when refresh completes on success listeners are triggered', function () {
-                                    binarta.shop.gateway.doPreviewOrders();
-                                    expect(eventListener.itemRemoved).toHaveBeenCalled();
+                                describe('to blank', function () {
+                                    beforeEach(function () {
+                                        updatedItem = {id: item.id, price: item.price, quantity: ''};
+                                        binarta.shop.basket.update({item: updatedItem});
+                                    });
+
+                                    it('then quantity is unaffected', function () {
+                                        expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                    });
+                                });
+
+                                describe('to zero', function () {
+                                    beforeEach(function () {
+                                        updatedItem = {id: item.id, price: item.price, quantity: 0};
+                                        binarta.shop.basket.update({item: updatedItem});
+                                    });
+
+                                    it('then quantity is unaffected', function () {
+                                        expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
+                                    });
                                 });
                             });
+                        });
 
-                            describe('and clearing the basket', function () {
+                        describe('with rejection', function () {
+                            beforeEach(function () {
+                                binarta.shop.gateway = new InvalidOrderGateway();
+                                var it = binarta.shop.basket.toOrder().items[0];
+                                it.quantity = updatedQuantity;
+                                it.update();
+                            });
+
+                            it('original values are retained', function () {
+                                expect(binarta.shop.basket.items()[0].quantity).toEqual(item.quantity);
+                            });
+
+                            describe('for different item', function () {
                                 beforeEach(function () {
-                                    binarta.shop.basket.clear();
+                                    binarta.shop.gateway = new ValidOrderGateway();
+                                    updatedItem = {id: item.id, price: item.price, quantity: 10};
+                                    binarta.shop.basket.update({item: updatedItem});
                                 });
 
-                                it('then contents reset', function () {
-                                    expect(binarta.shop.basket.items()).toEqual([]);
-                                    expect(binarta.shop.basket.subTotal()).toEqual(0);
+                                it('then quantity is updated', function () {
+                                    expect(binarta.shop.basket.items()[0].quantity).toEqual(10);
                                 });
 
-                                it('then on cleared listener is triggered', function () {
-                                    expect(eventListener.cleared).toHaveBeenCalled();
+                                it('then updates are flushed', function () {
+                                    expect(JSON.parse(localStorage.basket)).toEqual({
+                                        items: [
+                                            {
+                                                id: 'sale-id',
+                                                quantity: 10,
+                                                couponCode: 'coupon-code',
+                                                price: 100
+                                            },
+                                            {id: 'sale-id-2', quantity: 1, configuration: {x: 'y'}, price: 100}
+                                        ],
+                                        quantity: 11,
+                                        presentableItemTotal: '$99.99',
+                                        presentablePrice: '$99.99',
+                                        additionalCharges: 'additional-charges',
+                                        coupon: 'coupon-code'
+                                    });
                                 });
                             });
-                        })
+
+                            describe('with rejection callback', function () {
+                                beforeEach(function () {
+                                    resetSpies([success, error]);
+                                    binarta.shop.gateway = new InvalidOrderGateway();
+                                    updatedItem = {id: item.id, price: item.price, quantity: 10};
+                                    binarta.shop.basket.update({item: updatedItem, error: error});
+                                });
+
+                                it('then callback is executed', function () {
+                                    expect(error.calls.argsFor(0)[0]).toEqual({
+                                        quantity: ['invalid']
+                                    });
+                                })
+                            });
+
+                        });
                     });
 
-                    describe('on rejection', function () {
+                    it('increment item quantity', function () {
+                        binarta.shop.basket.toOrder().items[0].incrementQuantity();
+                        expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(3);
+                    });
+
+                    it('decrement item quantity', function () {
+                        binarta.shop.basket.toOrder().items[0].decrementQuantity();
+                        expect(binarta.shop.basket.toOrder().items[0].quantity).toEqual(1);
+                    });
+
+                    it('removing an item is flushed to local storage', function () {
+                        binarta.shop.basket.toOrder().items[0].remove();
+                        expect(JSON.parse(localStorage.basket)).toEqual({
+                            items: [
+                                {
+                                    id: 'sale-id-2',
+                                    quantity: 1,
+                                    configuration: {x: 'y'},
+                                    couponCode: 'coupon-code',
+                                    price: 100
+                                }
+                            ],
+                            quantity: 1,
+                            presentableItemTotal: '$99.99',
+                            presentablePrice: '$99.99',
+                            additionalCharges: 'additional-charges',
+                            coupon: 'coupon-code'
+                        });
+                    });
+
+                    describe('remove', function () {
                         beforeEach(function () {
-                            error.calls.reset();
-                            binarta.shop.gateway = new InvalidOrderGateway();
-                            item = {id: 'sale-id', price: 100, quantity: 2};
-                            binarta.shop.basket.add({item: item, success: success, error: error});
+                            binarta.shop.gateway = new ValidOrderWithDeferredPreviewGateway();
+                            binarta.shop.basket.toOrder().items[0].remove();
                         });
 
-                        it('the basket remains empty', function () {
+                        it('basket refresh request is made', function () {
+                            expect(binarta.shop.gateway.previewOrderRequest).toEqual({
+                                items: [
+                                    {
+                                        id: 'sale-id-2',
+                                        quantity: 1,
+                                        configuration: {x: 'y'},
+                                        couponCode: 'coupon-code'
+                                    }]
+                            });
+                        });
+
+                        it('remove will not trigger on success listener before refresh completes', function () {
+                            expect(eventListener.itemRemoved).not.toHaveBeenCalled();
+                        });
+
+                        it('when refresh completes on success listeners are triggered', function () {
+                            binarta.shop.gateway.doPreviewOrders();
+                            expect(eventListener.itemRemoved).toHaveBeenCalled();
+                        });
+                    });
+
+                    describe('and clearing the basket', function () {
+                        beforeEach(function () {
+                            binarta.shop.basket.clear();
+                        });
+
+                        it('then contents reset', function () {
                             expect(binarta.shop.basket.items()).toEqual([]);
+                            expect(binarta.shop.basket.subTotal()).toEqual(0);
                         });
 
-                        it('error callback is executed', function () {
-                            expect(error.calls.argsFor(0)[0]).toEqual({
-                                quantity: ['invalid']
-                            });
+                        it('then on cleared listener is triggered', function () {
+                            expect(eventListener.cleared).toHaveBeenCalled();
                         });
+                    });
+                })
+            });
 
-                        describe('for different item', function () {
-                            beforeEach(function () {
-                                binarta.shop.gateway = new ValidOrderGateway();
-                                binarta.shop.basket.add({item: item, success: success, error: error});
-                                error.calls.reset();
-                            });
+            describe('on rejection', function () {
+                beforeEach(function () {
+                    error.calls.reset();
+                    binarta.shop.gateway = new InvalidOrderGateway();
+                    item = {id: 'sale-id', price: 100, quantity: 2};
+                    binarta.shop.basket.add({item: item, success: success, error: error});
+                });
 
-                            it('error callback is not called', function () {
-                                expect(error.calls.count()).toEqual(0);
-                            });
+                it('the basket remains empty', function () {
+                    expect(binarta.shop.basket.items()).toEqual([]);
+                });
 
-                            it('then the item is added to the item list', function () {
-                                expect(binarta.shop.basket.items()).toEqual([item]);
-                            });
-
-                            it('calculate sub total', function () {
-                                expect(binarta.shop.basket.subTotal()).toEqual(200);
-                            });
-
-                            it('success callback has been called', function () {
-                                expect(success.calls.count() > 0).toEqual(true);
-                            });
-                        });
+                it('error callback is executed', function () {
+                    expect(error.calls.argsFor(0)[0]).toEqual({
+                        quantity: ['invalid']
                     });
                 });
 
-                describe('when adding an item to the basket for 0 quantity', function () {
-                    var item;
-
+                describe('for different item', function () {
                     beforeEach(function () {
-                        item = {id: 'sale-id', price: 100, quantity: 0};
-                        binarta.shop.basket.add({item: item});
+                        binarta.shop.gateway = new ValidOrderGateway();
+                        binarta.shop.basket.add({item: item, success: success, error: error});
+                        error.calls.reset();
+                    });
+
+                    it('error callback is not called', function () {
+                        expect(error.calls.count()).toEqual(0);
                     });
 
                     it('then the item is added to the item list', function () {
-                        expect(binarta.shop.basket.items()).toEqual([]);
-                    });
-                });
-
-                describe('when rendering removed items', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway = new ValidOrderGateway();
-                        binarta.shop.basket.add({item: {id: 'item-1', quantity: 1}});
-                        binarta.shop.gateway = new UnknownOrderGateway();
-                        binarta.shop.basket.add({item: {id: 'item-2', quantity: 1}});
-                        binarta.shop.basket.refresh();
+                        expect(binarta.shop.basket.items()).toEqual([item]);
                     });
 
-                    it('then removed item is removed from basket and localstorage', function () {
-                        expect(binarta.shop.basket.items()).toEqual([]);
-                        expect(localStorage.basket).toEqual(JSON.stringify(binarta.shop.basket.toOrder()));
+                    it('calculate sub total', function () {
+                        expect(binarta.shop.basket.subTotal()).toEqual(200);
+                    });
+
+                    it('success callback has been called', function () {
+                        expect(success.calls.count() > 0).toEqual(true);
                     });
                 });
             });
+        });
 
-            describe('when previewing an order', function () {
-                var renderer;
+        describe('when adding an item to the basket for 0 quantity', function () {
+            var item;
 
-                beforeEach(function () {
-                    renderer = jasmine.createSpy('spy');
-                });
+            beforeEach(function () {
+                item = {id: 'sale-id', price: 100, quantity: 0};
+                binarta.shop.basket.add({item: item});
+            });
 
-                it('then gateway receives a preview order request', function () {
-                    binarta.shop.gateway = new GatewaySpy();
-                    binarta.shop.previewOrder('order', renderer);
-                    expect(binarta.shop.gateway.previewOrderRequest).toEqual('order');
-                });
+            it('then the item is added to the item list', function () {
+                expect(binarta.shop.basket.items()).toEqual([]);
+            });
+        });
 
-                it('then renderer receives previewed order', function () {
-                    binarta.shop.gateway = new PreviewOrderGateway();
-                    binarta.shop.previewOrder('-', renderer);
-                    expect(renderer).toHaveBeenCalledWith('previewed-order');
+        describe('when rendering removed items', function () {
+            beforeEach(function () {
+                binarta.shop.gateway = new ValidOrderGateway();
+                binarta.shop.basket.add({item: {id: 'item-1', quantity: 1}});
+                binarta.shop.gateway = new UnknownOrderGateway();
+                binarta.shop.basket.add({item: {id: 'item-2', quantity: 1}});
+                binarta.shop.basket.refresh();
+            });
+
+            it('then removed item is removed from basket and localstorage', function () {
+                expect(binarta.shop.basket.items()).toEqual([]);
+                expect(localStorage.basket).toEqual(JSON.stringify(binarta.shop.basket.toOrder()));
+            });
+        });
+    });
+
+    describe('when previewing an order', function () {
+        var renderer;
+
+        beforeEach(function () {
+            renderer = jasmine.createSpy('spy');
+        });
+
+        it('then gateway receives a preview order request', function () {
+            binarta.shop.gateway = new GatewaySpy();
+            binarta.shop.previewOrder('order', renderer);
+            expect(binarta.shop.gateway.previewOrderRequest).toEqual('order');
+        });
+
+        it('then renderer receives previewed order', function () {
+            binarta.shop.gateway = new PreviewOrderGateway();
+            binarta.shop.previewOrder('-', renderer);
+            expect(renderer).toHaveBeenCalledWith('previewed-order');
+        });
+    });
+
+    describe('when validating an order', function () {
+        var renderer;
+
+        beforeEach(function () {
+            renderer = jasmine.createSpyObj('spy', ['rejected']);
+        });
+
+        it('then gateway receives a validate order request', function () {
+            binarta.shop.gateway = new GatewaySpy();
+            binarta.shop.validateOrder('order', renderer);
+            expect(binarta.shop.gateway.validateOrderRequest).toEqual('order');
+        });
+
+        it('then renderer receives violation report', function () {
+            binarta.shop.gateway = new InvalidOrderGateway();
+            binarta.shop.validateOrder({items: []}, renderer);
+            expect(renderer.rejected).toHaveBeenCalledWith({items: {}});
+        });
+    });
+
+    describe('checkout', function () {
+        var order, eventListener;
+
+        beforeEach(function () {
+            order = {items: [{}]};
+            eventListener = jasmine.createSpyObj('event-listener', ['goto', 'setCouponCode']);
+            binarta.shop.checkout.eventRegistry.add(eventListener);
+        });
+
+        it('checkout starts out idle', function () {
+            expect(binarta.shop.checkout.status()).toEqual('idle');
+        });
+
+        describe('when idle', function () {
+            it('then it is not possible to signin', function () {
+                expect(binarta.shop.checkout.signin).toThrowError('signin.not.supported.when.checkout.in.idle.state');
+            });
+        });
+
+        it('the exposed roadmap hides gateway steps', function () {
+            binarta.shop.checkout.start(order, [
+                'authentication-required',
+                'summary',
+                'setup-payment-provider',
+                'payment',
+                'completed'
+            ]);
+            expect(binarta.shop.checkout.roadmap()).toEqual([
+                {name: 'summary', locked: true, unlocked: false},
+                {name: 'completed', locked: true, unlocked: false}
+            ]);
+        });
+
+        it('the exposed roadmap does not change as you proceed through it', function () {
+            binarta.shop.checkout.start(order, [
+                'authentication-required',
+                'summary',
+                'setup-payment-provider',
+                'completed'
+            ]);
+            binarta.shop.checkout.next();
+            expect(binarta.shop.checkout.roadmap()).toEqual([
+                {name: 'summary', locked: false, unlocked: true},
+                {name: 'completed', locked: true, unlocked: false}
+            ]);
+        });
+
+        describe('back navigation support', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'authentication-required',
+                    'address-selection',
+                    'summary',
+                    'setup-payment-provider',
+                    'payment',
+                    'completed'
+                ]);
+            });
+
+            describe('on first step', function () {
+                it('exposes there is no previous step', function () {
+                    expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
                 });
             });
 
-            describe('when validating an order', function () {
-                var renderer;
-
+            describe('when the previous step is a transitionary step', function () {
                 beforeEach(function () {
-                    renderer = jasmine.createSpyObj('spy', ['rejected']);
+                    binarta.shop.checkout.next();
                 });
 
-                it('then gateway receives a validate order request', function () {
-                    binarta.shop.gateway = new GatewaySpy();
-                    binarta.shop.validateOrder('order', renderer);
-                    expect(binarta.shop.gateway.validateOrderRequest).toEqual('order');
-                });
-
-                it('then renderer receives violation report', function () {
-                    binarta.shop.gateway = new InvalidOrderGateway();
-                    binarta.shop.validateOrder({items: []}, renderer);
-                    expect(renderer.rejected).toHaveBeenCalledWith({items: {}});
+                it('then expose there is no previous step', function () {
+                    expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
                 });
             });
 
-            describe('checkout', function () {
-                var order, eventListener;
-
+            describe('when there is a previous step', function () {
                 beforeEach(function () {
-                    order = {items: [{}]};
-                    eventListener = jasmine.createSpyObj('event-listener', ['goto', 'setCouponCode']);
-                    binarta.shop.checkout.eventRegistry.add(eventListener);
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
                 });
 
-                it('checkout starts out idle', function () {
+                it('then expose there is one', function () {
+                    expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
+                });
+
+                it('then expose the step name', function () {
+                    expect(binarta.shop.checkout.previousStep()).toEqual('address-selection');
+                });
+            });
+
+            describe('when there is a step prior to a transitional step', function () {
+                beforeEach(function () {
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                });
+
+                it('then expose there is one', function () {
+                    expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
+                });
+
+                it('then expose the step name', function () {
+                    expect(binarta.shop.checkout.previousStep()).toEqual('summary');
+                });
+            });
+
+            describe('when on the last step', function () {
+                beforeEach(function () {
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                    binarta.shop.checkout.next();
+                });
+
+                it('then expose there is no previous step', function () {
+                    expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
+                });
+            });
+        });
+
+        describe('when checkout is started', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'authentication-required',
+                    'completed'
+                ]);
+            });
+
+            it('then the context is exposed', function () {
+                expect(binarta.shop.checkout.context().order).toEqual(order);
+            });
+
+            it('then the order is persisted in session storage', function () {
+                expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).order).toEqual(order);
+            });
+
+            it('then the roadmap is persisted in session storage', function () {
+                expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['authentication-required', 'completed']);
+            });
+
+            it('then the terms and conditions are implicitly accepted', function () {
+                expect(binarta.shop.checkout.context().order.termsAndConditions).toEqual('accepted');
+            });
+        });
+
+        it('when checkout is canceled the context is removed from session storage', function () {
+            binarta.shop.checkout.start(order, [
+                'authentication-required',
+                'completed'
+            ]);
+            binarta.shop.checkout.cancel();
+            expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout'))).toEqual({});
+        });
+
+        describe('on the authentication required step', function () {
+            beforeEach(function () {
+                binarta.checkpoint.gateway = new InvalidCredentialsGateway();
+                binarta.shop.gateway = new InvalidCredentialsGateway();
+                binarta.checkpoint.profile.refresh();
+                binarta.shop.checkout.start(order, [
+                    'authentication-required',
+                    'completed'
+                ]);
+            });
+
+            it('then status exposed the current step', function () {
+                expect(binarta.shop.checkout.status()).toEqual('authentication-required');
+            });
+
+            it('then restarting checkout has no effect', function () {
+                binarta.shop.checkout.start(order);
+                expect(binarta.shop.checkout.status()).toEqual('authentication-required');
+            });
+
+            it('then you can cancel checkout', function () {
+                binarta.shop.checkout.cancel();
+                expect(binarta.shop.checkout.status()).toEqual('idle');
+            });
+
+            it('on signin proceed to next step', function () {
+                binarta.checkpoint.gateway = new ValidCredentialsGateway();
+                binarta.checkpoint.profile.refresh();
+
+                binarta.shop.checkout.retry();
+
+                expect(binarta.shop.checkout.status()).toEqual('completed');
+            });
+        });
+
+        it('when already signed in proceed to next step', function () {
+            binarta.checkpoint.gateway = new ValidCredentialsGateway();
+            binarta.shop.gateway = new ValidCredentialsGateway();
+            binarta.checkpoint.profile.refresh();
+
+            binarta.shop.checkout.start(order, [
+                'authentication-required',
+                'completed'
+            ]);
+
+            expect(binarta.shop.checkout.status()).toEqual('completed');
+        });
+
+        describe('on the address selection step', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'address-selection',
+                    'completed'
+                ])
+            });
+
+            it('then status exposes the current step', function () {
+                expect(binarta.shop.checkout.status()).toEqual('address-selection');
+            });
+
+            it('then restarting checkout has no effect', function () {
+                binarta.shop.checkout.start(order);
+                expect(binarta.shop.checkout.status()).toEqual('address-selection');
+            });
+
+            it('then you can cancel checkout', function () {
+                binarta.shop.checkout.cancel();
+                expect(binarta.shop.checkout.status()).toEqual('idle');
+            });
+
+            it('when selecting neither a billing or shipping address', function () {
+                expect(binarta.shop.checkout.selectAddresses).toThrowError('at.least.a.billing.address.must.be.selected');
+                expect(binarta.shop.checkout.status()).toEqual('address-selection');
+            });
+
+            describe('when selecting a billing address', function () {
+                beforeEach(function () {
+                    binarta.shop.checkout.selectAddresses({billing: {label: 'l', addressee: 'a'}});
+                });
+
+                it('then billing address is added to the backing order', function () {
+                    expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'l', addressee: 'a'});
+                });
+
+                it('then shipping address is added to the backing order', function () {
+                    expect(binarta.shop.checkout.context().order.shipping).toEqual({
+                        label: 'l',
+                        addressee: 'a'
+                    });
+                });
+
+                it('then flow proceeds to the next step', function () {
+                    expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
+
+                it('then event listener is requested to go to the next step', function () {
+                    expect(eventListener.goto).toHaveBeenCalledWith('completed');
+                });
+            });
+
+            describe('when selecting both a billing and shipping address', function () {
+                beforeEach(function () {
+                    binarta.shop.checkout.selectAddresses({
+                        billing: {label: 'b', addressee: 'a'},
+                        shipping: {label: 's', addressee: 'a'}
+                    });
+                });
+
+                it('then billing address is added to the backing order', function () {
+                    expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'b', addressee: 'a'});
+                });
+
+                it('then shipping address is added to the backing order', function () {
+                    expect(binarta.shop.checkout.context().order.shipping).toEqual({
+                        label: 's',
+                        addressee: 'a'
+                    });
+                });
+
+                it('then flow proceeds to the next step', function () {
+                    expect(binarta.shop.checkout.status()).toEqual('completed');
+                });
+            })
+        });
+
+        describe('on the checkout summary step', function () {
+            describe('and there is one available payment method', function () {
+                beforeEach(function () {
+                    function GatewaySpy() {
+                        this.fetchApplicationProfile = function (request, response) {
+                            response.success({
+                                availablePaymentMethods: ['payment-provider']
+                            });
+                        };
+                    }
+
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.refresh();
+                    binarta.shop.checkout.start(order, [
+                        'summary',
+                        'completed'
+                    ]);
+                });
+
+                it('the payment method is selected by default', function () {
+                    expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+                });
+            });
+
+            describe('and there are more than one available payment methods', function () {
+                beforeEach(function () {
+                    function GatewaySpy() {
+                        this.fetchApplicationProfile = function (request, response) {
+                            response.success({
+                                availablePaymentMethods: ['payment-provider-1', 'payment-provider-2']
+                            });
+                        };
+                    }
+
+                    binarta.application.gateway = new GatewaySpy();
+                    binarta.application.refresh();
+                    binarta.shop.checkout.start(order, [
+                        'summary',
+                        'completed'
+                    ]);
+                });
+
+                it('then status exposes the current step', function () {
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
+                });
+
+                it('then restarting checkout has no effect', function () {
+                    binarta.shop.checkout.start(order);
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
+                });
+
+                it('then you can cancel checkout', function () {
+                    binarta.shop.checkout.cancel();
                     expect(binarta.shop.checkout.status()).toEqual('idle');
                 });
 
-                describe('when idle', function () {
-                    it('then it is not possible to signin', function () {
-                        expect(binarta.shop.checkout.signin).toThrowError('signin.not.supported.when.checkout.in.idle.state');
-                    });
+                it('no payment method is selected by default', function () {
+                    expect(binarta.shop.checkout.getPaymentProvider()).toBeUndefined();
                 });
 
-                it('the exposed roadmap hides gateway steps', function () {
-                    binarta.shop.checkout.start(order, [
-                        'authentication-required',
-                        'summary',
-                        'setup-payment-provider',
-                        'payment',
-                        'completed'
-                    ]);
-                    expect(binarta.shop.checkout.roadmap()).toEqual([
-                        {name: 'summary', locked: true, unlocked: false},
-                        {name: 'completed', locked: true, unlocked: false}
-                    ]);
-                });
-
-                it('the exposed roadmap does not change as you proceed through it', function () {
-                    binarta.shop.checkout.start(order, [
-                        'authentication-required',
-                        'summary',
-                        'setup-payment-provider',
-                        'completed'
-                    ]);
-                    binarta.shop.checkout.next();
-                    expect(binarta.shop.checkout.roadmap()).toEqual([
-                        {name: 'summary', locked: false, unlocked: true},
-                        {name: 'completed', locked: true, unlocked: false}
-                    ]);
-                });
-
-                describe('back navigation support', function () {
+                describe('and setting the payment provider', function () {
                     beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'authentication-required',
-                            'address-selection',
-                            'summary',
-                            'setup-payment-provider',
-                            'payment',
-                            'completed'
-                        ]);
+                        binarta.shop.checkout.setPaymentProvider('payment-provider');
                     });
 
-                    describe('on first step', function () {
-                        it('exposes there is no previous step', function () {
-                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
-                        });
+                    it('then the order exposes the selected payment provider', function () {
+                        expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
                     });
 
-                    describe('when the previous step is a transitionary step', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.next();
-                        });
-
-                        it('then expose there is no previous step', function () {
-                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
-                        });
-                    });
-
-                    describe('when there is a previous step', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                        });
-
-                        it('then expose there is one', function () {
-                            expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
-                        });
-
-                        it('then expose the step name', function () {
-                            expect(binarta.shop.checkout.previousStep()).toEqual('address-selection');
-                        });
-                    });
-
-                    describe('when there is a step prior to a transitional step', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                        });
-
-                        it('then expose there is one', function () {
-                            expect(binarta.shop.checkout.hasPreviousStep()).toBeTruthy();
-                        });
-
-                        it('then expose the step name', function () {
-                            expect(binarta.shop.checkout.previousStep()).toEqual('summary');
-                        });
-                    });
-
-                    describe('when on the last step', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                            binarta.shop.checkout.next();
-                        });
-
-                        it('then expose there is no previous step', function () {
-                            expect(binarta.shop.checkout.hasPreviousStep()).toBeFalsy();
-                        });
-                    });
-                });
-
-                describe('when checkout is started', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'authentication-required',
-                            'completed'
-                        ]);
-                    });
-
-                    it('then the context is exposed', function () {
-                        expect(binarta.shop.checkout.context().order).toEqual(order);
-                    });
-
-                    it('then the order is persisted in session storage', function () {
-                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).order).toEqual(order);
-                    });
-
-                    it('then the roadmap is persisted in session storage', function () {
-                        expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout')).roadmap).toEqual(['authentication-required', 'completed']);
-                    });
-
-                    it('then the terms and conditions are implicitly accepted', function () {
-                        expect(binarta.shop.checkout.context().order.termsAndConditions).toEqual('accepted');
-                    });
-                });
-
-                it('when checkout is canceled the context is removed from session storage', function () {
-                    binarta.shop.checkout.start(order, [
-                        'authentication-required',
-                        'completed'
-                    ]);
-                    binarta.shop.checkout.cancel();
-                    expect(JSON.parse(sessionStorage.getItem('binartaJSCheckout'))).toEqual({});
-                });
-
-                describe('on the authentication required step', function () {
-                    beforeEach(function () {
-                        binarta.checkpoint.gateway = new InvalidCredentialsGateway();
-                        binarta.shop.gateway = new InvalidCredentialsGateway();
-                        binarta.checkpoint.profile.refresh();
-                        binarta.shop.checkout.start(order, [
-                            'authentication-required',
-                            'completed'
-                        ]);
-                    });
-
-                    it('then status exposed the current step', function () {
-                        expect(binarta.shop.checkout.status()).toEqual('authentication-required');
-                    });
-
-                    it('then restarting checkout has no effect', function () {
-                        binarta.shop.checkout.start(order);
-                        expect(binarta.shop.checkout.status()).toEqual('authentication-required');
-                    });
-
-                    it('then you can cancel checkout', function () {
+                    it('then new checkouts default to the selected payment provider', function () {
                         binarta.shop.checkout.cancel();
-                        expect(binarta.shop.checkout.status()).toEqual('idle');
-                    });
-
-                    it('on signin proceed to next step', function () {
-                        binarta.checkpoint.gateway = new ValidCredentialsGateway();
-                        binarta.checkpoint.profile.refresh();
-
-                        binarta.shop.checkout.retry();
-
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
+                        binarta.shop.checkout.start(order, ['summary']);
+                        expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
                     });
                 });
 
-                it('when already signed in proceed to next step', function () {
-                    binarta.checkpoint.gateway = new ValidCredentialsGateway();
-                    binarta.shop.gateway = new ValidCredentialsGateway();
-                    binarta.checkpoint.profile.refresh();
-
-                    binarta.shop.checkout.start(order, [
-                        'authentication-required',
-                        'completed'
-                    ]);
-
-                    expect(binarta.shop.checkout.status()).toEqual('completed');
-                });
-
-                describe('on the address selection step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'address-selection',
-                            'completed'
-                        ])
-                    });
-
-                    it('then status exposes the current step', function () {
-                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
-                    });
-
-                    it('then restarting checkout has no effect', function () {
-                        binarta.shop.checkout.start(order);
-                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
-                    });
-
-                    it('then you can cancel checkout', function () {
-                        binarta.shop.checkout.cancel();
-                        expect(binarta.shop.checkout.status()).toEqual('idle');
-                    });
-
-                    it('when selecting neither a billing or shipping address', function () {
-                        expect(binarta.shop.checkout.selectAddresses).toThrowError('at.least.a.billing.address.must.be.selected');
-                        expect(binarta.shop.checkout.status()).toEqual('address-selection');
-                    });
-
-                    describe('when selecting a billing address', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.selectAddresses({billing: {label: 'l', addressee: 'a'}});
-                        });
-
-                        it('then billing address is added to the backing order', function () {
-                            expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'l', addressee: 'a'});
-                        });
-
-                        it('then shipping address is added to the backing order', function () {
-                            expect(binarta.shop.checkout.context().order.shipping).toEqual({
-                                label: 'l',
-                                addressee: 'a'
-                            });
-                        });
-
-                        it('then flow proceeds to the next step', function () {
-                            expect(binarta.shop.checkout.status()).toEqual('completed');
-                        });
-
-                        it('then event listener is requested to go to the next step', function () {
-                            expect(eventListener.goto).toHaveBeenCalledWith('completed');
-                        });
-                    });
-
-                    describe('when selecting both a billing and shipping address', function () {
-                        beforeEach(function () {
-                            binarta.shop.checkout.selectAddresses({
-                                billing: {label: 'b', addressee: 'a'},
-                                shipping: {label: 's', addressee: 'a'}
-                            });
-                        });
-
-                        it('then billing address is added to the backing order', function () {
-                            expect(binarta.shop.checkout.context().order.billing).toEqual({label: 'b', addressee: 'a'});
-                        });
-
-                        it('then shipping address is added to the backing order', function () {
-                            expect(binarta.shop.checkout.context().order.shipping).toEqual({
-                                label: 's',
-                                addressee: 'a'
-                            });
-                        });
-
-                        it('then flow proceeds to the next step', function () {
-                            expect(binarta.shop.checkout.status()).toEqual('completed');
-                        });
-                    })
-                });
-
-                describe('on the checkout summary step', function () {
-                    describe('and there is one available payment method', function () {
-                        beforeEach(function () {
-                            function GatewaySpy() {
-                                this.fetchApplicationProfile = function (request, response) {
-                                    response.success({
-                                        availablePaymentMethods: ['payment-provider']
-                                    });
-                                };
-                            }
-
-                            binarta.application.gateway = new GatewaySpy();
-                            binarta.application.refresh();
-                            binarta.shop.checkout.start(order, [
-                                'summary',
-                                'completed'
-                            ]);
-                        });
-
-                        it('the payment method is selected by default', function () {
-                            expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
-                        });
-                    });
-
-                    describe('and there are more than one available payment methods', function () {
-                        beforeEach(function () {
-                            function GatewaySpy() {
-                                this.fetchApplicationProfile = function (request, response) {
-                                    response.success({
-                                        availablePaymentMethods: ['payment-provider-1', 'payment-provider-2']
-                                    });
-                                };
-                            }
-
-                            binarta.application.gateway = new GatewaySpy();
-                            binarta.application.refresh();
-                            binarta.shop.checkout.start(order, [
-                                'summary',
-                                'completed'
-                            ]);
-                        });
-
-                        it('then status exposes the current step', function () {
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                        });
-
-                        it('then restarting checkout has no effect', function () {
-                            binarta.shop.checkout.start(order);
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                        });
-
-                        it('then you can cancel checkout', function () {
-                            binarta.shop.checkout.cancel();
-                            expect(binarta.shop.checkout.status()).toEqual('idle');
-                        });
-
-                        it('no payment method is selected by default', function () {
-                            expect(binarta.shop.checkout.getPaymentProvider()).toBeUndefined();
-                        });
-
-                        describe('and setting the payment provider', function () {
-                            beforeEach(function () {
-                                binarta.shop.checkout.setPaymentProvider('payment-provider');
-                            });
-
-                            it('then the order exposes the selected payment provider', function () {
-                                expect(binarta.shop.checkout.context().order.provider).toEqual('payment-provider');
-                            });
-
-                            it('then new checkouts default to the selected payment provider', function () {
-                                binarta.shop.checkout.cancel();
-                                binarta.shop.checkout.start(order, ['summary']);
-                                expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
-                            });
-                        });
-
-                        it('on confirmation the order can be rejected', function () {
-                            binarta.shop.gateway = new InvalidOrderGateway();
-
-                            binarta.shop.checkout.confirm();
-
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                            expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
-                        });
-
-                        it('when payment provider setup the only rejection reason proceed to next step', function () {
-                            binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
-                            binarta.shop.checkout.confirm();
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                        });
-
-                        it('on confirmation the order can be accepted', function () {
-                            binarta.shop.gateway = new ValidOrderGateway();
-                            var spy = jasmine.createSpy('spy');
-
-                            binarta.shop.checkout.confirm(spy);
-
-                            expect(binarta.shop.checkout.status()).toEqual('completed');
-                            expect(spy).toHaveBeenCalled();
-                        });
-
-                        it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
-                            binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
-                            binarta.shop.checkout.confirm();
-                            expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
-                            expect(binarta.shop.checkout.context().order.signingContext).toEqual({
-                                institution: 'test-bank',
-                                approvalUrl: 'approval-url'
-                            });
-                            expect(binarta.shop.checkout.context().order.paymentProtocolVersion).toEqual('20190620');
-                        });
-
-                        it('you can set a coupon code', function () {
-                            binarta.shop.checkout.setCouponCode('coupon-code');
-                            expect(binarta.shop.checkout.context().order.coupon).toEqual('coupon-code');
-                            expect(binarta.shop.checkout.context().order.items[0].couponCode).toEqual('coupon-code');
-                        });
-
-                        it('on confirmation with coupon code', function () {
-                            binarta.shop.gateway = new GatewaySpy();
-                            binarta.shop.checkout.setCouponCode('coupon-code');
-                            binarta.shop.checkout.confirm();
-                            expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
-                            expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
-                        });
-
-                        it('setting a coupon code raises event', function () {
-                            binarta.shop.checkout.setCouponCode('coupon-code');
-                            expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
-                        });
-
-                        it('on confirmation deletes the summary violation report from the persistent context', function () {
-                            var ctx = binarta.shop.checkout.context();
-                            ctx.summaryViolationReport = {};
-                            binarta.shop.checkout.persist(ctx);
-                            binarta.shop.gateway = new ValidOrderGateway();
-                            binarta.shop.checkout.confirm();
-                            expect(binarta.shop.checkout.context().summaryViolationReport).toBeUndefined();
-                        });
-                    });
-                });
-
-                it('on the checkout summary step then the payment provider can be specified at checkout start', function () {
-                    order.provider = 'payment-provider';
-                    binarta.shop.checkout.start(order, [
-                        'summary',
-                        'completed'
-                    ]);
-                    expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
-                });
-
-                describe('order confirmation proceeds to next step when rejected because payment provider requires setup and next step is meant to setup the payment provider', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'summary',
-                            'setup-payment-provider'
-                        ])
-                    });
-
-                    it('when payment provider setup is not the only rejection reason do not proceed', function () {
-                        binarta.shop.gateway = new NotOnlyPaymentProviderRequiresSetupGateway();
-                        binarta.shop.checkout.confirm();
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                    });
-
-                    it('when payment provider setup is the only rejection reason proceed to next step', function () {
-                        binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
-                        var spy = jasmine.createSpy('spy');
-
-                        binarta.shop.checkout.confirm(spy);
-
-                        expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
-                        expect(spy).toHaveBeenCalled();
-                    });
-                });
-
-                describe('on the setup payment provider step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'setup-payment-provider',
-                            'completed'
-                        ])
-                    });
-
-                    it('on retry attempt to place order', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.retry();
-                        expect(binarta.shop.gateway.submitOrderRequest).toEqual(order);
-                    });
-
-                    it('when order is accepted and requires payment expose payment details on order', function () {
-                        binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
-                        binarta.shop.checkout.retry();
-                        expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
-                        expect(binarta.shop.checkout.context().order.signingContext.approvalUrl).toEqual('approval-url');
-                    });
-
-                    it('when order is accepted proceed to next step', function () {
-                        binarta.shop.gateway = new ValidOrderGateway();
-                        var spy = jasmine.createSpy('spy');
-
-                        binarta.shop.checkout.retry(spy);
-
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
-                        expect(spy).toHaveBeenCalled();
-                    });
-
-                    it('when order is rejected expose violation report', function () {
-                        binarta.shop.gateway = new InvalidOrderGateway();
-
-                        binarta.shop.checkout.retry();
-
-                        expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
-                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
-                    });
-                });
-
-                it('setup payment provider step proceeds to next step when order has already been submitted', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.checkout.start(order, [
-                        'summary',
-                        'setup-payment-provider',
-                        'completed'
-                    ]);
+                it('on confirmation the order can be rejected', function () {
+                    binarta.shop.gateway = new InvalidOrderGateway();
 
                     binarta.shop.checkout.confirm();
 
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
+                    expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                });
+
+                it('when payment provider setup the only rejection reason proceed to next step', function () {
+                    binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                    binarta.shop.checkout.confirm();
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
+                });
+
+                it('on confirmation the order can be accepted', function () {
+                    binarta.shop.gateway = new ValidOrderGateway();
+                    var spy = jasmine.createSpy('spy');
+
+                    binarta.shop.checkout.confirm(spy);
+
                     expect(binarta.shop.checkout.status()).toEqual('completed');
+                    expect(spy).toHaveBeenCalled();
                 });
 
-                describe('on the payment step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'payment',
-                            'completed'
-                        ])
+                it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
+                    binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
+                    binarta.shop.checkout.confirm();
+                    expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
+                    expect(binarta.shop.checkout.context().order.signingContext).toEqual({
+                        institution: 'test-bank',
+                        approvalUrl: 'approval-url'
                     });
-
-                    it('when confirming the payment then confirm payment request is sent', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.confirm({id: 'p'});
-                        expect(binarta.shop.gateway.confirmPaymentRequest).toEqual({
-                            id: 'p',
-                            protocolVersion: '20190620' // for SCA supported CC payments
-                        });
-                    });
-
-                    it('when payment confirmation has not yet completed then optional on success listener is not yet triggered', function () {
-                        var spy = jasmine.createSpy('spy');
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.confirm('-', spy);
-                        expect(spy).not.toHaveBeenCalled();
-                    });
-
-                    it('when payment confirmation succeeds then proceed to next step', function () {
-                        binarta.shop.gateway = new ValidPaymentGateway();
-                        binarta.shop.checkout.confirm('-');
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
-                    });
-
-                    it('when payment confirmation succeeds then trigger an optional on success listener', function () {
-                        var spy = jasmine.createSpy('spy');
-                        binarta.shop.gateway = new ValidPaymentGateway();
-                        binarta.shop.checkout.confirm('-', spy);
-                        expect(spy).toHaveBeenCalled();
-                    });
-
-                    it('when payment confirmation is rejected expose violation report on the summary step', function () {
-                        binarta.shop.gateway = new InvalidPaymentGateway();
-
-                        binarta.shop.checkout.confirm('-');
-
-                        expect(binarta.shop.checkout.status()).toEqual('summary');
-                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
-                    });
-
-                    it('when payment confirmation is rejected then trigger an optional on success listener', function () {
-                        var spy = jasmine.createSpy('spy');
-                        binarta.shop.gateway = new InvalidPaymentGateway();
-                        binarta.shop.checkout.confirm('-', spy);
-                        expect(spy).toHaveBeenCalled();
-                    });
-
-                    describe('when payment confirmation is rejected because the payment has expired', function () {
-                        beforeEach(function () {
-                            var ctx = binarta.shop.checkout.context();
-                            ctx.order.id = 'o';
-                            binarta.shop.checkout.persist(ctx);
-                            binarta.shop.gateway = new ExpiredPaymentGateway();
-                            binarta.shop.checkout.confirm('-');
-                        });
-
-                        it('then return to summary step', function () {
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                        });
-
-                        it('then remove id from order so it can be resubmitted', function () {
-                            expect(binarta.shop.checkout.context().order.id).toBeUndefined();
-                        });
-                    });
-
-                    it('when canceling the payment then cancel order request is sent', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.cancelPayment();
-                        expect(binarta.shop.gateway.cancelOrderRequest).toEqual(order);
-                    });
-
-                    it('when cancel has not yet completed then optional on success listener is not yet triggered', function () {
-                        var spy = jasmine.createSpy('spy');
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.shop.checkout.cancelPayment(spy);
-                        expect(spy).not.toHaveBeenCalled();
-                    });
-
-                    describe('when cancel completes', function () {
-                        beforeEach(function () {
-                            var ctx = binarta.shop.checkout.context();
-                            ctx.order.id = 'o';
-                            binarta.shop.checkout.persist(ctx);
-                            binarta.shop.gateway = new ValidOrderGateway();
-                            binarta.shop.checkout.cancelPayment();
-                        });
-
-                        it('then return to summary step', function () {
-                            expect(binarta.shop.checkout.status()).toEqual('summary');
-                        });
-
-                        it('then remove id from order so it can be resubmitted', function () {
-                            expect(binarta.shop.checkout.context().order.id).toBeUndefined();
-                        });
-                    });
-
-                    it('when cancel completes then trigger an optional on success listener', function () {
-                        var spy = jasmine.createSpy('spy');
-                        binarta.shop.gateway = new ValidOrderGateway();
-                        binarta.shop.checkout.cancelPayment(spy);
-                        expect(spy).toHaveBeenCalled();
-                    });
-
-                    it('when cancel is rejected expose violation report', function () {
-                        binarta.shop.gateway = new InvalidOrderGateway();
-
-                        binarta.shop.checkout.cancelPayment();
-
-                        expect(binarta.shop.checkout.status()).toEqual('payment');
-                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
-                    });
+                    expect(binarta.shop.checkout.context().order.paymentProtocolVersion).toEqual('20190620');
                 });
 
-                describe('on the checkout completed step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'completed'
-                        ])
-                    });
-
-                    it('then status exposed the current step', function () {
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
-                    });
-
-                    it('then restarting checkout is possible', function () {
-                        binarta.shop.checkout.start(order, [
-                            'authentication-required'
-                        ]);
-                        expect(binarta.shop.checkout.status()).toEqual('authentication-required');
-                    });
-
-                    it('then you can cancel checkout', function () {
-                        binarta.shop.checkout.cancel();
-                        expect(binarta.shop.checkout.status()).toEqual('idle');
-                    });
+                it('you can set a coupon code', function () {
+                    binarta.shop.checkout.setCouponCode('coupon-code');
+                    expect(binarta.shop.checkout.context().order.coupon).toEqual('coupon-code');
+                    expect(binarta.shop.checkout.context().order.items[0].couponCode).toEqual('coupon-code');
                 });
 
-                it('basket can optionally be cleared when checkout reaches completed step', function () {
+                it('on confirmation with coupon code', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.checkout.setCouponCode('coupon-code');
+                    binarta.shop.checkout.confirm();
+                    expect(binarta.shop.gateway.submitOrderRequest.coupon).toEqual('coupon-code');
+                    expect(binarta.shop.gateway.submitOrderRequest.items[0].couponCode).toEqual('coupon-code');
+                });
+
+                it('setting a coupon code raises event', function () {
+                    binarta.shop.checkout.setCouponCode('coupon-code');
+                    expect(eventListener.setCouponCode).toHaveBeenCalledWith('coupon-code');
+                });
+
+                it('on confirmation deletes the summary violation report from the persistent context', function () {
+                    var ctx = binarta.shop.checkout.context();
+                    ctx.summaryViolationReport = {};
+                    binarta.shop.checkout.persist(ctx);
                     binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
-
-                    binarta.shop.checkout.start({clearBasketOnComplete: true}, [
-                        'completed'
-                    ]);
-
-                    expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+                    binarta.shop.checkout.confirm();
+                    expect(binarta.shop.checkout.context().summaryViolationReport).toBeUndefined();
                 });
+            });
+        });
 
-                it('basket can optionally be cleared when checkout reaches payment step and wire transfer is selected', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
+        it('on the checkout summary step then the payment provider can be specified at checkout start', function () {
+            order.provider = 'payment-provider';
+            binarta.shop.checkout.start(order, [
+                'summary',
+                'completed'
+            ]);
+            expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+        });
 
-                    binarta.shop.checkout.start({clearBasketOnComplete: true, provider: 'wire-transfer'}, [
-                        'payment'
-                    ]);
+        describe('order confirmation proceeds to next step when rejected because payment provider requires setup and next step is meant to setup the payment provider', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'summary',
+                    'setup-payment-provider'
+                ])
+            });
 
-                    expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
-                });
+            it('when payment provider setup is not the only rejection reason do not proceed', function () {
+                binarta.shop.gateway = new NotOnlyPaymentProviderRequiresSetupGateway();
+                binarta.shop.checkout.confirm();
+                expect(binarta.shop.checkout.status()).toEqual('summary');
+            });
 
-                describe('installing custom steps', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep);
-                        binarta.shop.checkout.start(order, [
-                            'custom-step'
-                        ]);
-                    });
+            it('when payment provider setup is the only rejection reason proceed to next step', function () {
+                binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                var spy = jasmine.createSpy('spy');
 
-                    it('then status exposes the current step', function () {
-                        expect(binarta.shop.checkout.status()).toEqual('custom-step');
-                    });
+                binarta.shop.checkout.confirm(spy);
 
-                    it('then restarting checkout has no effect', function () {
-                        binarta.shop.checkout.start(order);
-                        expect(binarta.shop.checkout.status()).toEqual('custom-step');
-                    });
+                expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
+                expect(spy).toHaveBeenCalled();
+            });
+        });
 
-                    it('then you can cancel checkout', function () {
-                        binarta.shop.checkout.cancel();
-                        expect(binarta.shop.checkout.status()).toEqual('idle');
-                    });
+        describe('on the setup payment provider step', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'setup-payment-provider',
+                    'completed'
+                ])
+            });
 
-                    it('then the custom step is included in the roadmap', function () {
-                        expect(binarta.shop.checkout.roadmap()).toEqual([
-                            {name: 'custom-step', locked: false, unlocked: true}
-                        ]);
-                    });
-                });
+            it('on retry attempt to place order', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.shop.checkout.retry();
+                expect(binarta.shop.gateway.submitOrderRequest).toEqual(order);
+            });
 
-                it('custom steps can be gateway steps and left out of the roadmap', function () {
-                    binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep, {isGatewayStep: true});
-                    binarta.shop.checkout.start(order, [
-                        'custom-step'
-                    ]);
-                    expect(binarta.shop.checkout.roadmap()).toEqual([]);
-                });
+            it('when order is accepted and requires payment expose payment details on order', function () {
+                binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
+                binarta.shop.checkout.retry();
+                expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
+                expect(binarta.shop.checkout.context().order.signingContext.approvalUrl).toEqual('approval-url');
+            });
 
-                function CustomStep(fsm) {
-                    fsm.currentState = this;
-                    this.name = 'custom-step';
-                }
+            it('when order is accepted proceed to next step', function () {
+                binarta.shop.gateway = new ValidOrderGateway();
+                var spy = jasmine.createSpy('spy');
 
-                describe('jumping to a specific step', function () {
-                    beforeEach(function () {
-                        binarta.shop.checkout.start(order, [
-                            'payment',
-                            'completed'
-                        ]);
-                    });
+                binarta.shop.checkout.retry(spy);
 
-                    it('you can jump to a specific step directly', function () {
-                        binarta.shop.checkout.jumpTo('completed');
-                        expect(binarta.shop.checkout.status()).toEqual('completed');
-                    });
+                expect(binarta.shop.checkout.status()).toEqual('completed');
+                expect(spy).toHaveBeenCalled();
+            });
 
-                    it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function () {
-                        binarta.shop.checkout.jumpTo('completed');
-                        expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
-                    });
+            it('when order is rejected expose violation report', function () {
+                binarta.shop.gateway = new InvalidOrderGateway();
+
+                binarta.shop.checkout.retry();
+
+                expect(binarta.shop.checkout.status()).toEqual('setup-payment-provider');
+                expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+            });
+        });
+
+        it('setup payment provider step proceeds to next step when order has already been submitted', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.checkout.start(order, [
+                'summary',
+                'setup-payment-provider',
+                'completed'
+            ]);
+
+            binarta.shop.checkout.confirm();
+
+            expect(binarta.shop.checkout.status()).toEqual('completed');
+        });
+
+        describe('on the payment step', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'payment',
+                    'completed'
+                ])
+            });
+
+            it('when confirming the payment then confirm payment request is sent', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.shop.checkout.confirm({id: 'p'});
+                expect(binarta.shop.gateway.confirmPaymentRequest).toEqual({
+                    id: 'p',
+                    protocolVersion: '20190620' // for SCA supported CC payments
                 });
             });
 
-            describe('profile extensions', function () {
-                var eventListener;
+            it('when payment confirmation has not yet completed then optional on success listener is not yet triggered', function () {
+                var spy = jasmine.createSpy('spy');
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.shop.checkout.confirm('-', spy);
+                expect(spy).not.toHaveBeenCalled();
+            });
 
+            it('when payment confirmation succeeds then proceed to next step', function () {
+                binarta.shop.gateway = new ValidPaymentGateway();
+                binarta.shop.checkout.confirm('-');
+                expect(binarta.shop.checkout.status()).toEqual('completed');
+            });
+
+            it('when payment confirmation succeeds then trigger an optional on success listener', function () {
+                var spy = jasmine.createSpy('spy');
+                binarta.shop.gateway = new ValidPaymentGateway();
+                binarta.shop.checkout.confirm('-', spy);
+                expect(spy).toHaveBeenCalled();
+            });
+
+            it('when payment confirmation is rejected expose violation report on the summary step', function () {
+                binarta.shop.gateway = new InvalidPaymentGateway();
+
+                binarta.shop.checkout.confirm('-');
+
+                expect(binarta.shop.checkout.status()).toEqual('summary');
+                expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+            });
+
+            it('when payment confirmation is rejected then trigger an optional on success listener', function () {
+                var spy = jasmine.createSpy('spy');
+                binarta.shop.gateway = new InvalidPaymentGateway();
+                binarta.shop.checkout.confirm('-', spy);
+                expect(spy).toHaveBeenCalled();
+            });
+
+            describe('when payment confirmation is rejected because the payment has expired', function () {
                 beforeEach(function () {
-                    eventListener = jasmine.createSpyObj('event-listener', ['signedin', 'signedout', 'updated']);
-                    binarta.checkpoint.profile.eventRegistry.add(eventListener);
+                    var ctx = binarta.shop.checkout.context();
+                    ctx.order.id = 'o';
+                    binarta.shop.checkout.persist(ctx);
+                    binarta.shop.gateway = new ExpiredPaymentGateway();
+                    binarta.shop.checkout.confirm('-');
                 });
 
-                describe('profile refresh takes an optional event handler for the current request', function () {
-                    it('with optional success handler', function () {
-                        var spy = jasmine.createSpyObj('spy', ['success']);
-                        binarta.checkpoint.gateway = new AuthenticatedGateway();
-                        binarta.shop.gateway = new AuthenticatedGateway();
-                        binarta.checkpoint.profile.refresh(spy);
-                        expect(spy.success).toHaveBeenCalled();
-                    });
-
-                    it('with optional unauthenticated handler', function () {
-                        var spy = jasmine.createSpyObj('spy', ['unauthenticated']);
-                        binarta.checkpoint.gateway = new UnauthenticatedGateway();
-                        binarta.shop.gateway = new UnauthenticatedGateway();
-                        binarta.checkpoint.profile.refresh(spy);
-                        expect(spy.unauthenticated).toHaveBeenCalled();
-                    });
+                it('then return to summary step', function () {
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
                 });
 
-                it('addresses are initially empty', function () {
-                    expect(binarta.checkpoint.profile.addresses()).toEqual([]);
-                });
-
-                describe('existing addresses are loaded on refresh', function () {
-                    beforeEach(function () {
-                        binarta.checkpoint.gateway = new AuthenticatedGateway();
-                        binarta.shop.gateway = new AuthenticatedGateway();
-                        binarta.checkpoint.profile.refresh();
-                    });
-
-                    it('and exposed', function () {
-                        expect(binarta.checkpoint.profile.addresses().map(function (it) {
-                            return it.label;
-                        })).toEqual(['home', 'work']);
-                    });
-
-                    it('an address sits in idle status', function () {
-                        expect(binarta.checkpoint.profile.addresses()[0].status()).toEqual('idle');
-                    });
-
-                    describe('editing an address', function () {
-                        var address;
-
-                        beforeEach(function () {
-                            address = binarta.checkpoint.profile.addresses()[0];
-                            address.edit();
-                        });
-
-                        it('exposes status as editing', function () {
-                            expect(address.status()).toEqual('editing');
-                        });
-
-                        it('exposes an update request', function () {
-                            expect(address.updateRequest()).toEqual({
-                                id: {label: 'home'},
-                                label: 'home',
-                                addressee: 'John Doe',
-                                street: 'Johny Lane',
-                                number: '1',
-                                zip: '1000',
-                                city: 'Johnyville',
-                                country: 'BE'
-                            });
-                        });
-
-                        it('changes to the update request do not affect the actual address yet', function () {
-                            address.updateRequest().addressee = 'x';
-                            expect(address.addressee).toEqual('John Doe');
-                        });
-
-                        it('canceling returns to idle status', function () {
-                            address.cancel();
-                            expect(address.status()).toEqual('idle');
-                        });
-
-                        it('then update delegates to gateway', function () {
-                            binarta.shop.gateway = new GatewaySpy();
-                            address.updateRequest().addressee = 'Jane Smith';
-                            address.update();
-                            expect(binarta.shop.gateway.updateAddressRequest).toEqual({
-                                id: {label: 'home'},
-                                label: 'home',
-                                addressee: 'Jane Smith',
-                                street: 'Johny Lane',
-                                number: '1',
-                                zip: '1000',
-                                city: 'Johnyville',
-                                country: 'BE'
-                            });
-                        });
-
-                        it('then update can be rejected', function () {
-                            binarta.shop.gateway = new InvalidBillingProfileGateway();
-                            address.update();
-                            expect(address.status()).toEqual('editing');
-                            expect(address.violationReport()).toEqual('violation-report');
-                        });
-
-                        it('then update affects current profile', function () {
-                            binarta.shop.gateway = new ValidBillingProfileGateway();
-                            address.updateRequest().addressee = 'x';
-                            address.update();
-                            expect(address.status()).toEqual('idle');
-                            expect(address.addressee).toEqual('x');
-                        });
-
-                        it('when update succeeds trigger on success listener', function () {
-                            binarta.shop.gateway = new ValidBillingProfileGateway();
-                            var onSuccessListener = jasmine.createSpy('on-success');
-
-                            address.update(onSuccessListener);
-
-                            expect(onSuccessListener).toHaveBeenCalled();
-                        });
-
-                        it('then label can be modified', function () {
-                            binarta.shop.gateway = new GatewaySpy();
-                            address.updateRequest().label = 'work';
-
-                            address.update();
-
-                            expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('work');
-                            expect(binarta.shop.gateway.updateAddressRequest.id.label).toEqual('home');
-                        });
-
-                        it('then label can be regenerated', function () {
-                            binarta.shop.gateway = new GatewaySpy();
-                            address.updateRequest().generateLabel = true;
-                            address.updateRequest().street = 'Johny Boulevard';
-                            address.updateRequest().number = '2';
-                            address.updateRequest().zip = '2000';
-
-                            address.update();
-
-                            expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('(2000) Johny Boulevard 2');
-                        });
-                    });
-                });
-
-                describe('when putting the profile in edit mode', function () {
-                    beforeEach(function () {
-                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
-                        binarta.shop.gateway = new CompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.refresh();
-                        binarta.checkpoint.profile.edit();
-                    });
-
-                    it('then the profile exposes an update request', function () {
-                        expect(binarta.checkpoint.profile.updateRequest()).toEqual({vat: 'BE1234567890', address: {}});
-                    });
-
-                    it('then modifying the update profile request does not affect the current profile', function () {
-                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
-                        expect(binarta.checkpoint.profile.updateRequest().vat).toEqual('BE0987654321');
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
-                    });
-
-                    it('then update vat delegates to gateway', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
-                        binarta.checkpoint.profile.update();
-                        expect(binarta.shop.gateway.updateBillingProfileRequest).toEqual({vat: 'BE0987654321'});
-                    });
-
-                    it('then update vat affects current profile', function () {
-                        binarta.shop.gateway = new ValidBillingProfileGateway();
-                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
-                        binarta.checkpoint.profile.update();
-                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE0987654321');
-                    });
-
-                    it('then update vat can clear the vat number', function () {
-                        binarta.shop.gateway = new ValidBillingProfileGateway();
-                        binarta.checkpoint.profile.updateRequest().vat = '';
-                        binarta.checkpoint.profile.update();
-                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('');
-                    });
-
-                    it('then update vat triggers event listener', function () {
-                        binarta.shop.gateway = new ValidBillingProfileGateway();
-                        binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
-                        binarta.checkpoint.profile.update();
-                        expect(eventListener.updated).toHaveBeenCalled();
-                    });
-
-                    it('then update to add a new address does not delegate to gateway when address is empty', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.update();
-                        expect(binarta.shop.gateway.addAddressRequest).toBeUndefined();
-                    });
-
-                    it('then update to add a new address delegates to the gateway', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
-                        binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
-                        binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
-                        binarta.checkpoint.profile.updateRequest().address.number = '1';
-                        binarta.checkpoint.profile.updateRequest().address.zip = '1000';
-                        binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
-                        binarta.checkpoint.profile.updateRequest().address.country = 'BE';
-
-                        binarta.checkpoint.profile.update();
-
-                        expect(binarta.shop.gateway.addAddressRequest).toEqual({
-                            label: 'home',
-                            addressee: 'John Doe',
-                            street: 'Johny Lane',
-                            number: '1',
-                            zip: '1000',
-                            city: 'Johnyville',
-                            country: 'BE'
-                        });
-                    });
-
-                    it('then address label is optional when adding a new address', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
-                        binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
-                        binarta.checkpoint.profile.updateRequest().address.number = '1';
-                        binarta.checkpoint.profile.updateRequest().address.zip = '1000';
-                        binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
-                        binarta.checkpoint.profile.updateRequest().address.country = 'BE';
-
-                        binarta.checkpoint.profile.update();
-
-                        expect(binarta.shop.gateway.addAddressRequest.label).toEqual('(1000) Johny Lane 1');
-                    });
-
-                    ['street', 'number', 'zip'].forEach(function (field) {
-                        it('when ' + field + ' is undefined a label can not be generated', function () {
-                            binarta.shop.gateway = new GatewaySpy();
-                            binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
-                            binarta.checkpoint.profile.updateRequest().address.number = '1';
-                            binarta.checkpoint.profile.updateRequest().address.zip = '1000';
-
-                            binarta.checkpoint.profile.updateRequest().address[field] = undefined;
-                            binarta.checkpoint.profile.update();
-
-                            expect(binarta.shop.gateway.addAddressRequest.label).toBeUndefined();
-                        });
-                    });
-
-                    it('then update to add a new address is rejected', function () {
-                        binarta.shop.gateway = new InvalidBillingProfileGateway();
-                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
-                        binarta.checkpoint.profile.update();
-                        expect(binarta.checkpoint.profile.violationReport()).toEqual({address: 'violation-report'});
-                        expect(binarta.checkpoint.profile.updateRequest().address.label).toEqual('home');
-                    });
-
-                    it('then update to add a new address is accepted', function () {
-                        binarta.shop.gateway = new ValidBillingProfileGateway();
-                        binarta.checkpoint.profile.updateRequest().address.label = 'home';
-
-                        binarta.checkpoint.profile.update();
-
-                        expect(binarta.checkpoint.profile.status()).toEqual('idle');
-                        expect(binarta.checkpoint.profile.addresses()[0].label).toEqual('home');
-                    });
-                });
-
-                describe('billing profile', function () {
-                    it('no vat number is initially exposed', function () {
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
-                    });
-
-                    it('an authenticated user may still not have a vat number specified', function () {
-                        binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
-                        binarta.shop.gateway = new InCompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.refresh();
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
-                    });
-
-                    it('an authenticated user may have a vat number specified', function () {
-                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
-                        binarta.shop.gateway = new CompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.refresh();
-                        expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
-                    });
-
-                    it('agreement start out incomplete', function () {
-                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
-                    });
-
-                    it('profile refresh loads incomplete billing agreement', function () {
-                        binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
-                        binarta.shop.gateway = new InCompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.refresh();
-                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
-                    });
-
-                    it('profile refresh loads complete billing agreement', function () {
-                        binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
-                        binarta.shop.gateway = new CompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.refresh();
-                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
-                    });
-
-                    it('initiate billing agreement delegates to gateway', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.billing.initiate('payment-provider');
-                        expect(binarta.shop.gateway.initiateBillingAgreementRequest).toEqual('payment-provider');
-                    });
-
-                    it('initiate billing agreement remembers payment provider on session storage', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.billing.initiate('payment-provider');
-                        expect(sessionStorage.billingAgreementProvider).toEqual('payment-provider');
-                    });
-
-                    it('initiate billing agreement passes ui to gateway', function () {
-                        binarta.shop.gateway = new InterfacesWithUIGateway();
-                        binarta.checkpoint.profile.billing.initiate('irrelevant');
-                        expect(ui.isWiredToGateway).toBeTruthy();
-                    });
-
-                    it('initiate billing agreement reports start of work to ui', function () {
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.billing.initiate('irrelevant');
-                        expect(ui.isInitiatingBillingAgreement).toBeTruthy();
-                    });
-
-                    it('cancel billing agreement delegates to ui', function () {
-                        binarta.checkpoint.profile.billing.cancel();
-                        expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
-                    });
-
-                    it('confirm billing agreement delegates to gateway', function () {
-                        sessionStorage.billingAgreementProvider = 'p';
-                        binarta.shop.gateway = new GatewaySpy();
-                        binarta.checkpoint.profile.billing.confirm({confirmationToken: 't'});
-                        expect(binarta.shop.gateway.confirmBillingAgreementRequest).toEqual({
-                            paymentProvider: 'p',
-                            confirmationToken: 't'
-                        });
-                    });
-
-                    it('confirm billing agreement delegates passes ui to gateway', function () {
-                        binarta.shop.gateway = new InterfacesWithUIGateway();
-                        binarta.checkpoint.profile.billing.confirm({});
-                        expect(ui.isWiredToGateway).toBeTruthy();
-                    });
-
-                    it('confirm billing agreement delegates to ui', function () {
-                        binarta.shop.gateway = new CompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.billing.confirm({});
-                        expect(ui.confirmedBillingAgreementRequest).toBeTruthy();
-                    });
-
-                    it('when confirm billing agreement completes then billing details report as completed', function () {
-                        binarta.shop.gateway = new CompleteBillingProfileGateway();
-                        binarta.checkpoint.profile.billing.confirm({});
-                        expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
-                    });
-                });
-
-                it('profile exposes a list of supported countries', function () {
-                    expect(binarta.checkpoint.profile.supportedCountries()).toEqual([{
-                        country: 'Albania',
-                        code: 'AL'
-                    }, {country: 'Algeria', code: 'DZ'}, {country: 'Argentina', code: 'AR'}, {
-                        country: 'Australia',
-                        code: 'AU'
-                    }, {country: 'Austria', code: 'AT'}, {country: 'Bahrain', code: 'BH'}, {
-                        country: 'Belarus',
-                        code: 'BY'
-                    }, {country: 'Belgium', code: 'BE'}, {
-                        country: 'Bolivia',
-                        code: 'BO'
-                    }, {country: 'Bosnia and Herzegovina', code: 'BA'}, {
-                        country: 'Brazil',
-                        code: 'BR'
-                    }, {country: 'Bulgaria', code: 'BG'}, {country: 'Canada', code: 'CA'}, {
-                        country: 'Chile',
-                        code: 'CL'
-                    }, {country: 'China', code: 'CN'}, {country: 'Colombia', code: 'CO'}, {
-                        country: 'Costa Rica',
-                        code: 'CR'
-                    }, {country: 'Croatia', code: 'HR'}, {country: 'Cuba', code: 'CU'}, {
-                        country: 'Cyprus',
-                        code: 'CY'
-                    }, {country: 'Czech Republic', code: 'CZ'}, {
-                        country: 'Denmark',
-                        code: 'DK'
-                    }, {country: 'Dominican Republic', code: 'DO'}, {country: 'Ecuador', code: 'EC'}, {
-                        country: 'Egypt',
-                        code: 'EG'
-                    }, {country: 'El Salvador', code: 'SV'}, {country: 'Estonia', code: 'EE'}, {
-                        country: 'Finland',
-                        code: 'FI'
-                    }, {country: 'France', code: 'FR'}, {country: 'Germany', code: 'DE'}, {
-                        country: 'Greece',
-                        code: 'GR'
-                    }, {country: 'Guatemala', code: 'GT'}, {country: 'Honduras', code: 'HN'}, {
-                        country: 'Hong Kong',
-                        code: 'HK'
-                    }, {country: 'Hungary', code: 'HU'}, {country: 'Iceland', code: 'IS'}, {
-                        country: 'India',
-                        code: 'IN'
-                    }, {country: 'Indonesia', code: 'ID'}, {country: 'Iraq', code: 'IQ'}, {
-                        country: 'Ireland',
-                        code: 'IE'
-                    }, {country: 'Israel', code: 'IL'}, {country: 'Italy', code: 'IT'}, {
-                        country: 'Japan',
-                        code: 'JP'
-                    }, {country: 'Jordan', code: 'JO'}, {country: 'Kuwait', code: 'KW'}, {
-                        country: 'Latvia',
-                        code: 'LV'
-                    }, {country: 'Lebanon', code: 'LB'}, {country: 'Libya', code: 'LY'}, {
-                        country: 'Lithuania',
-                        code: 'LT'
-                    }, {country: 'Luxembourg', code: 'LU'}, {country: 'Macedonia', code: 'MK'}, {
-                        country: 'Malaysia',
-                        code: 'MY'
-                    }, {country: 'Malta', code: 'MT'}, {country: 'Mexico', code: 'MX'}, {
-                        country: 'Montenegro',
-                        code: 'ME'
-                    }, {country: 'Morocco', code: 'MA'}, {country: 'Netherlands', code: 'NL'}, {
-                        country: 'New Zealand',
-                        code: 'NZ'
-                    }, {country: 'Nicaragua', code: 'NI'}, {country: 'Norway', code: 'NO'}, {
-                        country: 'Oman',
-                        code: 'OM'
-                    }, {country: 'Panama', code: 'PA'}, {country: 'Paraguay', code: 'PY'}, {
-                        country: 'Peru',
-                        code: 'PE'
-                    }, {country: 'Philippines', code: 'PH'}, {country: 'Poland', code: 'PL'}, {
-                        country: 'Portugal',
-                        code: 'PT'
-                    }, {country: 'Puerto Rico', code: 'PR'}, {country: 'Qatar', code: 'QA'}, {
-                        country: 'Romania',
-                        code: 'RO'
-                    }, {country: 'Russia', code: 'RU'}, {country: 'Saudi Arabia', code: 'SA'}, {
-                        country: 'Serbia',
-                        code: 'RS'
-                    }, {country: 'Serbia and Montenegro', code: 'CS'}, {
-                        country: 'Singapore',
-                        code: 'SG'
-                    }, {country: 'Slovakia', code: 'SK'}, {country: 'Slovenia', code: 'SI'}, {
-                        country: 'South Africa',
-                        code: 'ZA'
-                    }, {country: 'South Korea', code: 'KR'}, {country: 'Spain', code: 'ES'}, {
-                        country: 'Sudan',
-                        code: 'SD'
-                    }, {country: 'Sweden', code: 'SE'}, {country: 'Switzerland', code: 'CH'}, {
-                        country: 'Syria',
-                        code: 'SY'
-                    }, {country: 'Taiwan', code: 'TW'}, {country: 'Thailand', code: 'TH'}, {
-                        country: 'Tunisia',
-                        code: 'TN'
-                    }, {country: 'Turkey', code: 'TR'}, {
-                        country: 'Ukraine',
-                        code: 'UA'
-                    }, {country: 'United Arab Emirates', code: 'AE'}, {
-                        country: 'United Kingdom',
-                        code: 'GB'
-                    }, {country: 'United States', code: 'US'}, {country: 'Uruguay', code: 'UY'}, {
-                        country: 'Venezuela',
-                        code: 'VE'
-                    }, {country: 'Vietnam', code: 'VN'}, {country: 'Yemen', code: 'YE'}]);
+                it('then remove id from order so it can be resubmitted', function () {
+                    expect(binarta.shop.checkout.context().order.id).toBeUndefined();
                 });
             });
 
-            describe('coupon dictionary', function () {
-                var spy;
+            it('when canceling the payment then cancel order request is sent', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.shop.checkout.cancelPayment();
+                expect(binarta.shop.gateway.cancelOrderRequest).toEqual(order);
+            });
 
+            it('when cancel has not yet completed then optional on success listener is not yet triggered', function () {
+                var spy = jasmine.createSpy('spy');
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.shop.checkout.cancelPayment(spy);
+                expect(spy).not.toHaveBeenCalled();
+            });
+
+            describe('when cancel completes', function () {
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['notFound', 'ok']);
-                });
-
-                it('find by id performs lookup', function () {
-                    binarta.shop.gateway = new GatewaySpy();
-                    binarta.shop.couponDictionary.findById('x');
-                    expect(binarta.shop.gateway.findCouponByIdRequest).toEqual({id: 'x'});
-                });
-
-                it('find by unknown id presents not found', function () {
-                    binarta.shop.gateway = new InvalidOrderGateway();
-                    binarta.shop.couponDictionary.findById('-', spy);
-                    expect(spy.notFound).toHaveBeenCalled();
-                });
-
-                it('find by known id presents coupon details', function () {
+                    var ctx = binarta.shop.checkout.context();
+                    ctx.order.id = 'o';
+                    binarta.shop.checkout.persist(ctx);
                     binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.couponDictionary.findById('-', spy);
-                    expect(spy.ok).toHaveBeenCalledWith('coupon');
+                    binarta.shop.checkout.cancelPayment();
                 });
 
-                it('contains performs lookup', function () {
-                    binarta.shop.gateway = new GatewaySpy();
-                    binarta.shop.couponDictionary.contains('x');
-                    expect(binarta.shop.gateway.containsCouponRequest).toEqual({id: 'x'})
+                it('then return to summary step', function () {
+                    expect(binarta.shop.checkout.status()).toEqual('summary');
                 });
 
-                it('contains with unknown id presents not found', function () {
-                    binarta.shop.gateway = new InvalidOrderGateway();
-                    binarta.shop.couponDictionary.contains('-', spy);
-                    expect(spy.notFound).toHaveBeenCalled();
-                });
-
-                it('contains with known id presents result', function () {
-                    binarta.shop.gateway = new ValidOrderGateway();
-                    binarta.shop.couponDictionary.contains('-', spy);
-                    expect(spy.ok).toHaveBeenCalledWith('contains-response');
+                it('then remove id from order so it can be resubmitted', function () {
+                    expect(binarta.shop.checkout.context().order.id).toBeUndefined();
                 });
             });
 
-            describe('stripe', function () {
-                var spy, observer;
+            it('when cancel completes then trigger an optional on success listener', function () {
+                var spy = jasmine.createSpy('spy');
+                binarta.shop.gateway = new ValidOrderGateway();
+                binarta.shop.checkout.cancelPayment(spy);
+                expect(spy).toHaveBeenCalled();
+            });
+
+            it('when cancel is rejected expose violation report', function () {
+                binarta.shop.gateway = new InvalidOrderGateway();
+
+                binarta.shop.checkout.cancelPayment();
+
+                expect(binarta.shop.checkout.status()).toEqual('payment');
+                expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+            });
+        });
+
+        describe('on the checkout completed step', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'completed'
+                ])
+            });
+
+            it('then status exposed the current step', function () {
+                expect(binarta.shop.checkout.status()).toEqual('completed');
+            });
+
+            it('then restarting checkout is possible', function () {
+                binarta.shop.checkout.start(order, [
+                    'authentication-required'
+                ]);
+                expect(binarta.shop.checkout.status()).toEqual('authentication-required');
+            });
+
+            it('then you can cancel checkout', function () {
+                binarta.shop.checkout.cancel();
+                expect(binarta.shop.checkout.status()).toEqual('idle');
+            });
+        });
+
+        it('basket can optionally be cleared when checkout reaches completed step', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
+
+            binarta.shop.checkout.start({clearBasketOnComplete: true}, [
+                'completed'
+            ]);
+
+            expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+        });
+
+        it('basket can optionally be cleared when checkout reaches payment step and wire transfer is selected', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.basket.add({item: {id: 'i', quantity: 1}});
+
+            binarta.shop.checkout.start({clearBasketOnComplete: true, provider: 'wire-transfer'}, [
+                'payment'
+            ]);
+
+            expect(binarta.shop.basket.toOrder().quantity).toEqual(0);
+        });
+
+        describe('installing custom steps', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep);
+                binarta.shop.checkout.start(order, [
+                    'custom-step'
+                ]);
+            });
+
+            it('then status exposes the current step', function () {
+                expect(binarta.shop.checkout.status()).toEqual('custom-step');
+            });
+
+            it('then restarting checkout has no effect', function () {
+                binarta.shop.checkout.start(order);
+                expect(binarta.shop.checkout.status()).toEqual('custom-step');
+            });
+
+            it('then you can cancel checkout', function () {
+                binarta.shop.checkout.cancel();
+                expect(binarta.shop.checkout.status()).toEqual('idle');
+            });
+
+            it('then the custom step is included in the roadmap', function () {
+                expect(binarta.shop.checkout.roadmap()).toEqual([
+                    {name: 'custom-step', locked: false, unlocked: true}
+                ]);
+            });
+        });
+
+        it('custom steps can be gateway steps and left out of the roadmap', function () {
+            binarta.shop.checkout.installCustomStepDefinition('custom-step', CustomStep, {isGatewayStep: true});
+            binarta.shop.checkout.start(order, [
+                'custom-step'
+            ]);
+            expect(binarta.shop.checkout.roadmap()).toEqual([]);
+        });
+
+        function CustomStep(fsm) {
+            fsm.currentState = this;
+            this.name = 'custom-step';
+        }
+
+        describe('jumping to a specific step', function () {
+            beforeEach(function () {
+                binarta.shop.checkout.start(order, [
+                    'payment',
+                    'completed'
+                ]);
+            });
+
+            it('you can jump to a specific step directly', function () {
+                binarta.shop.checkout.jumpTo('completed');
+                expect(binarta.shop.checkout.status()).toEqual('completed');
+            });
+
+            it('jumping to a specific step updates the internal current step so the next step can be calculated correctly', function () {
+                binarta.shop.checkout.jumpTo('completed');
+                expect(binarta.shop.checkout.context().currentStep).toEqual('completed');
+            });
+        });
+    });
+
+    describe('profile extensions', function () {
+        var eventListener;
+
+        beforeEach(function () {
+            eventListener = jasmine.createSpyObj('event-listener', ['signedin', 'signedout', 'updated']);
+            binarta.checkpoint.profile.eventRegistry.add(eventListener);
+        });
+
+        describe('profile refresh takes an optional event handler for the current request', function () {
+            it('with optional success handler', function () {
+                var spy = jasmine.createSpyObj('spy', ['success']);
+                binarta.checkpoint.gateway = new AuthenticatedGateway();
+                binarta.shop.gateway = new AuthenticatedGateway();
+                binarta.checkpoint.profile.refresh(spy);
+                expect(spy.success).toHaveBeenCalled();
+            });
+
+            it('with optional unauthenticated handler', function () {
+                var spy = jasmine.createSpyObj('spy', ['unauthenticated']);
+                binarta.checkpoint.gateway = new UnauthenticatedGateway();
+                binarta.shop.gateway = new UnauthenticatedGateway();
+                binarta.checkpoint.profile.refresh(spy);
+                expect(spy.unauthenticated).toHaveBeenCalled();
+            });
+        });
+
+        it('addresses are initially empty', function () {
+            expect(binarta.checkpoint.profile.addresses()).toEqual([]);
+        });
+
+        describe('existing addresses are loaded on refresh', function () {
+            beforeEach(function () {
+                binarta.checkpoint.gateway = new AuthenticatedGateway();
+                binarta.shop.gateway = new AuthenticatedGateway();
+                binarta.checkpoint.profile.refresh();
+            });
+
+            it('and exposed', function () {
+                expect(binarta.checkpoint.profile.addresses().map(function (it) {
+                    return it.label;
+                })).toEqual(['home', 'work']);
+            });
+
+            it('an address sits in idle status', function () {
+                expect(binarta.checkpoint.profile.addresses()[0].status()).toEqual('idle');
+            });
+
+            describe('editing an address', function () {
+                var address;
 
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'goto', 'connected']);
+                    address = binarta.checkpoint.profile.addresses()[0];
+                    address.edit();
+                });
+
+                it('exposes status as editing', function () {
+                    expect(address.status()).toEqual('editing');
+                });
+
+                it('exposes an update request', function () {
+                    expect(address.updateRequest()).toEqual({
+                        id: {label: 'home'},
+                        label: 'home',
+                        addressee: 'John Doe',
+                        street: 'Johny Lane',
+                        number: '1',
+                        zip: '1000',
+                        city: 'Johnyville',
+                        country: 'BE'
+                    });
+                });
+
+                it('changes to the update request do not affect the actual address yet', function () {
+                    address.updateRequest().addressee = 'x';
+                    expect(address.addressee).toEqual('John Doe');
+                });
+
+                it('canceling returns to idle status', function () {
+                    address.cancel();
+                    expect(address.status()).toEqual('idle');
+                });
+
+                it('then update delegates to gateway', function () {
                     binarta.shop.gateway = new GatewaySpy();
-                    observer = binarta.shop.stripe.observe(spy);
+                    address.updateRequest().addressee = 'Jane Smith';
+                    address.update();
+                    expect(binarta.shop.gateway.updateAddressRequest).toEqual({
+                        id: {label: 'home'},
+                        label: 'home',
+                        addressee: 'Jane Smith',
+                        street: 'Johny Lane',
+                        number: '1',
+                        zip: '1000',
+                        city: 'Johnyville',
+                        country: 'BE'
+                    });
                 });
 
-                afterEach(function () {
-                    observer.disconnect();
+                it('then update can be rejected', function () {
+                    binarta.shop.gateway = new InvalidBillingProfileGateway();
+                    address.update();
+                    expect(address.status()).toEqual('editing');
+                    expect(address.violationReport()).toEqual('violation-report');
                 });
 
-                it('observers are immediately notified of the current working status', function () {
+                it('then update affects current profile', function () {
+                    binarta.shop.gateway = new ValidBillingProfileGateway();
+                    address.updateRequest().addressee = 'x';
+                    address.update();
+                    expect(address.status()).toEqual('idle');
+                    expect(address.addressee).toEqual('x');
+                });
+
+                it('when update succeeds trigger on success listener', function () {
+                    binarta.shop.gateway = new ValidBillingProfileGateway();
+                    var onSuccessListener = jasmine.createSpy('on-success');
+
+                    address.update(onSuccessListener);
+
+                    expect(onSuccessListener).toHaveBeenCalled();
+                });
+
+                it('then label can be modified', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    address.updateRequest().label = 'work';
+
+                    address.update();
+
+                    expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('work');
+                    expect(binarta.shop.gateway.updateAddressRequest.id.label).toEqual('home');
+                });
+
+                it('then label can be regenerated', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    address.updateRequest().generateLabel = true;
+                    address.updateRequest().street = 'Johny Boulevard';
+                    address.updateRequest().number = '2';
+                    address.updateRequest().zip = '2000';
+
+                    address.update();
+
+                    expect(binarta.shop.gateway.updateAddressRequest.label).toEqual('(2000) Johny Boulevard 2');
+                });
+            });
+        });
+
+        describe('when putting the profile in edit mode', function () {
+            beforeEach(function () {
+                binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                binarta.shop.gateway = new CompleteBillingProfileGateway();
+                binarta.checkpoint.profile.refresh();
+                binarta.checkpoint.profile.edit();
+            });
+
+            it('then the profile exposes an update request', function () {
+                expect(binarta.checkpoint.profile.updateRequest()).toEqual({vat: 'BE1234567890', address: {}});
+            });
+
+            it('then modifying the update profile request does not affect the current profile', function () {
+                binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                expect(binarta.checkpoint.profile.updateRequest().vat).toEqual('BE0987654321');
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
+            });
+
+            it('then update vat delegates to gateway', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                binarta.checkpoint.profile.update();
+                expect(binarta.shop.gateway.updateBillingProfileRequest).toEqual({vat: 'BE0987654321'});
+            });
+
+            it('then update vat affects current profile', function () {
+                binarta.shop.gateway = new ValidBillingProfileGateway();
+                binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                binarta.checkpoint.profile.update();
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE0987654321');
+            });
+
+            it('then update vat can clear the vat number', function () {
+                binarta.shop.gateway = new ValidBillingProfileGateway();
+                binarta.checkpoint.profile.updateRequest().vat = '';
+                binarta.checkpoint.profile.update();
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('');
+            });
+
+            it('then update vat triggers event listener', function () {
+                binarta.shop.gateway = new ValidBillingProfileGateway();
+                binarta.checkpoint.profile.updateRequest().vat = 'BE0987654321';
+                binarta.checkpoint.profile.update();
+                expect(eventListener.updated).toHaveBeenCalled();
+            });
+
+            it('then update to add a new address does not delegate to gateway when address is empty', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.update();
+                expect(binarta.shop.gateway.addAddressRequest).toBeUndefined();
+            });
+
+            it('then update to add a new address delegates to the gateway', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.updateRequest().address.label = 'home';
+                binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
+                binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                binarta.checkpoint.profile.updateRequest().address.number = '1';
+                binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+                binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
+                binarta.checkpoint.profile.updateRequest().address.country = 'BE';
+
+                binarta.checkpoint.profile.update();
+
+                expect(binarta.shop.gateway.addAddressRequest).toEqual({
+                    label: 'home',
+                    addressee: 'John Doe',
+                    street: 'Johny Lane',
+                    number: '1',
+                    zip: '1000',
+                    city: 'Johnyville',
+                    country: 'BE'
+                });
+            });
+
+            it('then address label is optional when adding a new address', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.updateRequest().address.addressee = 'John Doe';
+                binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                binarta.checkpoint.profile.updateRequest().address.number = '1';
+                binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+                binarta.checkpoint.profile.updateRequest().address.city = 'Johnyville';
+                binarta.checkpoint.profile.updateRequest().address.country = 'BE';
+
+                binarta.checkpoint.profile.update();
+
+                expect(binarta.shop.gateway.addAddressRequest.label).toEqual('(1000) Johny Lane 1');
+            });
+
+            ['street', 'number', 'zip'].forEach(function (field) {
+                it('when ' + field + ' is undefined a label can not be generated', function () {
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.checkpoint.profile.updateRequest().address.street = 'Johny Lane';
+                    binarta.checkpoint.profile.updateRequest().address.number = '1';
+                    binarta.checkpoint.profile.updateRequest().address.zip = '1000';
+
+                    binarta.checkpoint.profile.updateRequest().address[field] = undefined;
+                    binarta.checkpoint.profile.update();
+
+                    expect(binarta.shop.gateway.addAddressRequest.label).toBeUndefined();
+                });
+            });
+
+            it('then update to add a new address is rejected', function () {
+                binarta.shop.gateway = new InvalidBillingProfileGateway();
+                binarta.checkpoint.profile.updateRequest().address.label = 'home';
+                binarta.checkpoint.profile.update();
+                expect(binarta.checkpoint.profile.violationReport()).toEqual({address: 'violation-report'});
+                expect(binarta.checkpoint.profile.updateRequest().address.label).toEqual('home');
+            });
+
+            it('then update to add a new address is accepted', function () {
+                binarta.shop.gateway = new ValidBillingProfileGateway();
+                binarta.checkpoint.profile.updateRequest().address.label = 'home';
+
+                binarta.checkpoint.profile.update();
+
+                expect(binarta.checkpoint.profile.status()).toEqual('idle');
+                expect(binarta.checkpoint.profile.addresses()[0].label).toEqual('home');
+            });
+        });
+
+        describe('billing profile', function () {
+            it('no vat number is initially exposed', function () {
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
+            });
+
+            it('an authenticated user may still not have a vat number specified', function () {
+                binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
+                binarta.shop.gateway = new InCompleteBillingProfileGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toBeUndefined();
+            });
+
+            it('an authenticated user may have a vat number specified', function () {
+                binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                binarta.shop.gateway = new CompleteBillingProfileGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(binarta.checkpoint.profile.billing.vatNumber()).toEqual('BE1234567890');
+            });
+
+            it('agreement start out incomplete', function () {
+                expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
+            });
+
+            it('profile refresh loads incomplete billing agreement', function () {
+                binarta.checkpoint.gateway = new InCompleteBillingProfileGateway();
+                binarta.shop.gateway = new InCompleteBillingProfileGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(binarta.checkpoint.profile.billing.isComplete()).toBeFalsy();
+            });
+
+            it('profile refresh loads complete billing agreement', function () {
+                binarta.checkpoint.gateway = new CompleteBillingProfileGateway();
+                binarta.shop.gateway = new CompleteBillingProfileGateway();
+                binarta.checkpoint.profile.refresh();
+                expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
+            });
+
+            it('initiate billing agreement delegates to gateway', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.billing.initiate('payment-provider');
+                expect(binarta.shop.gateway.initiateBillingAgreementRequest).toEqual('payment-provider');
+            });
+
+            it('initiate billing agreement remembers payment provider on session storage', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.billing.initiate('payment-provider');
+                expect(sessionStorage.billingAgreementProvider).toEqual('payment-provider');
+            });
+
+            it('initiate billing agreement passes ui to gateway', function () {
+                binarta.shop.gateway = new InterfacesWithUIGateway();
+                binarta.checkpoint.profile.billing.initiate('irrelevant');
+                expect(ui.isWiredToGateway).toBeTruthy();
+            });
+
+            it('initiate billing agreement reports start of work to ui', function () {
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.billing.initiate('irrelevant');
+                expect(ui.isInitiatingBillingAgreement).toBeTruthy();
+            });
+
+            it('cancel billing agreement delegates to ui', function () {
+                binarta.checkpoint.profile.billing.cancel();
+                expect(ui.receivedCanceledBillingAgreementRequest).toBeTruthy();
+            });
+
+            it('confirm billing agreement delegates to gateway', function () {
+                sessionStorage.billingAgreementProvider = 'p';
+                binarta.shop.gateway = new GatewaySpy();
+                binarta.checkpoint.profile.billing.confirm({confirmationToken: 't'});
+                expect(binarta.shop.gateway.confirmBillingAgreementRequest).toEqual({
+                    paymentProvider: 'p',
+                    confirmationToken: 't'
+                });
+            });
+
+            it('confirm billing agreement delegates passes ui to gateway', function () {
+                binarta.shop.gateway = new InterfacesWithUIGateway();
+                binarta.checkpoint.profile.billing.confirm({});
+                expect(ui.isWiredToGateway).toBeTruthy();
+            });
+
+            it('confirm billing agreement delegates to ui', function () {
+                binarta.shop.gateway = new CompleteBillingProfileGateway();
+                binarta.checkpoint.profile.billing.confirm({});
+                expect(ui.confirmedBillingAgreementRequest).toBeTruthy();
+            });
+
+            it('when confirm billing agreement completes then billing details report as completed', function () {
+                binarta.shop.gateway = new CompleteBillingProfileGateway();
+                binarta.checkpoint.profile.billing.confirm({});
+                expect(binarta.checkpoint.profile.billing.isComplete()).toBeTruthy();
+            });
+        });
+
+        it('profile exposes a list of supported countries', function () {
+            expect(binarta.checkpoint.profile.supportedCountries()).toEqual([{
+                country: 'Albania',
+                code: 'AL'
+            }, {country: 'Algeria', code: 'DZ'}, {country: 'Argentina', code: 'AR'}, {
+                country: 'Australia',
+                code: 'AU'
+            }, {country: 'Austria', code: 'AT'}, {country: 'Bahrain', code: 'BH'}, {
+                country: 'Belarus',
+                code: 'BY'
+            }, {country: 'Belgium', code: 'BE'}, {
+                country: 'Bolivia',
+                code: 'BO'
+            }, {country: 'Bosnia and Herzegovina', code: 'BA'}, {
+                country: 'Brazil',
+                code: 'BR'
+            }, {country: 'Bulgaria', code: 'BG'}, {country: 'Canada', code: 'CA'}, {
+                country: 'Chile',
+                code: 'CL'
+            }, {country: 'China', code: 'CN'}, {country: 'Colombia', code: 'CO'}, {
+                country: 'Costa Rica',
+                code: 'CR'
+            }, {country: 'Croatia', code: 'HR'}, {country: 'Cuba', code: 'CU'}, {
+                country: 'Cyprus',
+                code: 'CY'
+            }, {country: 'Czech Republic', code: 'CZ'}, {
+                country: 'Denmark',
+                code: 'DK'
+            }, {country: 'Dominican Republic', code: 'DO'}, {country: 'Ecuador', code: 'EC'}, {
+                country: 'Egypt',
+                code: 'EG'
+            }, {country: 'El Salvador', code: 'SV'}, {country: 'Estonia', code: 'EE'}, {
+                country: 'Finland',
+                code: 'FI'
+            }, {country: 'France', code: 'FR'}, {country: 'Germany', code: 'DE'}, {
+                country: 'Greece',
+                code: 'GR'
+            }, {country: 'Guatemala', code: 'GT'}, {country: 'Honduras', code: 'HN'}, {
+                country: 'Hong Kong',
+                code: 'HK'
+            }, {country: 'Hungary', code: 'HU'}, {country: 'Iceland', code: 'IS'}, {
+                country: 'India',
+                code: 'IN'
+            }, {country: 'Indonesia', code: 'ID'}, {country: 'Iraq', code: 'IQ'}, {
+                country: 'Ireland',
+                code: 'IE'
+            }, {country: 'Israel', code: 'IL'}, {country: 'Italy', code: 'IT'}, {
+                country: 'Japan',
+                code: 'JP'
+            }, {country: 'Jordan', code: 'JO'}, {country: 'Kuwait', code: 'KW'}, {
+                country: 'Latvia',
+                code: 'LV'
+            }, {country: 'Lebanon', code: 'LB'}, {country: 'Libya', code: 'LY'}, {
+                country: 'Lithuania',
+                code: 'LT'
+            }, {country: 'Luxembourg', code: 'LU'}, {country: 'Macedonia', code: 'MK'}, {
+                country: 'Malaysia',
+                code: 'MY'
+            }, {country: 'Malta', code: 'MT'}, {country: 'Mexico', code: 'MX'}, {
+                country: 'Montenegro',
+                code: 'ME'
+            }, {country: 'Morocco', code: 'MA'}, {country: 'Netherlands', code: 'NL'}, {
+                country: 'New Zealand',
+                code: 'NZ'
+            }, {country: 'Nicaragua', code: 'NI'}, {country: 'Norway', code: 'NO'}, {
+                country: 'Oman',
+                code: 'OM'
+            }, {country: 'Panama', code: 'PA'}, {country: 'Paraguay', code: 'PY'}, {
+                country: 'Peru',
+                code: 'PE'
+            }, {country: 'Philippines', code: 'PH'}, {country: 'Poland', code: 'PL'}, {
+                country: 'Portugal',
+                code: 'PT'
+            }, {country: 'Puerto Rico', code: 'PR'}, {country: 'Qatar', code: 'QA'}, {
+                country: 'Romania',
+                code: 'RO'
+            }, {country: 'Russia', code: 'RU'}, {country: 'Saudi Arabia', code: 'SA'}, {
+                country: 'Serbia',
+                code: 'RS'
+            }, {country: 'Serbia and Montenegro', code: 'CS'}, {
+                country: 'Singapore',
+                code: 'SG'
+            }, {country: 'Slovakia', code: 'SK'}, {country: 'Slovenia', code: 'SI'}, {
+                country: 'South Africa',
+                code: 'ZA'
+            }, {country: 'South Korea', code: 'KR'}, {country: 'Spain', code: 'ES'}, {
+                country: 'Sudan',
+                code: 'SD'
+            }, {country: 'Sweden', code: 'SE'}, {country: 'Switzerland', code: 'CH'}, {
+                country: 'Syria',
+                code: 'SY'
+            }, {country: 'Taiwan', code: 'TW'}, {country: 'Thailand', code: 'TH'}, {
+                country: 'Tunisia',
+                code: 'TN'
+            }, {country: 'Turkey', code: 'TR'}, {
+                country: 'Ukraine',
+                code: 'UA'
+            }, {country: 'United Arab Emirates', code: 'AE'}, {
+                country: 'United Kingdom',
+                code: 'GB'
+            }, {country: 'United States', code: 'US'}, {country: 'Uruguay', code: 'UY'}, {
+                country: 'Venezuela',
+                code: 'VE'
+            }, {country: 'Vietnam', code: 'VN'}, {country: 'Yemen', code: 'YE'}]);
+        });
+    });
+
+    describe('coupon dictionary', function () {
+        var spy;
+
+        beforeEach(function () {
+            spy = jasmine.createSpyObj('spy', ['notFound', 'ok']);
+        });
+
+        it('find by id performs lookup', function () {
+            binarta.shop.gateway = new GatewaySpy();
+            binarta.shop.couponDictionary.findById('x');
+            expect(binarta.shop.gateway.findCouponByIdRequest).toEqual({id: 'x'});
+        });
+
+        it('find by unknown id presents not found', function () {
+            binarta.shop.gateway = new InvalidOrderGateway();
+            binarta.shop.couponDictionary.findById('-', spy);
+            expect(spy.notFound).toHaveBeenCalled();
+        });
+
+        it('find by known id presents coupon details', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.couponDictionary.findById('-', spy);
+            expect(spy.ok).toHaveBeenCalledWith('coupon');
+        });
+
+        it('contains performs lookup', function () {
+            binarta.shop.gateway = new GatewaySpy();
+            binarta.shop.couponDictionary.contains('x');
+            expect(binarta.shop.gateway.containsCouponRequest).toEqual({id: 'x'})
+        });
+
+        it('contains with unknown id presents not found', function () {
+            binarta.shop.gateway = new InvalidOrderGateway();
+            binarta.shop.couponDictionary.contains('-', spy);
+            expect(spy.notFound).toHaveBeenCalled();
+        });
+
+        it('contains with known id presents result', function () {
+            binarta.shop.gateway = new ValidOrderGateway();
+            binarta.shop.couponDictionary.contains('-', spy);
+            expect(spy.ok).toHaveBeenCalledWith('contains-response');
+        });
+    });
+
+    describe('stripe', function () {
+        var spy, observer;
+
+        beforeEach(function () {
+            spy = jasmine.createSpyObj('spy', ['status', 'goto', 'connected']);
+            binarta.shop.gateway = new GatewaySpy();
+            observer = binarta.shop.stripe.observe(spy);
+        });
+
+        afterEach(function () {
+            observer.disconnect();
+        });
+
+        it('observers are immediately notified of the current working status', function () {
+            expect(spy.status).toHaveBeenCalledWith('working');
+        });
+
+        it('checks if stripe is connected', function () {
+            expect(binarta.shop.gateway.stripeConnectedRequest).toEqual({});
+        });
+
+        it('connecting is not yet possible', function () {
+            expect(binarta.shop.stripe.connect).toThrowError();
+        });
+
+        it('disconnecting is not yet possible', function () {
+            expect(binarta.shop.stripe.disconnect).toThrowError();
+        });
+
+        describe('installing additional observers', function () {
+            var secondObserver;
+
+            beforeEach(function () {
+                spy.status.calls.reset();
+                binarta.shop.gateway.stripeConnectedRequest = undefined;
+                secondObserver = binarta.shop.stripe.observe(spy);
+            });
+
+            afterEach(function () {
+                secondObserver.disconnect();
+            });
+
+            it('does not generate an additional working status update', function () {
+                expect(spy.status).not.toHaveBeenCalledWith('working');
+            });
+
+            it('does not check if stripe is connected', function () {
+                expect(binarta.shop.gateway.stripeConnectedRequest).toBeUndefined();
+            });
+        });
+
+        describe('when connected', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.stripeConnectedResponse.success('account-id');
+            });
+
+            it('observers are notified of the current connected status', function () {
+                expect(spy.status).toHaveBeenCalledWith('connected');
+            });
+
+            it('observers are notified of account we are connected to', function () {
+                expect(spy.connected).toHaveBeenCalledWith('account-id');
+            });
+
+            it('connecting again is not possible', function () {
+                expect(binarta.shop.stripe.connect).toThrowError();
+            });
+
+            it('new observers are notified of the current status and account id', function () {
+                var spy = jasmine.createSpyObj('spy', ['status', 'connected']);
+                binarta.shop.stripe.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('connected');
+                expect(spy.connected).toHaveBeenCalledWith('account-id');
+            });
+
+            describe('on disconnect', function () {
+                beforeEach(function () {
+                    binarta.shop.stripe.disconnect();
+                });
+
+                it('observers are notified of the new working status', function () {
                     expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                it('checks if stripe is connected', function () {
-                    expect(binarta.shop.gateway.stripeConnectedRequest).toEqual({});
+                it('perform a stripe connect request on the gateway', function () {
+                    expect(binarta.shop.gateway.stripeDisconnectRequest).toEqual({});
                 });
 
-                it('connecting is not yet possible', function () {
-                    expect(binarta.shop.stripe.connect).toThrowError();
-                });
-
-                it('disconnecting is not yet possible', function () {
-                    expect(binarta.shop.stripe.disconnect).toThrowError();
-                });
-
-                describe('installing additional observers', function () {
-                    var secondObserver;
-
+                describe('success', function () {
                     beforeEach(function () {
-                        spy.status.calls.reset();
-                        binarta.shop.gateway.stripeConnectedRequest = undefined;
-                        secondObserver = binarta.shop.stripe.observe(spy);
+                        binarta.shop.gateway.stripeDisconnectResponse.success();
                     });
 
-                    afterEach(function () {
-                        secondObserver.disconnect();
-                    });
-
-                    it('does not generate an additional working status update', function () {
-                        expect(spy.status).not.toHaveBeenCalledWith('working');
-                    });
-
-                    it('does not check if stripe is connected', function () {
-                        expect(binarta.shop.gateway.stripeConnectedRequest).toBeUndefined();
-                    });
-                });
-
-                describe('when connected', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway.stripeConnectedResponse.success('account-id');
-                    });
-
-                    it('observers are notified of the current connected status', function () {
-                        expect(spy.status).toHaveBeenCalledWith('connected');
-                    });
-
-                    it('observers are notified of account we are connected to', function () {
-                        expect(spy.connected).toHaveBeenCalledWith('account-id');
-                    });
-
-                    it('connecting again is not possible', function () {
-                        expect(binarta.shop.stripe.connect).toThrowError();
-                    });
-
-                    it('new observers are notified of the current status and account id', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status', 'connected']);
-                        binarta.shop.stripe.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('connected');
-                        expect(spy.connected).toHaveBeenCalledWith('account-id');
-                    });
-
-                    describe('on disconnect', function () {
-                        beforeEach(function () {
-                            binarta.shop.stripe.disconnect();
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a stripe connect request on the gateway', function () {
-                            expect(binarta.shop.gateway.stripeDisconnectRequest).toEqual({});
-                        });
-
-                        describe('success', function () {
-                            beforeEach(function () {
-                                binarta.shop.gateway.stripeDisconnectResponse.success();
-                            });
-
-                            it('observers are notified of the new disconnected status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('disconnected');
-                            });
-                        });
-                    });
-                });
-
-                describe('when disconnected', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway.stripeConnectedResponse.notFound();
-                    });
-
-                    it('new observers are notified of the current status', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status']);
-                        binarta.shop.stripe.observe(spy).disconnect();
+                    it('observers are notified of the new disconnected status', function () {
                         expect(spy.status).toHaveBeenCalledWith('disconnected');
                     });
-
-                    it('disconnecting again is not possible', function () {
-                        expect(binarta.shop.stripe.disconnect).toThrowError();
-                    });
-
-                    describe('on connect', function () {
-                        beforeEach(function () {
-                            binarta.application.setLocaleForPresentation('en');
-                            binarta.shop.stripe.connect();
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a stripe connect request on the gateway', function () {
-                            expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
-                        });
-                    });
-
-                    describe('on connect with success response', function () {
-                        beforeEach(function () {
-                            spy.status.calls.reset();
-                            binarta.shop.gateway = new ValidPaymentGateway();
-                            binarta.shop.stripe.connect();
-                        });
-
-                        it('observers are asked to visit the connect uri', function () {
-                            expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
-                        });
-                    });
                 });
             });
+        });
 
-            describe('paymentOnReceipt', function () {
-                var spy, observer;
+        describe('when disconnected', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.stripeConnectedResponse.notFound();
+            });
 
+            it('new observers are notified of the current status', function () {
+                var spy = jasmine.createSpyObj('spy', ['status']);
+                binarta.shop.stripe.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('disconnected');
+            });
+
+            it('disconnecting again is not possible', function () {
+                expect(binarta.shop.stripe.disconnect).toThrowError();
+            });
+
+            describe('on connect', function () {
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'params']);
-                    binarta.shop.gateway = new GatewaySpy();
-                    observer = binarta.shop.paymentOnReceipt.observe(spy);
+                    binarta.application.setLocaleForPresentation('en');
+                    binarta.shop.stripe.connect();
                 });
 
-                afterEach(function () {
-                    observer.disconnect();
-                });
-
-                it('observers are immediately notified of the current working status', function () {
+                it('observers are notified of the new working status', function () {
                     expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                it('requests params', function () {
-                    expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toEqual({});
+                it('perform a stripe connect request on the gateway', function () {
+                    expect(binarta.shop.gateway.stripeConnectRequest).toEqual({locale: 'en'});
+                });
+            });
+
+            describe('on connect with success response', function () {
+                beforeEach(function () {
+                    spy.status.calls.reset();
+                    binarta.shop.gateway = new ValidPaymentGateway();
+                    binarta.shop.stripe.connect();
                 });
 
-                it('configuring is not yet possible', function () {
-                    expect(binarta.shop.paymentOnReceipt.configure).toThrowError();
+                it('observers are asked to visit the connect uri', function () {
+                    expect(spy.goto).toHaveBeenCalledWith('stripe-connect-uri');
+                });
+            });
+        });
+    });
+
+    describe('paymentOnReceipt', function () {
+        var spy, observer;
+
+        beforeEach(function () {
+            spy = jasmine.createSpyObj('spy', ['status', 'params']);
+            binarta.shop.gateway = new GatewaySpy();
+            observer = binarta.shop.paymentOnReceipt.observe(spy);
+        });
+
+        afterEach(function () {
+            observer.disconnect();
+        });
+
+        it('observers are immediately notified of the current working status', function () {
+            expect(spy.status).toHaveBeenCalledWith('working');
+        });
+
+        it('requests params', function () {
+            expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toEqual({});
+        });
+
+        it('configuring is not yet possible', function () {
+            expect(binarta.shop.paymentOnReceipt.configure).toThrowError();
+        });
+
+        it('disabling is not yet possible', function () {
+            expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+        });
+
+        describe('installing additional observers', function () {
+            var secondObserver;
+
+            beforeEach(function () {
+                spy.status.calls.reset();
+                binarta.shop.gateway.getPaymentOnReceiptParamsRequest = undefined;
+                secondObserver = binarta.shop.paymentOnReceipt.observe(spy);
+            });
+
+            afterEach(function () {
+                secondObserver.disconnect();
+            });
+
+            it('does not generate an additional working status update', function () {
+                expect(spy.status).not.toHaveBeenCalledWith('working');
+            });
+
+            it('does not check for bancontact params', function () {
+                expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toBeUndefined();
+            });
+        });
+
+        describe('when configured', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getPaymentOnReceiptParamsResponse.success({});
+            });
+
+            it('observers are notified of the current configured status', function () {
+                expect(spy.status).toHaveBeenCalledWith('configured');
+            });
+
+            it('observers are notified of the params', function () {
+                expect(spy.params).toHaveBeenCalledWith({});
+            });
+
+            it('configuring again is possible', function () {
+                expect(binarta.shop.paymentOnReceipt.configure).not.toThrowError();
+            });
+
+            it('new observers are notified of the current status and params', function () {
+                var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('configured');
+                expect(spy.params).toHaveBeenCalledWith({});
+            });
+
+            describe('on disable', function () {
+                beforeEach(function () {
+                    binarta.shop.paymentOnReceipt.disable();
                 });
 
-                it('disabling is not yet possible', function () {
-                    expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+                it('observers are notified of the new working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                describe('installing additional observers', function () {
-                    var secondObserver;
+                it('perform a cc disable request on the gateway', function () {
+                    expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'payment-on-receipt'});
+                });
 
+                describe('success', function () {
+                    beforeEach(function () {
+                        binarta.shop.gateway.disablePaymentMethodResponse.success();
+                    });
+
+                    it('observers are notified of the new disabled status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    });
+
+                    it('observers are notified of the updated params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({});
+                    });
+                });
+            });
+        });
+
+        describe('when disabled', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getPaymentOnReceiptParamsResponse.notFound();
+            });
+
+            it('new observers are notified of the current status', function () {
+                var spy = jasmine.createSpyObj('spy', ['status']);
+                binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('disabled');
+            });
+
+            it('disabling again is not possible', function () {
+                expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
+            });
+
+            describe('on configure', function () {
+                beforeEach(function () {
+                    binarta.shop.paymentOnReceipt.configure({});
+                });
+
+                it('observers are notified of the new working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('perform a bancontact configure request on the gateway', function () {
+                    expect(binarta.shop.gateway.configurePaymentOnReceiptRequest).toEqual({});
+                });
+
+                describe('on success', function () {
                     beforeEach(function () {
                         spy.status.calls.reset();
-                        binarta.shop.gateway.getPaymentOnReceiptParamsRequest = undefined;
-                        secondObserver = binarta.shop.paymentOnReceipt.observe(spy);
+                        binarta.shop.gateway.configurePaymentOnReceiptResponse.success();
                     });
 
-                    afterEach(function () {
-                        secondObserver.disconnect();
-                    });
-
-                    it('does not generate an additional working status update', function () {
-                        expect(spy.status).not.toHaveBeenCalledWith('working');
-                    });
-
-                    it('does not check for bancontact params', function () {
-                        expect(binarta.shop.gateway.getPaymentOnReceiptParamsRequest).toBeUndefined();
-                    });
-                });
-
-                describe('when configured', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.success({});
-                    });
-
-                    it('observers are notified of the current configured status', function () {
+                    it('observers are notified of the new configured status', function () {
                         expect(spy.status).toHaveBeenCalledWith('configured');
                     });
 
                     it('observers are notified of the params', function () {
                         expect(spy.params).toHaveBeenCalledWith({});
                     });
+                });
+            });
+        });
+    });
 
-                    it('configuring again is possible', function () {
-                        expect(binarta.shop.paymentOnReceipt.configure).not.toThrowError();
-                    });
+    describe('cc', function () {
+        var spy, observer;
 
-                    it('new observers are notified of the current status and params', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
-                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('configured');
-                        expect(spy.params).toHaveBeenCalledWith({});
-                    });
+        beforeEach(function () {
+            spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
+            binarta.shop.gateway = new GatewaySpy();
+            observer = binarta.shop.cc.observe(spy);
+        });
 
-                    describe('on disable', function () {
-                        beforeEach(function () {
-                            binarta.shop.paymentOnReceipt.disable();
-                        });
+        afterEach(function () {
+            observer.disconnect();
+        });
 
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
+        it('observers are immediately notified of the current working status', function () {
+            expect(spy.status).toHaveBeenCalledWith('working');
+        });
 
-                        it('perform a cc disable request on the gateway', function () {
-                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'payment-on-receipt'});
-                        });
+        it('requests cc params', function () {
+            expect(binarta.shop.gateway.getCCParamsRequest).toEqual({});
+        });
 
-                        describe('success', function () {
-                            beforeEach(function () {
-                                binarta.shop.gateway.disablePaymentMethodResponse.success();
-                            });
+        it('configuring is not yet possible', function () {
+            expect(binarta.shop.cc.configure).toThrowError();
+        });
 
-                            it('observers are notified of the new disabled status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('disabled');
-                            });
+        it('disabling is not yet possible', function () {
+            expect(binarta.shop.cc.disable).toThrowError();
+        });
 
-                            it('observers are notified of the updated params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({});
-                            });
-                        });
-                    });
+        describe('installing additional observers', function () {
+            var secondObserver;
+
+            beforeEach(function () {
+                spy.status.calls.reset();
+                binarta.shop.gateway.getCCParamsRequest = undefined;
+                secondObserver = binarta.shop.cc.observe(spy);
+            });
+
+            afterEach(function () {
+                secondObserver.disconnect();
+            });
+
+            it('does not generate an additional working status update', function () {
+                expect(spy.status).not.toHaveBeenCalledWith('working');
+            });
+
+            it('does not check for bancontact params', function () {
+                expect(binarta.shop.gateway.getCCParamsRequest).toBeUndefined();
+            });
+        });
+
+        describe('when configured', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getCCParamsResponse.success({
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            it('observers are notified of the current configured status', function () {
+                expect(spy.status).toHaveBeenCalledWith('configured');
+            });
+
+            it('observers are notified of the params', function () {
+                expect(spy.params).toHaveBeenCalledWith({
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            it('configuring again is possible', function () {
+                expect(binarta.shop.cc.configure).not.toThrowError();
+            });
+
+            it('new observers are notified of the current status and params', function () {
+                var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                binarta.shop.cc.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('configured');
+                expect(spy.params).toHaveBeenCalledWith({
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            describe('on disable', function () {
+                beforeEach(function () {
+                    binarta.shop.cc.disable();
                 });
 
-                describe('when disabled', function () {
+                it('observers are notified of the new working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('perform a cc disable request on the gateway', function () {
+                    expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'cc'});
+                });
+
+                describe('success', function () {
                     beforeEach(function () {
-                        binarta.shop.gateway.getPaymentOnReceiptParamsResponse.notFound();
+                        binarta.shop.gateway.disablePaymentMethodResponse.success();
                     });
 
-                    it('new observers are notified of the current status', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status']);
-                        binarta.shop.paymentOnReceipt.observe(spy).disconnect();
+                    it('observers are notified of the new disabled status', function () {
                         expect(spy.status).toHaveBeenCalledWith('disabled');
                     });
 
-                    it('disabling again is not possible', function () {
-                        expect(binarta.shop.paymentOnReceipt.disable).toThrowError();
-                    });
-
-                    describe('on configure', function () {
-                        beforeEach(function () {
-                            binarta.shop.paymentOnReceipt.configure({});
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a bancontact configure request on the gateway', function () {
-                            expect(binarta.shop.gateway.configurePaymentOnReceiptRequest).toEqual({});
-                        });
-
-                        describe('on success', function () {
-                            beforeEach(function () {
-                                spy.status.calls.reset();
-                                binarta.shop.gateway.configurePaymentOnReceiptResponse.success();
-                            });
-
-                            it('observers are notified of the new configured status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('configured');
-                            });
-
-                            it('observers are notified of the params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({});
-                            });
+                    it('observers are notified of the updated params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({
+                            supportedBy: ['piggybank', 'megabank']
                         });
                     });
                 });
             });
+        });
 
-            describe('cc', function () {
-                var spy, observer;
+        describe('when disabled', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getCCParamsResponse.success({
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
 
+            it('new observers are notified of the current status', function () {
+                var spy = jasmine.createSpyObj('spy', ['status']);
+                binarta.shop.cc.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('disabled');
+            });
+
+            it('disabling again is not possible', function () {
+                expect(binarta.shop.cc.disable).toThrowError();
+            });
+
+            describe('on configure', function () {
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
-                    binarta.shop.gateway = new GatewaySpy();
-                    observer = binarta.shop.cc.observe(spy);
+                    binarta.shop.cc.configure({
+                        bankId: 'piggybank'
+                    });
                 });
 
-                afterEach(function () {
-                    observer.disconnect();
-                });
-
-                it('observers are immediately notified of the current working status', function () {
+                it('observers are notified of the new working status', function () {
                     expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                it('requests cc params', function () {
-                    expect(binarta.shop.gateway.getCCParamsRequest).toEqual({});
+                it('perform a bancontact configure request on the gateway', function () {
+                    expect(binarta.shop.gateway.configureCCRequest).toEqual({
+                        bankId: 'piggybank'
+                    });
                 });
 
-                it('configuring is not yet possible', function () {
-                    expect(binarta.shop.cc.configure).toThrowError();
-                });
-
-                it('disabling is not yet possible', function () {
-                    expect(binarta.shop.cc.disable).toThrowError();
-                });
-
-                describe('installing additional observers', function () {
-                    var secondObserver;
-
+                describe('on success', function () {
                     beforeEach(function () {
                         spy.status.calls.reset();
-                        binarta.shop.gateway.getCCParamsRequest = undefined;
-                        secondObserver = binarta.shop.cc.observe(spy);
+                        binarta.shop.gateway.configureCCResponse.success();
                     });
 
-                    afterEach(function () {
-                        secondObserver.disconnect();
-                    });
-
-                    it('does not generate an additional working status update', function () {
-                        expect(spy.status).not.toHaveBeenCalledWith('working');
-                    });
-
-                    it('does not check for bancontact params', function () {
-                        expect(binarta.shop.gateway.getCCParamsRequest).toBeUndefined();
-                    });
-                });
-
-                describe('when configured', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway.getCCParamsResponse.success({
-                            bankId: 'piggybank',
-                            supportedBy: ['piggybank', 'megabank']
-                        });
-                    });
-
-                    it('observers are notified of the current configured status', function () {
+                    it('observers are notified of the new configured status', function () {
                         expect(spy.status).toHaveBeenCalledWith('configured');
                     });
 
@@ -2198,187 +2292,191 @@
                             supportedBy: ['piggybank', 'megabank']
                         });
                     });
-
-                    it('configuring again is possible', function () {
-                        expect(binarta.shop.cc.configure).not.toThrowError();
-                    });
-
-                    it('new observers are notified of the current status and params', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
-                        binarta.shop.cc.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('configured');
-                        expect(spy.params).toHaveBeenCalledWith({
-                            bankId: 'piggybank',
-                            supportedBy: ['piggybank', 'megabank']
-                        });
-                    });
-
-                    describe('on disable', function () {
-                        beforeEach(function () {
-                            binarta.shop.cc.disable();
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a cc disable request on the gateway', function () {
-                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'cc'});
-                        });
-
-                        describe('success', function () {
-                            beforeEach(function () {
-                                binarta.shop.gateway.disablePaymentMethodResponse.success();
-                            });
-
-                            it('observers are notified of the new disabled status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('disabled');
-                            });
-
-                            it('observers are notified of the updated params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({
-                                    supportedBy: ['piggybank', 'megabank']
-                                });
-                            });
-                        });
-                    });
                 });
 
-                describe('when disabled', function () {
+                describe('on rejected', function () {
                     beforeEach(function () {
-                        binarta.shop.gateway.getCCParamsResponse.success({
-                            supportedBy: ['piggybank', 'megabank']
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.configureCCResponse.rejected({
+                            bankId: ['required']
                         });
                     });
 
-                    it('new observers are notified of the current status', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status']);
-                        binarta.shop.cc.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    it('observers do not get a new status event', function () {
+                        expect(spy.status).not.toHaveBeenCalled();
                     });
 
-                    it('disabling again is not possible', function () {
-                        expect(binarta.shop.cc.disable).toThrowError();
-                    });
-
-                    describe('on configure', function () {
-                        beforeEach(function () {
-                            binarta.shop.cc.configure({
-                                bankId: 'piggybank'
-                            });
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a bancontact configure request on the gateway', function () {
-                            expect(binarta.shop.gateway.configureCCRequest).toEqual({
-                                bankId: 'piggybank'
-                            });
-                        });
-
-                        describe('on success', function () {
-                            beforeEach(function () {
-                                spy.status.calls.reset();
-                                binarta.shop.gateway.configureCCResponse.success();
-                            });
-
-                            it('observers are notified of the new configured status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('configured');
-                            });
-
-                            it('observers are notified of the params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({
-                                    bankId: 'piggybank',
-                                    supportedBy: ['piggybank', 'megabank']
-                                });
-                            });
-                        });
-
-                        describe('on rejected', function () {
-                            beforeEach(function () {
-                                spy.status.calls.reset();
-                                binarta.shop.gateway.configureCCResponse.rejected({
-                                    bankId: ['required']
-                                });
-                            });
-
-                            it('observers do not get a new status event', function () {
-                                expect(spy.status).not.toHaveBeenCalled();
-                            });
-
-                            it('observers are notified of the violation report', function () {
-                                expect(spy.rejected).toHaveBeenCalledWith({
-                                    bankId: ['required']
-                                });
-                            });
+                    it('observers are notified of the violation report', function () {
+                        expect(spy.rejected).toHaveBeenCalledWith({
+                            bankId: ['required']
                         });
                     });
                 });
             });
+        });
+    });
 
-            describe('bancontact', function () {
-                var spy, observer;
+    describe('bancontact', function () {
+        var spy, observer;
 
+        beforeEach(function () {
+            spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
+            binarta.shop.gateway = new GatewaySpy();
+            observer = binarta.shop.bancontact.observe(spy);
+        });
+
+        afterEach(function () {
+            observer.disconnect();
+        });
+
+        it('observers are immediately notified of the current working status', function () {
+            expect(spy.status).toHaveBeenCalledWith('working');
+        });
+
+        it('requests bancontact params', function () {
+            expect(binarta.shop.gateway.getBancontactParamsRequest).toEqual({});
+        });
+
+        it('configuring is not yet possible', function () {
+            expect(binarta.shop.bancontact.configure).toThrowError();
+        });
+
+        it('disabling is not yet possible', function () {
+            expect(binarta.shop.bancontact.disable).toThrowError();
+        });
+
+        describe('installing additional observers', function () {
+            var secondObserver;
+
+            beforeEach(function () {
+                spy.status.calls.reset();
+                binarta.shop.gateway.getBancontactParamsRequest = undefined;
+                secondObserver = binarta.shop.bancontact.observe(spy);
+            });
+
+            afterEach(function () {
+                secondObserver.disconnect();
+            });
+
+            it('does not generate an additional working status update', function () {
+                expect(spy.status).not.toHaveBeenCalledWith('working');
+            });
+
+            it('does not check for bancontact params', function () {
+                expect(binarta.shop.gateway.getBancontactParamsRequest).toBeUndefined();
+            });
+        });
+
+        describe('when configured', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getBancontactParamsResponse.success({
+                    owner: 'John Doe',
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            it('observers are notified of the current configured status', function () {
+                expect(spy.status).toHaveBeenCalledWith('configured');
+            });
+
+            it('observers are notified of the params', function () {
+                expect(spy.params).toHaveBeenCalledWith({
+                    owner: 'John Doe',
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            it('configuring again is possible', function () {
+                expect(binarta.shop.bancontact.configure).not.toThrowError();
+            });
+
+            it('new observers are notified of the current status and params', function () {
+                var spy = jasmine.createSpyObj('spy', ['status', 'params']);
+                binarta.shop.bancontact.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('configured');
+                expect(spy.params).toHaveBeenCalledWith({
+                    owner: 'John Doe',
+                    bankId: 'piggybank',
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            describe('on disable', function () {
                 beforeEach(function () {
-                    spy = jasmine.createSpyObj('spy', ['status', 'params', 'rejected']);
-                    binarta.shop.gateway = new GatewaySpy();
-                    observer = binarta.shop.bancontact.observe(spy);
+                    binarta.shop.bancontact.disable();
                 });
 
-                afterEach(function () {
-                    observer.disconnect();
-                });
-
-                it('observers are immediately notified of the current working status', function () {
+                it('observers are notified of the new working status', function () {
                     expect(spy.status).toHaveBeenCalledWith('working');
                 });
 
-                it('requests bancontact params', function () {
-                    expect(binarta.shop.gateway.getBancontactParamsRequest).toEqual({});
+                it('perform a bancontact disable request on the gateway', function () {
+                    expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'bancontact'});
                 });
 
-                it('configuring is not yet possible', function () {
-                    expect(binarta.shop.bancontact.configure).toThrowError();
-                });
-
-                it('disabling is not yet possible', function () {
-                    expect(binarta.shop.bancontact.disable).toThrowError();
-                });
-
-                describe('installing additional observers', function () {
-                    var secondObserver;
-
+                describe('success', function () {
                     beforeEach(function () {
-                        spy.status.calls.reset();
-                        binarta.shop.gateway.getBancontactParamsRequest = undefined;
-                        secondObserver = binarta.shop.bancontact.observe(spy);
+                        binarta.shop.gateway.disablePaymentMethodResponse.success();
                     });
 
-                    afterEach(function () {
-                        secondObserver.disconnect();
+                    it('observers are notified of the new disabled status', function () {
+                        expect(spy.status).toHaveBeenCalledWith('disabled');
                     });
 
-                    it('does not generate an additional working status update', function () {
-                        expect(spy.status).not.toHaveBeenCalledWith('working');
-                    });
-
-                    it('does not check for bancontact params', function () {
-                        expect(binarta.shop.gateway.getBancontactParamsRequest).toBeUndefined();
-                    });
-                });
-
-                describe('when configured', function () {
-                    beforeEach(function () {
-                        binarta.shop.gateway.getBancontactParamsResponse.success({
-                            owner: 'John Doe',
-                            bankId: 'piggybank',
+                    it('observers are notified of the updated params', function () {
+                        expect(spy.params).toHaveBeenCalledWith({
                             supportedBy: ['piggybank', 'megabank']
                         });
                     });
+                });
+            });
+        });
 
-                    it('observers are notified of the current configured status', function () {
+        describe('when disabled', function () {
+            beforeEach(function () {
+                binarta.shop.gateway.getBancontactParamsResponse.success({
+                    supportedBy: ['piggybank', 'megabank']
+                });
+            });
+
+            it('new observers are notified of the current status', function () {
+                var spy = jasmine.createSpyObj('spy', ['status']);
+                binarta.shop.bancontact.observe(spy).disconnect();
+                expect(spy.status).toHaveBeenCalledWith('disabled');
+            });
+
+            it('disabling again is not possible', function () {
+                expect(binarta.shop.bancontact.disable).toThrowError();
+            });
+
+            describe('on configure', function () {
+                beforeEach(function () {
+                    binarta.shop.bancontact.configure({
+                        owner: 'John Doe',
+                        bankId: 'piggybank'
+                    });
+                });
+
+                it('observers are notified of the new working status', function () {
+                    expect(spy.status).toHaveBeenCalledWith('working');
+                });
+
+                it('perform a bancontact configure request on the gateway', function () {
+                    expect(binarta.shop.gateway.configureBancontactRequest).toEqual({
+                        owner: 'John Doe',
+                        bankId: 'piggybank'
+                    });
+                });
+
+                describe('on success', function () {
+                    beforeEach(function () {
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.configureBancontactResponse.success();
+                    });
+
+                    it('observers are notified of the new configured status', function () {
                         expect(spy.status).toHaveBeenCalledWith('configured');
                     });
 
@@ -2389,175 +2487,216 @@
                             supportedBy: ['piggybank', 'megabank']
                         });
                     });
-
-                    it('configuring again is possible', function () {
-                        expect(binarta.shop.bancontact.configure).not.toThrowError();
-                    });
-
-                    it('new observers are notified of the current status and params', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status', 'params']);
-                        binarta.shop.bancontact.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('configured');
-                        expect(spy.params).toHaveBeenCalledWith({
-                            owner: 'John Doe',
-                            bankId: 'piggybank',
-                            supportedBy: ['piggybank', 'megabank']
-                        });
-                    });
-
-                    describe('on disable', function () {
-                        beforeEach(function () {
-                            binarta.shop.bancontact.disable();
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a bancontact disable request on the gateway', function () {
-                            expect(binarta.shop.gateway.disablePaymentMethodRequest).toEqual({id: 'bancontact'});
-                        });
-
-                        describe('success', function () {
-                            beforeEach(function () {
-                                binarta.shop.gateway.disablePaymentMethodResponse.success();
-                            });
-
-                            it('observers are notified of the new disabled status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('disabled');
-                            });
-
-                            it('observers are notified of the updated params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({
-                                    supportedBy: ['piggybank', 'megabank']
-                                });
-                            });
-                        });
-                    });
                 });
 
-                describe('when disabled', function () {
+                describe('on rejected', function () {
                     beforeEach(function () {
-                        binarta.shop.gateway.getBancontactParamsResponse.success({
-                            supportedBy: ['piggybank', 'megabank']
+                        spy.status.calls.reset();
+                        binarta.shop.gateway.configureBancontactResponse.rejected({
+                            bankId: ['required'],
+                            ownerName: ['required']
                         });
                     });
 
-                    it('new observers are notified of the current status', function () {
-                        var spy = jasmine.createSpyObj('spy', ['status']);
-                        binarta.shop.bancontact.observe(spy).disconnect();
-                        expect(spy.status).toHaveBeenCalledWith('disabled');
+                    it('observers do not get a new status event', function () {
+                        expect(spy.status).not.toHaveBeenCalled();
                     });
 
-                    it('disabling again is not possible', function () {
-                        expect(binarta.shop.bancontact.disable).toThrowError();
-                    });
-
-                    describe('on configure', function () {
-                        beforeEach(function () {
-                            binarta.shop.bancontact.configure({
-                                owner: 'John Doe',
-                                bankId: 'piggybank'
-                            });
-                        });
-
-                        it('observers are notified of the new working status', function () {
-                            expect(spy.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('perform a bancontact configure request on the gateway', function () {
-                            expect(binarta.shop.gateway.configureBancontactRequest).toEqual({
-                                owner: 'John Doe',
-                                bankId: 'piggybank'
-                            });
-                        });
-
-                        describe('on success', function () {
-                            beforeEach(function () {
-                                spy.status.calls.reset();
-                                binarta.shop.gateway.configureBancontactResponse.success();
-                            });
-
-                            it('observers are notified of the new configured status', function () {
-                                expect(spy.status).toHaveBeenCalledWith('configured');
-                            });
-
-                            it('observers are notified of the params', function () {
-                                expect(spy.params).toHaveBeenCalledWith({
-                                    owner: 'John Doe',
-                                    bankId: 'piggybank',
-                                    supportedBy: ['piggybank', 'megabank']
-                                });
-                            });
-                        });
-
-                        describe('on rejected', function () {
-                            beforeEach(function () {
-                                spy.status.calls.reset();
-                                binarta.shop.gateway.configureBancontactResponse.rejected({
-                                    bankId: ['required'],
-                                    ownerName: ['required']
-                                });
-                            });
-
-                            it('observers do not get a new status event', function () {
-                                expect(spy.status).not.toHaveBeenCalled();
-                            });
-
-                            it('observers are notified of the violation report', function () {
-                                expect(spy.rejected).toHaveBeenCalledWith({
-                                    bankId: ['required'],
-                                    owner: ['required']
-                                });
-                            });
+                    it('observers are notified of the violation report', function () {
+                        expect(spy.rejected).toHaveBeenCalledWith({
+                            bankId: ['required'],
+                            owner: ['required']
                         });
                     });
                 });
             });
+        });
+    });
 
-            describe('delivery methods', function () {
-                var ui, db, observer;
+    describe('delivery methods', function () {
+        var ui, db, observer;
+
+        beforeEach(function () {
+            ui = jasmine.createSpyObj('ui', ['status', 'activeDeliveryMethod', 'supportedDeliveryMethods', 'rejected']);
+            db = jasmine.createSpyObj('db', ['getDeliveryMethodParams', 'activateDeliveryMethod', 'fetchBillingProfile', 'fetchAddresses']);
+            binarta.shop.gateway = db;
+        });
+
+        it('is a widget', function () {
+            expect(binarta.shop.deliveryMethods.constructor.name).toEqual('Widget');
+        });
+
+        it('params are not yet requested', function () {
+            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+        });
+
+        describe('when installing an observer', function () {
+            beforeEach(function () {
+                observer = binarta.shop.deliveryMethods.observe(ui);
+            });
+
+            afterEach(function () {
+                observer.disconnect();
+            });
+
+            it('observers are immediately notified of the current idle status', function () {
+                expect(ui.status).toHaveBeenCalledWith('idle');
+            });
+
+            it('observers are not yet notified of an active delivery method', function () {
+                expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+            });
+
+            it('params are still not requested', function () {
+                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+            });
+
+            describe('installing additional observers', function () {
+                var secondObserver;
 
                 beforeEach(function () {
-                    ui = jasmine.createSpyObj('ui', ['status', 'activeDeliveryMethod', 'supportedDeliveryMethods', 'rejected']);
-                    db = jasmine.createSpyObj('db', ['getDeliveryMethodParams', 'activateDeliveryMethod', 'fetchBillingProfile', 'fetchAddresses']);
-                    binarta.shop.gateway = db;
+                    ui.status.calls.reset();
+                    secondObserver = binarta.shop.deliveryMethods.observe(ui);
                 });
 
-                it('is a widget', function () {
-                    expect(binarta.shop.deliveryMethods.constructor.name).toEqual('Widget');
+                afterEach(function () {
+                    secondObserver.disconnect();
                 });
 
-                it('params are not yet requested', function () {
+                it('additional observer is also notified of current idle status', function () {
+                    expect(ui.status).toHaveBeenCalledWith('idle');
+                });
+
+                it('params are still not requested', function () {
                     expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
                 });
+            });
 
-                describe('when installing an observer', function () {
+            describe('when an application profile is set', function () {
+                beforeEach(function () {
+                    binarta.application.setProfile({activeDeliveryMethod: 'shipping'});
+                });
+
+                it('then observers are notified of the active delivery method', function () {
+                    expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                });
+
+                it('additional observers are immediately notified of the previously discovered active delivery method', function () {
+                    ui.activeDeliveryMethod.calls.reset();
+                    binarta.shop.deliveryMethods.observe(ui).disconnect();
+                    expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                });
+            });
+
+            it('with the wrong permission do not request params', function () {
+                binarta.checkpoint.gateway = new WithPermissionsGateway(['-']);
+                binarta.checkpoint.profile.refresh();
+                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+            });
+
+            describe('with permission', function () {
+                beforeEach(function () {
+                    binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                    binarta.checkpoint.profile.refresh();
+                });
+
+                it('request params', function () {
+                    expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                });
+
+                it('additional observer is also notified of current working status', function () {
+                    expect(ui.status).toHaveBeenCalledWith('working');
+                });
+
+                it('installing additional observers does not cause additional requests', function () {
+                    db.getDeliveryMethodParams.calls.reset();
+                    binarta.shop.deliveryMethods.observe(ui).disconnect();
+                    expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                });
+            });
+        });
+
+        describe('with permission', function () {
+            beforeEach(function () {
+                binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
+                binarta.checkpoint.profile.refresh();
+            });
+
+            it('params are still not requested', function () {
+                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+            });
+
+            describe('when installing an observer', function () {
+                beforeEach(function () {
+                    observer = binarta.shop.deliveryMethods.observe(ui);
+                });
+
+                afterEach(function () {
+                    observer.disconnect();
+                });
+
+                it('observers are immediately notified of the current working status', function () {
+                    expect(ui.status).toHaveBeenCalledWith('working');
+                });
+
+                it('observers are not yet notified of an active delivery method', function () {
+                    expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                });
+
+                it('params are requested', function () {
+                    expect(db.getDeliveryMethodParams).toHaveBeenCalled();
+                });
+
+                describe('installing additional observers', function () {
+                    var secondObserver;
+
                     beforeEach(function () {
-                        observer = binarta.shop.deliveryMethods.observe(ui);
+                        ui.status.calls.reset();
+                        db.getDeliveryMethodParams.calls.reset();
+                        secondObserver = binarta.shop.deliveryMethods.observe(ui);
                     });
 
                     afterEach(function () {
-                        observer.disconnect();
+                        secondObserver.disconnect();
                     });
 
-                    it('observers are immediately notified of the current idle status', function () {
+                    it('additional observer is also notified of current working status', function () {
+                        expect(ui.status).toHaveBeenCalledWith('working');
+                    });
+
+                    it('params are not requested again', function () {
+                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    });
+                });
+
+                describe('when params are received', function () {
+                    beforeEach(function () {
+                        ui.status.calls.reset();
+                        db.getDeliveryMethodParams.calls.mostRecent().args[1].success({
+                            active: 'shipping',
+                            supported: ['shipping', 'collect']
+                        });
+                    });
+
+                    it('observers are notified of the current idle status', function () {
                         expect(ui.status).toHaveBeenCalledWith('idle');
                     });
 
-                    it('observers are not yet notified of an active delivery method', function () {
-                        expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
+                    it('then observers are notified of the active delivery method', function () {
+                        expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
                     });
 
-                    it('params are still not requested', function () {
-                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                    it('then observers are notified of the supported delivery methods', function () {
+                        expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
                     });
 
-                    describe('installing additional observers', function () {
+                    describe('and installing additional observers', function () {
                         var secondObserver;
 
                         beforeEach(function () {
                             ui.status.calls.reset();
+                            ui.activeDeliveryMethod.calls.reset();
+                            ui.supportedDeliveryMethods.calls.reset();
                             secondObserver = binarta.shop.deliveryMethods.observe(ui);
                         });
 
@@ -2569,221 +2708,78 @@
                             expect(ui.status).toHaveBeenCalledWith('idle');
                         });
 
-                        it('params are still not requested', function () {
-                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
-                        });
-                    });
-
-                    describe('when an application profile is set', function () {
-                        beforeEach(function () {
-                            binarta.application.setProfile({activeDeliveryMethod: 'shipping'});
-                        });
-
-                        it('then observers are notified of the active delivery method', function () {
+                        it('additional observer is also notified of the active delivery method', function () {
                             expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
                         });
 
-                        it('additional observers are immediately notified of the previously discovered active delivery method', function () {
-                            ui.activeDeliveryMethod.calls.reset();
-                            binarta.shop.deliveryMethods.observe(ui).disconnect();
-                            expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
+                        it('additional observer is also notified of the supported delivery methods', function () {
+                            expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
                         });
                     });
 
-                    it('with the wrong permission do not request params', function () {
-                        binarta.checkpoint.gateway = new WithPermissionsGateway(['-']);
-                        binarta.checkpoint.profile.refresh();
-                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
-                    });
-
-                    describe('with permission', function () {
+                    describe('when activating a delivery method', function () {
                         beforeEach(function () {
-                            binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
-                            binarta.checkpoint.profile.refresh();
+                            binarta.shop.deliveryMethods.activate('collect');
                         });
 
-                        it('request params', function () {
-                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
-                        });
-
-                        it('additional observer is also notified of current working status', function () {
+                        it('observers are notified of the current working status', function () {
                             expect(ui.status).toHaveBeenCalledWith('working');
                         });
 
-                        it('installing additional observers does not cause additional requests', function () {
-                            db.getDeliveryMethodParams.calls.reset();
-                            binarta.shop.deliveryMethods.observe(ui).disconnect();
-                            expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
-                        });
-                    });
-                });
-
-                describe('with permission', function () {
-                    beforeEach(function () {
-                        binarta.checkpoint.gateway = new WithPermissionsGateway(['get.delivery.method.params']);
-                        binarta.checkpoint.profile.refresh();
-                    });
-
-                    it('params are still not requested', function () {
-                        expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
-                    });
-
-                    describe('when installing an observer', function () {
-                        beforeEach(function () {
-                            observer = binarta.shop.deliveryMethods.observe(ui);
+                        it('activation request is made', function () {
+                            expect(db.activateDeliveryMethod).toHaveBeenCalledWith({id: 'collect'}, jasmine.any(Object));
                         });
 
-                        afterEach(function () {
-                            observer.disconnect();
-                        });
-
-                        it('observers are immediately notified of the current working status', function () {
-                            expect(ui.status).toHaveBeenCalledWith('working');
-                        });
-
-                        it('observers are not yet notified of an active delivery method', function () {
-                            expect(ui.activeDeliveryMethod).not.toHaveBeenCalled();
-                        });
-
-                        it('params are requested', function () {
-                            expect(db.getDeliveryMethodParams).toHaveBeenCalled();
-                        });
-
-                        describe('installing additional observers', function () {
-                            var secondObserver;
-
+                        describe('on rejection', function () {
                             beforeEach(function () {
-                                ui.status.calls.reset();
-                                db.getDeliveryMethodParams.calls.reset();
-                                secondObserver = binarta.shop.deliveryMethods.observe(ui);
+                                db.activateDeliveryMethod.calls.mostRecent().args[1].rejected('validation-report');
                             });
 
-                            afterEach(function () {
-                                secondObserver.disconnect();
+                            it('observers are notified of the current rejected status', function () {
+                                expect(ui.status).toHaveBeenCalledWith('rejected');
                             });
 
-                            it('additional observer is also notified of current working status', function () {
-                                expect(ui.status).toHaveBeenCalledWith('working');
-                            });
-
-                            it('params are not requested again', function () {
-                                expect(db.getDeliveryMethodParams).not.toHaveBeenCalled();
+                            it('observers are notified of the validation report', function () {
+                                expect(ui.rejected).toHaveBeenCalledWith('validation-report');
                             });
                         });
 
-                        describe('when params are received', function () {
+                        describe('on success', function () {
                             beforeEach(function () {
-                                ui.status.calls.reset();
-                                db.getDeliveryMethodParams.calls.mostRecent().args[1].success({
-                                    active: 'shipping',
-                                    supported: ['shipping', 'collect']
-                                });
+                                db.activateDeliveryMethod.calls.mostRecent().args[1].success();
                             });
 
                             it('observers are notified of the current idle status', function () {
                                 expect(ui.status).toHaveBeenCalledWith('idle');
                             });
 
-                            it('then observers are notified of the active delivery method', function () {
-                                expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
-                            });
-
-                            it('then observers are notified of the supported delivery methods', function () {
-                                expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
-                            });
-
-                            describe('and installing additional observers', function () {
-                                var secondObserver;
-
-                                beforeEach(function () {
-                                    ui.status.calls.reset();
-                                    ui.activeDeliveryMethod.calls.reset();
-                                    ui.supportedDeliveryMethods.calls.reset();
-                                    secondObserver = binarta.shop.deliveryMethods.observe(ui);
-                                });
-
-                                afterEach(function () {
-                                    secondObserver.disconnect();
-                                });
-
-                                it('additional observer is also notified of current idle status', function () {
-                                    expect(ui.status).toHaveBeenCalledWith('idle');
-                                });
-
-                                it('additional observer is also notified of the active delivery method', function () {
-                                    expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('shipping');
-                                });
-
-                                it('additional observer is also notified of the supported delivery methods', function () {
-                                    expect(ui.supportedDeliveryMethods).toHaveBeenCalledWith(['shipping', 'collect']);
-                                });
-                            });
-
-                            describe('when activating a delivery method', function () {
-                                beforeEach(function () {
-                                    binarta.shop.deliveryMethods.activate('collect');
-                                });
-
-                                it('observers are notified of the current working status', function () {
-                                    expect(ui.status).toHaveBeenCalledWith('working');
-                                });
-
-                                it('activation request is made', function () {
-                                    expect(db.activateDeliveryMethod).toHaveBeenCalledWith({id: 'collect'}, jasmine.any(Object));
-                                });
-
-                                describe('on rejection', function () {
-                                    beforeEach(function () {
-                                        db.activateDeliveryMethod.calls.mostRecent().args[1].rejected('validation-report');
-                                    });
-
-                                    it('observers are notified of the current rejected status', function () {
-                                        expect(ui.status).toHaveBeenCalledWith('rejected');
-                                    });
-
-                                    it('observers are notified of the validation report', function () {
-                                        expect(ui.rejected).toHaveBeenCalledWith('validation-report');
-                                    });
-                                });
-
-                                describe('on success', function () {
-                                    beforeEach(function () {
-                                        db.activateDeliveryMethod.calls.mostRecent().args[1].success();
-                                    });
-
-                                    it('observers are notified of the current idle status', function () {
-                                        expect(ui.status).toHaveBeenCalledWith('idle');
-                                    });
-
-                                    it('observers are notified of the active delivery method', function () {
-                                        expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('collect');
-                                    });
-                                });
+                            it('observers are notified of the active delivery method', function () {
+                                expect(ui.activeDeliveryMethod).toHaveBeenCalledWith('collect');
                             });
                         });
                     });
                 });
             });
         });
+    });
+});
 
-        function UI() {
-            var self = this;
+function UI() {
+    var self = this;
 
-            this.wiredToGateway = function () {
-                self.isWiredToGateway = true;
-            };
+    this.wiredToGateway = function () {
+        self.isWiredToGateway = true;
+    };
 
-            this.initiatingBillingAgreement = function () {
-                this.isInitiatingBillingAgreement = true;
-            };
+    this.initiatingBillingAgreement = function () {
+        this.isInitiatingBillingAgreement = true;
+    };
 
-            this.canceledBillingAgreement = function () {
-                self.receivedCanceledBillingAgreementRequest = true;
-            };
+    this.canceledBillingAgreement = function () {
+        self.receivedCanceledBillingAgreementRequest = true;
+    };
 
-            this.confirmedBillingAgreement = function () {
-                self.confirmedBillingAgreementRequest = true;
-            }
-        }
-    })();
-})();
+    this.confirmedBillingAgreement = function () {
+        self.confirmedBillingAgreementRequest = true;
+    }
+}
