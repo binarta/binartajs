@@ -922,6 +922,8 @@ describe('binarta-shopjs', function () {
 
                 describe('and setting the payment provider', function () {
                     beforeEach(function () {
+                        this.onPaymentMethodChangeSpy = jasmine.createSpy();
+                        binarta.shop.checkout.eventRegistry.observe({onPaymentMethodChange: this.onPaymentMethodChangeSpy});
                         binarta.shop.checkout.setPaymentProvider('payment-provider');
                     });
 
@@ -933,6 +935,10 @@ describe('binarta-shopjs', function () {
                         binarta.shop.checkout.cancel();
                         binarta.shop.checkout.start(order, ['summary']);
                         expect(binarta.shop.checkout.getPaymentProvider()).toEqual('payment-provider');
+                    });
+
+                    it('then listeners can be notified of a payment method change', function() {
+                        expect(this.onPaymentMethodChangeSpy).toHaveBeenCalledWith('payment-provider');
                     });
                 });
 

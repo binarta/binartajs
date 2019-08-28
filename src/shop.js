@@ -375,9 +375,7 @@ function BinartaShopjs(checkpoint, deps) {
             ctx.unlockedSteps.push(ctx.currentStep);
             self.persist(ctx);
             new (stepDefinitions[ctx.currentStep])(self);
-            self.eventRegistry.forEach(function (l) {
-                l.goto(self.status());
-            });
+            self.eventRegistry.notify('goto', self.status());
         };
 
         this.cancel = function () {
@@ -439,7 +437,8 @@ function BinartaShopjs(checkpoint, deps) {
                 var ctx = fsm.context();
                 ctx.order.provider = provider;
                 fsm.persist(ctx);
-                shop.localStorage.setItem('binartaJSPaymentProvider', provider)
+                shop.localStorage.setItem('binartaJSPaymentProvider', provider);
+                fsm.eventRegistry.notify('onPaymentMethodChange', provider);
             };
             if (!fsm.getPaymentProvider())
                 if (shop.localStorage.getItem('binartaJSPaymentProvider'))
