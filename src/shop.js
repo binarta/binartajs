@@ -461,15 +461,22 @@ function BinartaShopjs(checkpoint, deps) {
                 });
             };
 
+            var ignoreDuplicateConfirmations = false;
             fsm.confirm = function (onSuccessListener) {
-                var ctx = fsm.context();
-                ctx.order.paymentProtocolVersion = '20190620';
-                delete ctx.summaryViolationReport;
-                fsm.persist(ctx);
-                shop.gateway.submitOrder(fsm.context().order, {
-                    success: onSuccess(onSuccessListener),
-                    rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), cacheViolationReport)
-                });
+                if (!ignoreDuplicateConfirmations) {
+                    ignoreDuplicateConfirmations = true;
+                    var ctx = fsm.context();
+                    ctx.order.paymentProtocolVersion = '20190620';
+                    delete ctx.summaryViolationReport;
+                    fsm.persist(ctx);
+                    shop.gateway.submitOrder(fsm.context().order, {
+                        success: onSuccess(onSuccessListener),
+                        rejected: proceedWhenPaymentProviderRequiresSetupOtherwise(next(onSuccessListener), function (report) {
+                            ignoreDuplicateConfirmations = false;
+                            cacheViolationReport(report);
+                        })
+                    });
+                }
             };
 
             function onSuccess(listener) {
@@ -491,7 +498,7 @@ function BinartaShopjs(checkpoint, deps) {
 
             function proceedWhenPaymentProviderRequiresSetupOtherwise(next, fallback) {
                 return function (report) {
-                    if (report && typeof(report) == 'object' && Object.keys(report).length == 1 && report.provider && report.provider[0] == 'setup' && fsm.isNextStep('setup-payment-provider')) {
+                    if (report && typeof (report) == 'object' && Object.keys(report).length == 1 && report.provider && report.provider[0] == 'setup' && fsm.isNextStep('setup-payment-provider')) {
                         next();
                     } else {
                         fallback(report);

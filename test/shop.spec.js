@@ -942,19 +942,41 @@ describe('binarta-shopjs', function () {
                     });
                 });
 
-                it('on confirmation the order can be rejected', function () {
-                    binarta.shop.gateway = new InvalidOrderGateway();
+                describe('on confirmation the order can be rejected', function () {
+                    beforeEach(function() {
+                        binarta.shop.gateway = new InvalidOrderGateway();
+                        binarta.shop.checkout.confirm();
+                    });
 
-                    binarta.shop.checkout.confirm();
+                    it('and a violation report is shown on the summary step', function() {
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                        expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    });
 
-                    expect(binarta.shop.checkout.status()).toEqual('summary');
-                    expect(binarta.shop.checkout.violationReport()).toEqual('violation-report');
+                    it('confirmation can be retried', function() {
+                        binarta.shop.gateway = new GatewaySpy();
+                        binarta.shop.checkout.confirm();
+                        expect(binarta.shop.gateway.submitOrderRequest).toBeDefined();
+                    });
                 });
 
-                it('when payment provider setup the only rejection reason proceed to next step', function () {
-                    binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                describe('when payment provider setup the only rejection reason', function () {
+                    beforeEach(function() {
+                        binarta.shop.gateway = new PaymentProviderRequiresSetupGateway();
+                        binarta.shop.checkout.confirm();
+                    });
+
+                    it('proceed to next step', function() {
+                        expect(binarta.shop.checkout.status()).toEqual('summary');
+                    });
+                });
+
+                it('while awaiting confirmation response further confirmation requests are ignored', function() {
+                    binarta.shop.gateway = new GatewaySpy();
                     binarta.shop.checkout.confirm();
-                    expect(binarta.shop.checkout.status()).toEqual('summary');
+                    binarta.shop.gateway = new GatewaySpy();
+                    binarta.shop.checkout.confirm();
+                    expect(binarta.shop.gateway.submitOrderRequest).toBeUndefined();
                 });
 
                 it('on confirmation the order can be accepted', function () {
@@ -970,6 +992,7 @@ describe('binarta-shopjs', function () {
                 it('on confirmation when the order is accepted and requires payment expose payment details on order', function () {
                     binarta.shop.gateway = new ValidOrderWithPaymentRequiredGateway();
                     binarta.shop.checkout.confirm();
+                    expect(binarta.shop.checkout.status()).toEqual('completed');
                     expect(binarta.shop.checkout.context().order.id).toEqual('order-id');
                     expect(binarta.shop.checkout.context().order.signingContext).toEqual({
                         institution: 'test-bank',
