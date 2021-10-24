@@ -8,7 +8,7 @@ module.exports = function (config) {
             {pattern: 'src/**/*.js'},
             {pattern: 'test/**/*.js'}
         ],
-        browsers: ['PhantomJS'],
+        browsers: ['ChromeHeadless'],
         reporters: ['dots', 'junit'],
         junitReporter: {
             outputFile: 'test-results.xml',
