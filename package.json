@@ -4,7 +4,7 @@
     "test:watch": "karma start karma.conf.js --browsers ChromeHeadless"
   },
   "devDependencies": {
-    "gulp": "^3.8.10",
+    "gulp": "^4.0.2",
     "jasmine-core": "^2.4.1",
     "karma": "^0.13.15",
     "karma-chrome-launcher": "^2.2.0",
